@@ -2,7 +2,7 @@
 
 export function VideoBackground({ src }: { src: string }) {
   return (
-    <div className="mt-24 sm:mt-32 w-full overflow-hidden">
+    <div className="w-full overflow-hidden">
       <video
         autoPlay
         loop
