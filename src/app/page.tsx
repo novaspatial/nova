@@ -21,6 +21,7 @@ import logoUnseal from '@/images/clients/unseal/logo-light.svg'
 import imageLaptop from '@/images/laptop.jpg'
 import { type CaseStudy, type MDXEntry, loadCaseStudies } from '@/lib/mdx'
 import { RootLayout } from '@/components/RootLayout'
+import { VideoBackground } from '@/components/VideoBackground'
 
 const clients = [
   ['Phobia', logoPhobiaLight],
@@ -183,6 +184,7 @@ export default async function Home() {
 
   return (
     <RootLayout>
+      <VideoBackground src="/videos/hero-bg.mp4" />
       <Container className="mt-24 sm:mt-32 md:mt-56">
         <FadeIn className="max-w-3xl">
           <h1 className="font-display text-5xl font-medium tracking-tight text-balance text-neutral-950 sm:text-7xl">
@@ -196,7 +198,7 @@ export default async function Home() {
         </FadeIn>
       </Container>
 
-      <Clients />
+      {/* <Clients /> */}
 
       <CaseStudies caseStudies={caseStudies} />
 
