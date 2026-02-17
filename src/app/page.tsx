@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <RootLayout videoSrc="/videos/hero-bg.mp4">
+    <RootLayout videoSrc="/nova/videos/hero-bg.mp4">
       <Container className="mt-12 sm:mt-16 md:mt-28">
         <FadeIn className="max-w-3xl">
           <HeroContent />
