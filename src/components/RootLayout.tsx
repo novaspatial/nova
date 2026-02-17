@@ -71,19 +71,19 @@ function Header({
           onMouseLeave={() => setLogoHovered(false)}
         >
           <Logomark
-            className="h-8 sm:hidden"
+            className="h-12 sm:hidden"
             invert={invert}
             filled={logoHovered}
           />
           <Logo
-            className="hidden h-8 sm:block"
+            className="hidden h-12 sm:block"
             invert={invert}
             filled={logoHovered}
           />
         </Link>
         <div className="flex items-center gap-x-8">
           <Button href="/contact" invert={invert}>
-            Contact us
+          Start Your Project Now  !
           </Button>
           <button
             ref={toggleRef}
@@ -92,17 +92,19 @@ function Header({
             aria-expanded={expanded ? 'true' : 'false'}
             aria-controls={panelId}
             className={clsx(
-              'group -m-2.5 rounded-full p-2.5 transition',
-              invert ? 'hover:bg-neutral-950/10' : 'hover:bg-white/10',
+              'group -m-2.5 rounded-full p-2.5 transition-all duration-300',
+              invert
+                ? 'hover:bg-neutral-950/10'
+                : 'hover:bg-violet-500/15 hover:shadow-lg hover:shadow-violet-500/25',
             )}
             aria-label="Toggle navigation"
           >
             <Icon
               className={clsx(
-                'h-6 w-6',
+                'h-8 w-8 transition-all duration-300',
                 invert
                   ? 'fill-neutral-950 group-hover:fill-neutral-700'
-                  : 'fill-white group-hover:fill-neutral-200',
+                  : 'fill-white drop-shadow-[0_0_8px_rgba(139,92,246,0.7)] group-hover:fill-violet-300 group-hover:drop-shadow-[0_0_12px_rgba(139,92,246,0.9)]',
               )}
             />
           </button>
@@ -132,10 +134,10 @@ function NavigationItem({
   return (
     <Link
       href={href}
-      className="group relative isolate -mx-6 bg-zinc-950 px-6 py-10 even:mt-px sm:mx-0 sm:px-0 sm:py-16 sm:odd:pr-16 sm:even:mt-0 sm:even:border-l sm:even:border-zinc-800 sm:even:pl-16"
+      className="group relative isolate -mx-6 bg-zinc-950 px-6 py-10 even:mt-px sm:mx-0 sm:px-0 sm:py-16 sm:odd:pr-16 sm:even:mt-0 sm:even:border-l sm:even:border-violet-500/20 sm:even:pl-16"
     >
       {children}
-      <span className="absolute inset-y-0 -z-10 w-screen bg-zinc-900 opacity-0 transition group-odd:right-0 group-even:left-0 group-hover:opacity-100" />
+      <span className="absolute inset-y-0 -z-10 w-screen bg-violet-950/30 opacity-0 transition group-odd:right-0 group-even:left-0 group-hover:opacity-100" />
     </Link>
   )
 }
@@ -213,7 +215,7 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
           aria-hidden={expanded ? undefined : 'true'}
           inert={expanded ? undefined : true}
         >
-          <motion.div layout className="bg-zinc-800">
+          <motion.div layout className="bg-violet-500/10">
             <div ref={navRef} className="bg-zinc-950 pt-14 pb-16">
               <Header
                 panelId={panelId}
@@ -230,7 +232,7 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
               />
             </div>
             <Navigation />
-            <div className="relative bg-zinc-950 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-zinc-800">
+            <div className="relative bg-zinc-950 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-violet-500/20">
               <Container>
                 <div className="grid grid-cols-1 gap-y-10 pt-10 pb-16 sm:grid-cols-2 sm:pt-16">
                   <div>
@@ -241,7 +243,7 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
                       className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-2"
                     />
                   </div>
-                  <div className="sm:border-l sm:border-transparent sm:pl-16">
+                  <div className="sm:border-l sm:border-violet-500/20 sm:pl-16">
                     <h2 className="font-display text-base font-semibold text-white">
                       Follow us
                     </h2>

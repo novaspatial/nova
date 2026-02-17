@@ -1,4 +1,3 @@
-import { ContactSection } from '@/components/ContactSection'
 import { Container } from '@/components/Container'
 import { FadeIn } from '@/components/FadeIn'
 import { MDXComponents } from '@/components/MDXComponents'
@@ -53,8 +52,6 @@ export default async function BlogArticleWrapper({
           pages={moreArticles}
         />
       )}
-
-      <ContactSection />
     </RootLayout>
   )
 }

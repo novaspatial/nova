@@ -71,14 +71,14 @@ export function FAQ() {
                     <span className="text-base/7 font-semibold">
                       {faq.question}
                     </span>
-                    <span className="ml-6 flex h-7 items-center">
+                    <span className="ml-6 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-900/60 via-violet-800/60 to-purple-900/60 text-white shadow-lg shadow-violet-500/30">
                       <PlusSmallIcon
                         aria-hidden="true"
-                        className="size-6 group-data-open:hidden"
+                        className="size-4 group-data-open:hidden"
                       />
                       <MinusSmallIcon
                         aria-hidden="true"
-                        className="size-6 group-[&:not([data-open])]:hidden"
+                        className="size-4 group-[&:not([data-open])]:hidden"
                       />
                     </span>
                   </DisclosureButton>

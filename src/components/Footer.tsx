@@ -37,7 +37,7 @@ function Navigation() {
             <div className="font-display text-sm font-semibold tracking-wider text-white">
               {section.title}
             </div>
-            <ul role="list" className="mt-4 text-sm text-neutral-400">
+            <ul role="list" className="mt-4 text-sm text-white/70">
               {section.links.map((link, linkIndex) => (
                 <li key={linkIndex} className="mt-4">
                   <Link
@@ -75,7 +75,7 @@ function NewsletterForm() {
       <h2 className="font-display text-sm font-semibold tracking-wider text-white">
         Sign up for our newsletter
       </h2>
-      <p className="mt-4 text-sm text-neutral-400">
+      <p className="mt-4 text-sm text-white/70">
         Subscribe to get the latest design news, articles, resources and
         inspiration.
       </p>
@@ -85,13 +85,13 @@ function NewsletterForm() {
           placeholder="Email address"
           autoComplete="email"
           aria-label="Email address"
-          className="block w-full rounded-2xl border border-neutral-600 bg-transparent py-4 pr-20 pl-6 text-base/6 text-white ring-4 ring-transparent transition placeholder:text-neutral-400 focus:border-white focus:ring-white/5 focus:outline-hidden"
+          className="block w-full rounded-2xl border border-white/20 bg-transparent py-4 pr-20 pl-6 text-base/6 text-white ring-4 ring-transparent transition placeholder:text-white/50 focus:border-violet-400 focus:ring-violet-500/10 focus:outline-hidden"
         />
         <div className="absolute inset-y-1 right-1 flex justify-end">
           <button
             type="submit"
             aria-label="Submit"
-            className="flex aspect-square h-full items-center justify-center rounded-xl bg-white text-neutral-950 transition hover:bg-neutral-200"
+            className="flex aspect-square h-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-900 via-violet-800 to-purple-900 text-white transition hover:from-indigo-950 hover:via-violet-900 hover:to-purple-950"
           >
             <ArrowIcon className="w-4" />
           </button>
@@ -111,11 +111,11 @@ export function Footer() {
             <NewsletterForm />
           </div>
         </div>
-        <div className="mt-24 mb-20 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-white/10 pt-12">
+        <div className="mt-24 mb-20 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-t border-violet-500/20 pt-12">
           <Link href="/" aria-label="Home">
             <Logo className="h-8" fillOnHover />
           </Link>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-white/70">
             © Studio Agency Inc. {new Date().getFullYear()}
           </p>
         </div>
