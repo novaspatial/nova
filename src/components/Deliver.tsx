@@ -1,10 +1,10 @@
 import { List, ListItem } from '@/components/List'
 import { Section } from '@/components/Section'
-import imageMeeting from '@/images/meeting.jpg'
+import mix from '@/images/mix.png'
 
 export function Deliver() {
   return (
-    <Section title="Deliver" image={{ src: imageMeeting, shape: 2 }}>
+    <Section title="Deliver" image={{ src: mix, shape: 2 }}>
       <div className="space-y-6 text-base text-neutral-600">
         <p>
           About halfway through the Build phase, we push each project out by 6
