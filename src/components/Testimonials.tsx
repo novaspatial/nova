@@ -40,24 +40,24 @@ export function Testimonials() {
                 className={
                   idx === 0
                     ? 'flex flex-col pb-10 sm:pb-16 lg:pr-8 lg:pb-0 xl:pr-20'
-                    : 'flex flex-col border-t border-neutral-950/10 pt-10 sm:pt-16 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8 xl:pl-20'
+                    : 'flex flex-col border-t border-white/10 pt-10 sm:pt-16 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8 xl:pl-20'
                 }
               >
                 <figure className="mt-10 flex flex-auto flex-col justify-between">
-                  <blockquote className="text-lg/8 text-neutral-950">
+                  <blockquote className="text-lg/8 text-white">
                     <p>{`"${testimonial.body}"`}</p>
                   </blockquote>
                   <figcaption className="mt-10 flex items-center gap-x-6">
                     <img
                       alt=""
                       src={testimonial.author.imageUrl}
-                      className="size-14 rounded-full bg-neutral-100"
+                      className="size-14 rounded-full bg-white/10"
                     />
                     <div className="text-base">
-                      <div className="font-semibold text-neutral-950">
+                      <div className="font-semibold text-white">
                         {testimonial.author.name}
                       </div>
-                      <div className="mt-1 text-neutral-600">
+                      <div className="mt-1 text-neutral-400">
                         {testimonial.author.role}
                       </div>
                     </div>

@@ -1,5 +1,5 @@
 .typography {
-  color: var(--color-neutral-950);
+  color: var(--color-neutral-300);
   font-size: var(--text-xl);
   line-height: var(--text-xl--line-height);
 
@@ -88,14 +88,14 @@
 
   :where(thead th) {
     padding-bottom: --spacing(6);
-    border-bottom: 1px solid var(--color-neutral-950);
+    border-bottom: 1px solid var(--color-white);
   }
 
   :where(td) {
     vertical-align: top;
     padding-top: --spacing(6);
     padding-bottom: --spacing(6);
-    border-bottom: 1px solid --theme(--color-neutral-950 / 0.1);
+    border-bottom: 1px solid --theme(--color-white / 0.1);
   }
 
   :where(:is(th, td):not(:last-child)) {
@@ -105,7 +105,7 @@
   /* Code blocks */
   :where(pre) {
     display: flex;
-    background-color: var(--color-neutral-950);
+    background-color: var(--color-neutral-900);
     border-radius: var(--radius-4xl);
     overflow-x: auto;
     margin-top: --spacing(10);
@@ -133,7 +133,7 @@
 
   /* <hr> */
   :where(hr) {
-    border-color: --theme(--color-neutral-950 / 0.1);
+    border-color: --theme(--color-white / 0.1);
     margin-top: --spacing(24);
     margin-bottom: --spacing(24);
   }

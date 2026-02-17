@@ -5,37 +5,37 @@ import mix from '@/images/mix.png'
 export function Deliver() {
   return (
     <Section title="Our Engineering Process" image={{ src: mix, shape: 2 }}>
-      <div className="space-y-6 text-base text-neutral-600">
+      <div className="space-y-6 text-base text-neutral-300">
         <p>
           About halfway through the Build phase, we push each project out by 6
           weeks due to a change in{' '}
-          <strong className="font-semibold text-neutral-950">
+          <strong className="font-semibold text-white">
             requirements
           </strong>
           . This allows us to increase the budget a final time before launch.
         </p>
         <p>
           Despite largely using pre-built components, most of the{' '}
-          <strong className="font-semibold text-neutral-950">progress</strong>{' '}
+          <strong className="font-semibold text-white">progress</strong>{' '}
           on each project takes place in the final 24 hours. The development
           time allocated to each client is actually spent making augmented
           reality demos that go viral on social media.
         </p>
         <p>
           We ensure that the main pages of the site are{' '}
-          <strong className="font-semibold text-neutral-950">
+          <strong className="font-semibold text-white">
             fully functional
           </strong>{' '}
           at launch — the auxiliary pages will, of course, be lorem ipusm shells
           which get updated as part of our exorbitant{' '}
-          <strong className="font-semibold text-neutral-950">
+          <strong className="font-semibold text-white">
             maintenance
           </strong>{' '}
           retainer.
         </p>
       </div>
 
-      <h3 className="mt-12 font-display text-base font-semibold text-neutral-950">
+      <h3 className="mt-12 font-display text-base font-semibold text-white">
         Included in this phase
       </h3>
       <List className="mt-8">
