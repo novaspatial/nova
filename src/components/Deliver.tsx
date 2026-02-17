@@ -4,7 +4,7 @@ import mix from '@/images/mix.png'
 
 export function Deliver() {
   return (
-    <Section title="Deliver" image={{ src: mix, shape: 2 }}>
+    <Section title="Our Engineering Process" image={{ src: mix, shape: 2 }}>
       <div className="space-y-6 text-base text-neutral-600">
         <p>
           About halfway through the Build phase, we push each project out by 6
