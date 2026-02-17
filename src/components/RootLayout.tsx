@@ -93,7 +93,7 @@ function Header({
             aria-controls={panelId}
             className={clsx(
               'group -m-2.5 rounded-full p-2.5 transition',
-              invert ? 'hover:bg-white/10' : 'hover:bg-neutral-950/10',
+              invert ? 'hover:bg-neutral-950/10' : 'hover:bg-white/10',
             )}
             aria-label="Toggle navigation"
           >
@@ -101,8 +101,8 @@ function Header({
               className={clsx(
                 'h-6 w-6',
                 invert
-                  ? 'fill-white group-hover:fill-neutral-200'
-                  : 'fill-neutral-950 group-hover:fill-neutral-700',
+                  ? 'fill-neutral-950 group-hover:fill-neutral-700'
+                  : 'fill-white group-hover:fill-neutral-200',
               )}
             />
           </button>
@@ -216,7 +216,6 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
           <motion.div layout className="bg-neutral-800">
             <div ref={navRef} className="bg-neutral-950 pt-14 pb-16">
               <Header
-                invert
                 panelId={panelId}
                 icon={XIcon}
                 toggleRef={closeRef}
@@ -239,7 +238,6 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
                       Our offices
                     </h2>
                     <Offices
-                      invert
                       className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-2"
                     />
                   </div>
@@ -247,7 +245,7 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
                     <h2 className="font-display text-base font-semibold text-white">
                       Follow us
                     </h2>
-                    <SocialMedia className="mt-6" invert />
+                    <SocialMedia className="mt-6" />
                   </div>
                 </div>
               </Container>
@@ -261,14 +259,14 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
       <motion.div
         layout
         style={{ borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
-        className="relative flex flex-auto overflow-hidden bg-white pt-14"
+        className="relative flex flex-auto overflow-hidden bg-zinc-950 pt-14"
       >
         <motion.div
           layout
           className="relative isolate flex w-full flex-col pt-9"
         >
           <GridPattern
-            className="absolute inset-x-0 -top-14 -z-10 h-[1000px] w-full mask-[linear-gradient(to_bottom_left,white_40%,transparent_50%)] fill-neutral-50 stroke-neutral-950/5"
+            className="absolute inset-x-0 -top-14 -z-10 h-[1000px] w-full mask-[linear-gradient(to_bottom_left,white_40%,transparent_50%)] fill-white/5 stroke-white/10"
             yOffset={-96}
             interactive
           />

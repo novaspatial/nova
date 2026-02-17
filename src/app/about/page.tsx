@@ -31,7 +31,6 @@ function Culture() {
       <SectionIntro
         eyebrow="Our culture"
         title="Balance your passion with your passion for life."
-        invert
       >
         <p>
           We are a group of like-minded people who share the same core values.
@@ -39,15 +38,15 @@ function Culture() {
       </SectionIntro>
       <Container className="mt-16">
         <GridList>
-          <GridListItem title="Loyalty" invert>
+          <GridListItem title="Loyalty">
             Our team has been with us since the beginning because none of them
             are allowed to have LinkedIn profiles.
           </GridListItem>
-          <GridListItem title="Trust" invert>
+          <GridListItem title="Trust">
             We don’t care when our team works just as long as they are working
             every waking second.
           </GridListItem>
-          <GridListItem title="Compassion" invert>
+          <GridListItem title="Compassion">
             You never know what someone is going through at home and we make
             sure to never find out.
           </GridListItem>
@@ -139,7 +138,7 @@ function Team() {
             <Border as={FadeIn} />
             <div className="grid grid-cols-1 gap-6 pt-12 sm:pt-16 lg:grid-cols-4 xl:gap-8">
               <FadeIn>
-                <h2 className="font-display text-2xl font-semibold text-neutral-950">
+                <h2 className="font-display text-2xl font-semibold text-white">
                   {group.title}
                 </h2>
               </FadeIn>
@@ -151,7 +150,7 @@ function Team() {
                   {group.people.map((person) => (
                     <li key={person.name}>
                       <FadeIn>
-                        <div className="group relative overflow-hidden rounded-3xl bg-neutral-100">
+                        <div className="group relative overflow-hidden rounded-3xl bg-white/10">
                           <Image
                             alt=""
                             {...person.image}

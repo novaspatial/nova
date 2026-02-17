@@ -13,7 +13,7 @@ export function ContactSection() {
               Tell us about your project
             </h2>
             <div className="mt-6 flex">
-              <Button href="/contact" invert>
+              <Button href="/contact">
                 Say Hej
               </Button>
             </div>
@@ -22,7 +22,6 @@ export function ContactSection() {
                 Our offices
               </h3>
               <Offices
-                invert
                 className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-2"
               />
             </div>

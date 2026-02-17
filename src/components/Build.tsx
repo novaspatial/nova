@@ -5,7 +5,7 @@ import composition from '@/images/composition.png'
 export function Build() {
   return (
     <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
-      <div className="space-y-6 text-base text-neutral-600">
+      <div className="space-y-6 text-base text-neutral-300">
         <p>
           Based off of the discovery phase, we develop a comprehensive roadmap
           for each product and start working towards delivery. The roadmap is an

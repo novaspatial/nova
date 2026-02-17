@@ -59,7 +59,7 @@ export function FAQ() {
 
       <Container className="mt-16">
         <FadeIn>
-          <dl className="divide-y divide-neutral-950/10">
+          <dl className="divide-y divide-white/10">
             {faqs.map((faq) => (
               <Disclosure
                 key={faq.question}
@@ -67,7 +67,7 @@ export function FAQ() {
                 className="py-6 first:pt-0 last:pb-0"
               >
                 <dt>
-                  <DisclosureButton className="group flex w-full items-start justify-between text-left text-neutral-950">
+                  <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
                     <span className="text-base/7 font-semibold">
                       {faq.question}
                     </span>
@@ -84,7 +84,7 @@ export function FAQ() {
                   </DisclosureButton>
                 </dt>
                 <DisclosurePanel as="dd" className="mt-2 pr-12">
-                  <p className="text-base/7 text-neutral-600">
+                  <p className="text-base/7 text-neutral-300">
                     {faq.answer}
                   </p>
                 </DisclosurePanel>
