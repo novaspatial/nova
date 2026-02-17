@@ -40,4 +40,19 @@
   --font-display--font-variation-settings: 'wdth' 125;
 
   --font-display-length: 2;
+
+  --animate-marquee: marquee 40s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - 3.5rem));
+  }
+}
+
+@utility pause {
+  animation-play-state: paused;
 }
