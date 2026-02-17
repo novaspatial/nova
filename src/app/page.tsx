@@ -6,6 +6,7 @@ import { Discover } from '@/components/Discover'
 import { FadeIn } from '@/components/FadeIn'
 import { RootLayout } from '@/components/RootLayout'
 import { FAQ } from '@/components/FAQ'
+import { HeroContent } from '@/components/HeroContent'
 import { WorkClients } from '@/components/WorkClients'
 
 export const metadata: Metadata = {
@@ -16,16 +17,9 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <RootLayout videoSrc="/videos/hero-bg.mp4">
-      <Container className="mt-24 sm:mt-32 md:mt-56">
+      <Container className="mt-12 sm:mt-16 md:mt-28">
         <FadeIn className="max-w-3xl">
-          <h1 className="font-display text-5xl font-medium tracking-tight text-balance text-neutral-950 sm:text-7xl">
-            Start your Atmos mix with Spatial Tone Lock
-          </h1>
-          <p className="mt-6 text-xl text-neutral-600">
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-          </p>
+          <HeroContent />
         </FadeIn>
       </Container>
       <WorkClients />
