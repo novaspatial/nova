@@ -20,6 +20,29 @@ function Block({
   )
 }
 
+function HoveredBlock({
+  x,
+  y,
+  gradientId,
+  onAnimationComplete,
+}: {
+  x: number
+  y: number
+  gradientId: string
+  onAnimationComplete: () => void
+}) {
+  return (
+    <motion.path
+      transform={`translate(${-32 * y + 96 * x} ${160 * y})`}
+      d="M45.119 4.5a11.5 11.5 0 0 0-11.277 9.245l-25.6 128C6.82 148.861 12.262 155.5 19.52 155.5h63.366a11.5 11.5 0 0 0 11.277-9.245l25.6-128c1.423-7.116-4.02-13.755-11.277-13.755H45.119Z"
+      fill={`url(#${gradientId})`}
+      animate={{ opacity: [0, 0.8, 0] }}
+      transition={{ duration: 1.3, times: [0, 0.15, 1] }}
+      onAnimationComplete={onAnimationComplete}
+    />
+  )
+}
+
 export function GridPattern({
   yOffset = 0,
   interactive = false,
@@ -89,20 +112,28 @@ export function GridPattern({
     }
   }, [yOffset, interactive])
 
+  let hoveredGradientId = `${id}-hovered-gradient`
+  let staticGradientId = `${id}-static-gradient`
+
   return (
     <svg ref={ref} aria-hidden="true" {...props}>
       <rect width="100%" height="100%" fill={`url(#${id})`} strokeWidth="0" />
       <svg x="50%" y={yOffset} strokeWidth="0" className="overflow-visible">
         {staticBlocks.map((block) => (
-          <Block key={`${block}`} x={block[0]} y={block[1]} />
+          <Block
+            key={`${block}`}
+            x={block[0]}
+            y={block[1]}
+            fill={`url(#${staticGradientId})`}
+            style={{ opacity: 0.12 }}
+          />
         ))}
         {hoveredBlocks.map((block) => (
-          <Block
+          <HoveredBlock
             key={block[2]}
             x={block[0]}
             y={block[1]}
-            animate={{ opacity: [0, 1, 0] }}
-            transition={{ duration: 1, times: [0, 0, 1] }}
+            gradientId={hoveredGradientId}
             onAnimationComplete={() => {
               setHoveredBlocks((blocks) =>
                 blocks.filter((b) => b[2] !== block[2]),
@@ -112,6 +143,17 @@ export function GridPattern({
         ))}
       </svg>
       <defs>
+        <linearGradient id={hoveredGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#131134" />
+          <stop offset="35%" stopColor="#1c0b39" />
+          <stop offset="65%" stopColor="#220b35" />
+          <stop offset="100%" stopColor="#2c082e" />
+        </linearGradient>
+        <linearGradient id={staticGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#1e1b4b" />
+          <stop offset="50%" stopColor="#2e1065" />
+          <stop offset="100%" stopColor="#4a044e" />
+        </linearGradient>
         <pattern
           id={id}
           width="96"
