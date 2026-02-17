@@ -4,7 +4,7 @@ import composition from '@/images/composition.png'
 
 export function Build() {
   return (
-    <Section title="Build" image={{ src: composition, shape: 1 }}>
+    <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
       <div className="space-y-6 text-base text-neutral-600">
         <p>
           Based off of the discovery phase, we develop a comprehensive roadmap

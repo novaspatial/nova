@@ -7,6 +7,7 @@ import { FadeIn } from '@/components/FadeIn'
 import { RootLayout } from '@/components/RootLayout'
 import { FAQ } from '@/components/FAQ'
 import { HeroContent } from '@/components/HeroContent'
+import { Testimonials } from '@/components/Testimonials'
 import { WorkClients } from '@/components/WorkClients'
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function Home() {
         <Build />
         <Deliver />
       </div>
+      <Testimonials />
 
       <FAQ />
     </RootLayout>

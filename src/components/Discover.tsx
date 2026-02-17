@@ -4,7 +4,7 @@ import nova from '@/images/nova.png'
 
 export function Discover() {
   return (
-    <Section title="Discover" image={{ src: nova }}>
+    <Section title="What Makes It Unique" image={{ src: nova }}>
       <div className="space-y-6 text-base text-neutral-600">
         <p>
           We work closely with our clients to understand their{' '}
