@@ -56,8 +56,18 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
     const messages: string[] = []
 
-    // Password validation (only if user filled in password fields)
+    const nameChanged = displayName !== (profile?.display_name ?? '')
+    const emailChanged = newEmail !== profile?.email
     const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0
+
+    if (!nameChanged && !emailChanged && !wantsPasswordChange) {
+      setFeedback({ type: 'error', message: 'No changes to save.' })
+      setLoading(false)
+      setTimeout(() => setFeedback(null), 3000)
+      return
+    }
+
+    // Password validation
     if (wantsPasswordChange) {
       if (newPassword.length < 6) {
         setFeedback({
@@ -77,24 +87,34 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
       }
     }
 
-    // Update display name in profiles table
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        display_name: displayName,
-        updated_at: new Date().toISOString(),
+    if (nameChanged) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          display_name: displayName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile?.id)
+
+      if (profileError) {
+        setFeedback({ type: 'error', message: profileError.message })
+        setLoading(false)
+        return
+      }
+
+      // Sync display name to auth user metadata so the navbar updates
+      const { error: metaError } = await supabase.auth.updateUser({
+        data: { full_name: displayName },
       })
-      .eq('id', profile?.id)
 
-    if (profileError) {
-      setFeedback({ type: 'error', message: profileError.message })
-      setLoading(false)
-      return
+      if (metaError) {
+        setFeedback({ type: 'error', message: metaError.message })
+        setLoading(false)
+        return
+      }
+      messages.push('Profile updated')
     }
-    messages.push('Profile updated')
 
-    // Update email if changed
-    const emailChanged = newEmail !== profile?.email
     if (emailChanged) {
       const { error: emailError } = await supabase.auth.updateUser({
         email: newEmail,
@@ -107,7 +127,6 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
       messages.push('confirmation email sent to verify new address')
     }
 
-    // Update password if provided
     if (wantsPasswordChange) {
       const { error: pwError } = await supabase.auth.updateUser({
         password: newPassword,
