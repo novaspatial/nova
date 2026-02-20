@@ -3,6 +3,8 @@
 @import './typography.css' layer(components);
 
 @theme {
+  --breakpoint-3xl: 87.5rem;
+
   --text-*: initial;
   --text-xs: 0.75rem;
   --text-xs--line-height: 1rem;
@@ -26,6 +28,10 @@
   --text-6xl--line-height: 3.5rem;
   --text-7xl: 4rem;
   --text-7xl--line-height: 4.5rem;
+  --text-8xl: 6rem;
+  --text-8xl--line-height: 1;
+  --text-9xl: 8rem;
+  --text-9xl--line-height: 1;
 
   --radius-4xl: 2.5rem;
 

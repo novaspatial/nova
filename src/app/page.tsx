@@ -18,12 +18,14 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <RootLayout videoSrc="/videos/hero-bg.mp4">
-      <Container className="mt-12 sm:mt-16 md:mt-28">
-        <FadeIn className="max-w-3xl">
+      <Container className="mt-16 sm:mt-24 md:mt-36 xl:mt-44 3xl:mt-56">
+        <FadeIn className="max-w-3xl xl:max-w-4xl 3xl:max-w-5xl">
           <HeroContent />
         </FadeIn>
       </Container>
-      <WorkClients />
+      <div className="mt-28 mb-32 sm:mt-52 sm:mb-52 xl:mt-72 xl:mb-72 3xl:mt-96 3xl:mb-96">
+        <WorkClients />
+      </div>
 
 
       <div className="mt-24 space-y-24 [counter-reset:section] sm:mt-32 sm:space-y-32 lg:mt-40 lg:space-y-40">
