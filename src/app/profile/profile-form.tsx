@@ -11,40 +11,123 @@ type Profile = {
   avatar_url: string | null
 }
 
+type FeedbackState = {
+  type: 'success' | 'error'
+  message: string
+} | null
+
+const inputClassName =
+  'mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500'
+
+function Feedback({ state }: { state: FeedbackState }) {
+  if (!state) return null
+  const isError = state.type === 'error'
+  return (
+    <div
+      className={`rounded-lg border px-4 py-3 text-sm ${
+        isError
+          ? 'border-red-500/20 bg-red-500/10 text-red-300'
+          : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+      }`}
+    >
+      {state.message}
+    </div>
+  )
+}
+
 export function ProfileForm({ profile }: { profile: Profile | null }) {
+  const router = useRouter()
+  const supabase = createClient()
+
   const [displayName, setDisplayName] = useState(
     profile?.display_name ?? '',
   )
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '')
+  const [newEmail, setNewEmail] = useState(profile?.email ?? '')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
   const [loading, setLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
+  const [feedback, setFeedback] = useState<FeedbackState>(null)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError(null)
-    setSaved(false)
+    setFeedback(null)
 
-    const { error } = await supabase
+    const messages: string[] = []
+
+    // Password validation (only if user filled in password fields)
+    const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0
+    if (wantsPasswordChange) {
+      if (newPassword.length < 6) {
+        setFeedback({
+          type: 'error',
+          message: 'Password must be at least 6 characters.',
+        })
+        setLoading(false)
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setFeedback({
+          type: 'error',
+          message: 'Passwords do not match.',
+        })
+        setLoading(false)
+        return
+      }
+    }
+
+    // Update display name in profiles table
+    const { error: profileError } = await supabase
       .from('profiles')
       .update({
         display_name: displayName,
-        avatar_url: avatarUrl || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', profile?.id)
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setSaved(true)
-      router.refresh()
-      setTimeout(() => setSaved(false), 3000)
+    if (profileError) {
+      setFeedback({ type: 'error', message: profileError.message })
+      setLoading(false)
+      return
+    }
+    messages.push('Profile updated')
+
+    // Update email if changed
+    const emailChanged = newEmail !== profile?.email
+    if (emailChanged) {
+      const { error: emailError } = await supabase.auth.updateUser({
+        email: newEmail,
+      })
+      if (emailError) {
+        setFeedback({ type: 'error', message: emailError.message })
+        setLoading(false)
+        return
+      }
+      messages.push('confirmation email sent to verify new address')
     }
 
+    // Update password if provided
+    if (wantsPasswordChange) {
+      const { error: pwError } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+      if (pwError) {
+        setFeedback({ type: 'error', message: pwError.message })
+        setLoading(false)
+        return
+      }
+      setNewPassword('')
+      setConfirmPassword('')
+      messages.push('password changed')
+    }
+
+    setFeedback({
+      type: 'success',
+      message: messages.join(', ') + '.',
+    })
+    router.refresh()
+    setTimeout(() => setFeedback(null), 5000)
     setLoading(false)
   }
 
@@ -56,52 +139,95 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
   return (
     <div>
-      <form onSubmit={handleSave} className="space-y-6">
-        <div>
-          <label
-            htmlFor="displayName"
-            className="block text-sm font-medium text-zinc-300"
-          >
-            Display Name
-          </label>
-          <input
-            id="displayName"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-            placeholder="Your name"
-          />
+      <form onSubmit={handleSave} className="space-y-8">
+        {/* Display Name */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-white">Display Name</h3>
+          <div>
+            <label
+              htmlFor="displayName"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Name
+            </label>
+            <input
+              id="displayName"
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={inputClassName}
+              placeholder="Your name"
+            />
+          </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="avatarUrl"
-            className="block text-sm font-medium text-zinc-300"
-          >
-            Avatar URL
-          </label>
-          <input
-            id="avatarUrl"
-            type="url"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-            placeholder="https://example.com/avatar.jpg"
-          />
+        <div className="border-t border-white/10" />
+
+        {/* Email */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-white">Email Address</h3>
+          <div>
+            <label
+              htmlFor="newEmail"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Email
+            </label>
+            <input
+              id="newEmail"
+              type="email"
+              required
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className={inputClassName}
+              placeholder="you@example.com"
+            />
+          </div>
         </div>
 
-        {error && (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {error}
-          </div>
-        )}
+        <div className="border-t border-white/10" />
 
-        {saved && (
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            Profile updated successfully.
+        {/* Password */}
+        <div className="space-y-4">
+          <h3 className="text-base font-semibold text-white">Change Password</h3>
+          <p className="text-sm text-zinc-500">
+            Leave blank to keep your current password.
+          </p>
+          <div>
+            <label
+              htmlFor="newPassword"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              New password
+            </label>
+            <input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={inputClassName}
+              placeholder="At least 6 characters"
+            />
           </div>
-        )}
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-zinc-300"
+            >
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className={inputClassName}
+              placeholder="Re-enter new password"
+            />
+          </div>
+        </div>
+
+        <Feedback state={feedback} />
 
         <button
           type="submit"
