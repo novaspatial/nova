@@ -80,6 +80,7 @@ export default function LoginPage() {
 
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault()
+    if (!supabase) return
     setLoading(true)
     setError(null)
     setMessage(null)
@@ -114,6 +115,7 @@ export default function LoginPage() {
   }
 
   async function handleSocialLogin(provider: 'google' | 'apple') {
+    if (!supabase) return
     setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
