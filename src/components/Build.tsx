@@ -5,7 +5,7 @@ import composition from '@/images/composition.png'
 export function Build() {
   return (
     <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
-      <div className="space-y-6 text-base text-neutral-300">
+      <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-neutral-300">
         <p>
           Based off of the discovery phase, we develop a comprehensive roadmap
           for each product and start working towards delivery. The roadmap is an
@@ -29,7 +29,7 @@ export function Build() {
 
       <Blockquote
         author={{ name: 'Debra Fiscal', role: 'CEO of Unseal' }}
-        className="mt-12"
+        className="mt-8 sm:mt-12 3xl:mt-16"
       >
         Studio were so regular with their progress updates we almost began to
         think they were automated!

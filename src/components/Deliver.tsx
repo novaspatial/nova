@@ -5,7 +5,7 @@ import mix from '@/images/mix.png'
 export function Deliver() {
   return (
     <Section title="Our Engineering Process" image={{ src: mix, shape: 2 }}>
-      <div className="space-y-6 text-base text-neutral-300">
+      <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-neutral-300">
         <p>
           About halfway through the Build phase, we push each project out by 6
           weeks due to a change in{' '}
@@ -35,10 +35,10 @@ export function Deliver() {
         </p>
       </div>
 
-      <h3 className="mt-12 font-display text-base font-semibold text-white">
+      <h3 className="mt-8 sm:mt-12 3xl:mt-16 font-display text-sm sm:text-base 3xl:text-lg font-semibold text-white">
         Included in this phase
       </h3>
-      <List className="mt-8">
+      <List className="mt-6 sm:mt-8">
         <ListItem title="Testing">
           Our projects always have 100% test coverage, which would be impressive
           if our tests weren't as porous as a sieve.
