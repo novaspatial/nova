@@ -12,7 +12,7 @@ export function HeroContent() {
   return (
     <>
       <h1 className="font-display text-2xl font-bold tracking-[-0.08em] text-white sm:text-4xl lg:text-6xl xl:text-7xl">
-        Start your Atmos mix with Spatial Tone Lock
+        Start your Atmos with <br/> Spatial Tone Lock
       </h1>
       <p className="mt-3 sm:mt-6 xl:mt-8 max-w-xs sm:max-w-xl xl:max-w-3xl text-xs sm:text-lg xl:text-2xl text-neutral-300">
         Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.

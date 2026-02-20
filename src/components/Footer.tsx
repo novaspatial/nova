@@ -95,7 +95,7 @@ function NewsletterForm() {
 
 export function Footer() {
   return (
-    <Container as="footer" className="mt-10 w-full sm:mt-24 lg:mt-40">
+    <Container as="footer" className="mt-10 w-full sm:mt-24 lg:mt-16">
       <FadeIn>
         <div className="grid grid-cols-1 gap-x-8 gap-y-10 sm:gap-y-16 lg:grid-cols-2">
           <Navigation />

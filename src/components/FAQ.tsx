@@ -45,10 +45,10 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <div className="mt-24 mb-24 sm:mt-40 sm:mb-40 xl:mt-56 xl:mb-56 3xl:mt-72 3xl:mb-72">
+    <div className="mt-24 mb-24 sm:mt-40 sm:mb-40 xl:mt-56 xl:mb-28 3xl:mt-72 3xl:mb-36">
       <Container className="mt-6 sm:mt-16">
         <FadeIn>
-          <div className="xl:max-w-4xl 3xl:max-w-5xl mx-auto">
+          <div className="xl:max-w-4xl 3xl:max-w-5xl mx-auto text-center">
             <h2>
               <span className="mb-4 sm:mb-6 3xl:mb-8 block font-display text-xs sm:text-base 3xl:text-lg font-semibold text-white">
                 FAQ
@@ -62,7 +62,7 @@ export function FAQ() {
               out to our team.
             </p>
           </div>
-          <dl className="mt-6 sm:mt-16 xl:max-w-4xl 3xl:max-w-5xl mx-auto divide-y divide-white/10">
+          <dl className="mt-6 sm:mt-16 max-w-xl sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl mx-auto divide-y divide-white/10">
             {faqs.map((faq) => (
               <Disclosure
                 key={faq.question}
@@ -71,10 +71,10 @@ export function FAQ() {
               >
                 <dt>
                   <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
-                    <span className="text-[10px]/4 sm:text-base/7 3xl:text-lg/8 font-semibold">
+                    <span className="text-[10px]/4 sm:text-base/7 3xl:text-lg/8 font-semibold transition-colors duration-200 group-hover:text-neutral-300">
                       {faq.question}
                     </span>
-                    <span className="ml-3 sm:ml-6 flex h-4 w-4 sm:h-7 sm:w-7 3xl:h-9 3xl:w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-indigo-900/60 via-violet-800/60 to-purple-900/60 text-white shadow-lg shadow-violet-500/30">
+                    <span className="ml-3 sm:ml-6 flex h-4 w-4 sm:h-7 sm:w-7 3xl:h-9 3xl:w-9 shrink-0 items-center justify-center rounded-full bg-zinc-800/90 ring-1 ring-white/10 text-white transition-all duration-200 group-hover:bg-zinc-700/90 group-hover:ring-white/25 group-hover:scale-110">
                       <PlusSmallIcon
                         aria-hidden="true"
                         className="size-2.5 sm:size-4 3xl:size-5 group-data-open:hidden"
