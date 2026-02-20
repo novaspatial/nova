@@ -12,7 +12,7 @@ export function List({
 }) {
   return (
     <FadeInStagger>
-      <ul role="list" className={clsx('text-base text-neutral-300', className)}>
+      <ul role="list" className={clsx('text-xs sm:text-base 3xl:text-lg text-neutral-300', className)}>
         {children}
       </ul>
     </FadeInStagger>
@@ -27,7 +27,7 @@ export function ListItem({
   title?: string
 }) {
   return (
-    <li className="group mt-10 first:mt-0">
+    <li className="group mt-8 first:mt-0 sm:mt-10 3xl:mt-12">
       <FadeIn>
         <Border className="pt-10 group-first:pt-0 group-first:before:hidden group-first:after:hidden">
           {title && (

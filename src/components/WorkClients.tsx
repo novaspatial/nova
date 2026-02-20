@@ -27,12 +27,12 @@ export function WorkClients() {
   return (
     <Container className="mt-24 sm:mt-32 lg:mt-40">
       <FadeIn>
-        <h2 className="font-display text-2xl font-semibold text-white">
+        <h2 className="font-display text-base font-bold tracking-tight text-white sm:text-2xl xl:text-4xl 3xl:text-6xl">
           Trusted by Industry Giants
         </h2>
       </FadeIn>
       <FadeIn>
-        <div className="group relative mt-10 overflow-hidden border-t border-neutral-700 pt-12">
+        <div className="group relative mt-2 sm:mt-10 overflow-hidden border-t border-neutral-700 pt-2 sm:pt-12">
           {/* Fade edges */}
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-linear-to-r from-gray-950 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-linear-to-l from-gray-950 to-transparent" />
@@ -47,13 +47,14 @@ export function WorkClients() {
                 {workClients.map(([client, logo]) => (
                   <div
                     key={client}
-                    className="flex w-42 shrink-0 items-center justify-center"
+                    className="relative h-8 w-42 sm:h-10 sm:w-48 xl:h-14 xl:w-60 3xl:h-24 3xl:w-96 shrink-0"
                   >
                     <Image
                       src={logo}
                       alt={client as string}
+                      fill
                       unoptimized
-                      className="max-h-12 w-auto"
+                      className="object-contain"
                     />
                   </div>
                 ))}
