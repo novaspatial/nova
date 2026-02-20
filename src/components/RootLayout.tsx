@@ -251,7 +251,7 @@ function UserMenu() {
 
       <MenuItems
         transition
-        className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-xl border border-white/10 bg-zinc-900/95 p-1 shadow-xl shadow-black/20 backdrop-blur-sm transition data-closed:scale-95 data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+        className="absolute right-0 z-50 mt-2 w-32 origin-top-right rounded-xl border border-white/10 bg-zinc-900/95 p-1 shadow-xl shadow-black/20 backdrop-blur-sm transition data-closed:scale-95 data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
       >
         <MenuItem>
           <Link
