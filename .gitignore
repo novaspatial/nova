@@ -53,6 +53,7 @@ pnpm-debug.log*
 # ==============================
 # Editors & IDEs
 # ==============================
+.cursor/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
@@ -89,6 +90,11 @@ Desktop.ini
 # ==============================
 .eslintcache
 .prettiercache
+
+# ==============================
+# Supabase
+# ==============================
+supabase/.temp/
 
 # ==============================
 # Misc
