@@ -42,6 +42,9 @@
   --font-display-length: 2;
 
   --animate-marquee: marquee 40s linear infinite;
+  --animate-border-flow: border-flow 4s linear infinite;
+  --animate-nav-highlight: nav-highlight 3s ease-in-out infinite;
+  --animate-nav-highlight-bg: nav-highlight-bg 3s ease-in-out infinite;
 }
 
 @keyframes marquee {
@@ -50,6 +53,47 @@
   }
   to {
     transform: translateX(calc(-100% - 3.5rem));
+  }
+}
+
+@property --border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes border-flow {
+  from {
+    --border-angle: 0deg;
+  }
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+@keyframes nav-highlight {
+  0%,
+  100% {
+    color: #fff;
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+  }
+  50% {
+    color: #c4b5fd;
+    text-shadow:
+      0 0 20px rgba(139, 92, 246, 0.9),
+      0 0 40px rgba(139, 92, 246, 0.4);
+  }
+}
+
+@keyframes nav-highlight-bg {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
   }
 }
 
