@@ -105,7 +105,7 @@ export function GridPattern({
       })
     }
 
-    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
