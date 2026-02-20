@@ -1,130 +1,64 @@
 'use client'
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import {
+  Popover,
+  PopoverButton,
+  PopoverBackdrop,
+  PopoverPanel,
+  Menu,
+  MenuButton,
+  MenuItems,
+  MenuItem,
+} from '@headlessui/react'
 import clsx from 'clsx'
-import { motion, MotionConfig, useReducedMotion } from 'framer-motion'
+import type { User } from '@supabase/supabase-js'
 
-import { Button } from '@/components/Button'
 import { Container } from '@/components/Container'
 import { Footer } from '@/components/Footer'
 import { GridPattern } from '@/components/GridPattern'
 import { Logo, Logomark } from '@/components/Logo'
-import { Offices } from '@/components/Offices'
-import { SocialMedia } from '@/components/SocialMedia'
 import { VideoBackground } from '@/components/VideoBackground'
+import { createClient } from '@/lib/supabase/client'
 
-const RootLayoutContext = createContext<{
-  logoHovered: boolean
-  setLogoHovered: React.Dispatch<React.SetStateAction<boolean>>
-} | null>(null)
+const navLinks = [
+  { href: '/about', label: 'About Us', highlight: false },
+  { href: '/contact', label: 'Start Your Project!', highlight: true },
+  { href: '/blog', label: 'Blog', highlight: false },
+]
 
-function XIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
-      <path d="m5.636 4.223 14.142 14.142-1.414 1.414L4.222 5.637z" />
-      <path d="M4.222 18.363 18.364 4.22l1.414 1.414L5.636 19.777z" />
+      <path
+        d="m17.25 6.75-10.5 10.5M6.75 6.75l10.5 10.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-function MenuIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+function ChevronDownIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
-      <path d="M2 6h20v2H2zM2 16h20v2H2z" />
+    <svg viewBox="0 0 8 6" aria-hidden="true" {...props}>
+      <path
+        d="M1.75 1.75 4 4.25l2.25-2.5"
+        fill="none"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-function Header({
-  panelId,
-  icon: Icon,
-  expanded,
-  onToggle,
-  toggleRef,
-  invert = false,
-}: {
-  panelId: string
-  icon: React.ComponentType<{ className?: string }>
-  expanded: boolean
-  onToggle: () => void
-  toggleRef: React.RefObject<HTMLButtonElement | null>
-  invert?: boolean
-}) {
-  let { logoHovered, setLogoHovered } = useContext(RootLayoutContext)!
-
-  return (
-    <Container>
-      <div className="flex items-center justify-between">
-        <Link
-          href="/"
-          aria-label="Home"
-          onMouseEnter={() => setLogoHovered(true)}
-          onMouseLeave={() => setLogoHovered(false)}
-        >
-          <Logomark
-            className="h-12 sm:hidden"
-            invert={invert}
-            filled={logoHovered}
-          />
-          <Logo
-            className="hidden h-12 sm:block"
-            invert={invert}
-            filled={logoHovered}
-          />
-        </Link>
-        <div className="flex items-center gap-x-8">
-          <Button href="/contact" invert={invert}>
-          Start Your Project Now  !
-          </Button>
-          <button
-            ref={toggleRef}
-            type="button"
-            onClick={onToggle}
-            aria-expanded={expanded ? 'true' : 'false'}
-            aria-controls={panelId}
-            className={clsx(
-              'group -m-2.5 rounded-full p-2.5 transition-all duration-300',
-              invert
-                ? 'hover:bg-neutral-950/10'
-                : 'hover:bg-violet-500/15 hover:shadow-lg hover:shadow-violet-500/25',
-            )}
-            aria-label="Toggle navigation"
-          >
-            <Icon
-              className={clsx(
-                'h-8 w-8 transition-all duration-300',
-                invert
-                  ? 'fill-neutral-950 group-hover:fill-neutral-700'
-                  : 'fill-white drop-shadow-[0_0_8px_rgba(139,92,246,0.7)] group-hover:fill-violet-300 group-hover:drop-shadow-[0_0_12px_rgba(139,92,246,0.9)]',
-              )}
-            />
-          </button>
-        </div>
-      </div>
-    </Container>
-  )
-}
-
-function NavigationRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="even:mt-px sm:bg-zinc-950">
-      <Container>
-        <div className="grid grid-cols-1 sm:grid-cols-2">{children}</div>
-      </Container>
-    </div>
-  )
-}
-
-function NavigationItem({
+function MobileNavItem({
   href,
   children,
 }: {
@@ -132,129 +66,276 @@ function NavigationItem({
   children: React.ReactNode
 }) {
   return (
-    <Link
-      href={href}
-      className="group relative isolate -mx-6 bg-zinc-950 px-6 py-10 even:mt-px sm:mx-0 sm:px-0 sm:py-16 sm:odd:pr-16 sm:even:mt-0 sm:even:border-l sm:even:border-violet-500/20 sm:even:pl-16"
-    >
-      {children}
-      <span className="absolute inset-y-0 -z-10 w-screen bg-violet-950/30 opacity-0 transition group-odd:right-0 group-even:left-0 group-hover:opacity-100" />
-    </Link>
+    <li>
+      <PopoverButton as={Link} href={href} className="block py-2">
+        {children}
+      </PopoverButton>
+    </li>
   )
 }
 
-function Navigation() {
+function MobileNavigation(
+  props: React.ComponentPropsWithoutRef<typeof Popover>,
+) {
   return (
-    <nav className="mt-px font-display text-5xl font-medium tracking-tight text-white">
-      <NavigationRow>
-        <NavigationItem href="/about">About Us</NavigationItem>
-        <NavigationItem href="/blog">Blog</NavigationItem>
-      </NavigationRow>
+    <Popover {...props}>
+      <PopoverButton className="group flex items-center rounded-full bg-zinc-800/90 px-5 py-2.5 text-base font-medium text-zinc-200 shadow-lg ring-1 shadow-zinc-800/5 ring-white/10 backdrop-blur-sm hover:ring-white/20">
+        Menu
+        <ChevronDownIcon className="ml-3 h-auto w-2 stroke-zinc-400 group-hover:stroke-zinc-300" />
+      </PopoverButton>
+      <PopoverBackdrop
+        transition
+        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs duration-150 data-closed:opacity-0 data-enter:ease-out data-leave:ease-in"
+      />
+      <PopoverPanel
+        focus
+        transition
+        className="fixed inset-x-4 top-8 z-50 origin-top rounded-3xl bg-zinc-900 p-8 ring-1 ring-zinc-800 duration-150 data-closed:scale-95 data-closed:opacity-0 data-enter:ease-out data-leave:ease-in"
+      >
+        <div className="flex flex-row-reverse items-center justify-between">
+          <PopoverButton aria-label="Close menu" className="-m-1 p-1">
+            <CloseIcon className="h-6 w-6 text-zinc-400" />
+          </PopoverButton>
+          <h2 className="text-sm font-medium text-zinc-400">Navigation</h2>
+        </div>
+        <nav className="mt-6">
+          <ul className="-my-2 divide-y divide-zinc-100/5 text-base text-zinc-300">
+            {navLinks.map(({ href, label }) => (
+              <MobileNavItem key={href} href={href}>
+                {label}
+              </MobileNavItem>
+            ))}
+          </ul>
+        </nav>
+      </PopoverPanel>
+    </Popover>
+  )
+}
+
+function NavItem({
+  href,
+  children,
+  highlight = false,
+}: {
+  href: string
+  children: React.ReactNode
+  highlight?: boolean
+}) {
+  let isActive = usePathname() === href
+
+  return (
+    <li>
+      <Link
+        href={href}
+        className={clsx(
+          'relative block px-4 py-2.5 transition',
+          highlight
+            ? 'animate-nav-highlight text-white font-semibold'
+            : isActive
+              ? 'text-violet-400'
+              : 'hover:text-violet-400',
+        )}
+      >
+        {children}
+        {isActive && !highlight && (
+          <span className="absolute inset-x-1 -bottom-px h-px bg-linear-to-r from-violet-400/0 via-violet-400/40 to-violet-400/0" />
+        )}
+      </Link>
+    </li>
+  )
+}
+
+function DesktopNavigation(props: React.ComponentPropsWithoutRef<'nav'>) {
+  return (
+    <nav {...props}>
+      <div className="relative rounded-full p-px shadow-lg shadow-violet-500/10">
+        <div
+          className="absolute inset-0 rounded-full animate-border-flow"
+          style={{
+            background:
+              'conic-gradient(from var(--border-angle, 0deg), transparent 60%, #a78bfa 78%, #c084fc 82%, #7c3aed 90%, transparent 100%)',
+          }}
+        />
+        <ul className="relative flex rounded-full bg-zinc-800/90 px-4 text-base font-medium text-zinc-200 backdrop-blur-sm">
+          {navLinks.map(({ href, label, highlight }) => (
+            <NavItem key={href} href={href} highlight={highlight}>
+              {label}
+            </NavItem>
+          ))}
+        </ul>
+      </div>
     </nav>
   )
 }
 
-function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) {
-  let panelId = useId()
-  let [expanded, setExpanded] = useState(false)
-  let [isTransitioning, setIsTransitioning] = useState(false)
-  let openRef = useRef<React.ElementRef<'button'>>(null)
-  let closeRef = useRef<React.ElementRef<'button'>>(null)
-  let navRef = useRef<React.ElementRef<'div'>>(null)
-  let shouldReduceMotion = useReducedMotion()
+function UserMenu() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
-    function onClick(event: MouseEvent) {
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest('a')?.href === window.location.href
-      ) {
-        setIsTransitioning(false)
-        setExpanded(false)
-      }
-    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+      setLoading(false)
+    })
 
-    window.addEventListener('click', onClick)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
 
-    return () => {
-      window.removeEventListener('click', onClick)
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
-  return (
-    <MotionConfig
-      transition={
-        shouldReduceMotion || !isTransitioning ? { duration: 0 } : undefined
-      }
-    >
-      <header>
-        <div
-          className="absolute top-2 right-0 left-0 z-40 pt-14"
-          aria-hidden={expanded ? 'true' : undefined}
-          inert={expanded ? true : undefined}
-        >
-          <Header
-            panelId={panelId}
-            icon={MenuIcon}
-            toggleRef={openRef}
-            expanded={expanded}
-            onToggle={() => {
-              setIsTransitioning(true)
-              setExpanded((expanded) => !expanded)
-              window.setTimeout(() =>
-                closeRef.current?.focus({ preventScroll: true }),
-              )
-            }}
-          />
-        </div>
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
-        <motion.div
-          layout
-          id={panelId}
-          style={{ height: expanded ? 'auto' : '0.5rem' }}
-          className="relative z-50 overflow-hidden bg-zinc-950 pt-2"
-          aria-hidden={expanded ? undefined : 'true'}
-          inert={expanded ? undefined : true}
+  if (loading) {
+    return <div className="h-9 w-20" />
+  }
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25"
+      >
+        <svg
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="h-4 w-4"
+          aria-hidden="true"
         >
-          <motion.div layout className="bg-violet-500/10">
-            <div ref={navRef} className="bg-zinc-950 pt-14 pb-16">
-              <Header
-                panelId={panelId}
-                icon={XIcon}
-                toggleRef={closeRef}
-                expanded={expanded}
-                onToggle={() => {
-                  setIsTransitioning(true)
-                  setExpanded((expanded) => !expanded)
-                  window.setTimeout(() =>
-                    openRef.current?.focus({ preventScroll: true }),
-                  )
-                }}
+          <path
+            fillRule="evenodd"
+            d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-5.5-2.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM10 12a5.99 5.99 0 0 0-4.793 2.39A6.483 6.483 0 0 0 10 16.5a6.483 6.483 0 0 0 4.793-2.11A5.99 5.99 0 0 0 10 12Z"
+            clipRule="evenodd"
+          />
+        </svg>
+        Log in
+      </Link>
+    )
+  }
+
+  const initial = (
+    user.user_metadata?.full_name?.[0] ||
+    user.email?.[0] ||
+    '?'
+  ).toUpperCase()
+
+  const avatarUrl = user.user_metadata?.avatar_url
+
+  return (
+    <Menu as="div" className="pointer-events-auto relative">
+      <MenuButton className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            className="h-6 w-6 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-300">
+            {initial}
+          </span>
+        )}
+        <span className="hidden sm:block max-w-30 truncate">
+          {user.user_metadata?.full_name || user.email?.split('@')[0]}
+        </span>
+      </MenuButton>
+
+      <MenuItems
+        transition
+        className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-xl border border-white/10 bg-zinc-900/95 p-1 shadow-xl shadow-black/20 backdrop-blur-sm transition data-closed:scale-95 data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+      >
+        <MenuItem>
+          <Link
+            href="/profile"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 data-focus:bg-white/10 data-focus:text-white"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-5.5-2.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM10 12a5.99 5.99 0 0 0-4.793 2.39A6.483 6.483 0 0 0 10 16.5a6.483 6.483 0 0 0 4.793-2.11A5.99 5.99 0 0 0 10 12Z"
+                clipRule="evenodd"
               />
-            </div>
-            <Navigation />
-            <div className="relative bg-zinc-950 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-violet-500/20">
-              <Container>
-                <div className="grid grid-cols-1 gap-y-10 pt-10 pb-16 sm:grid-cols-2 sm:pt-16">
-                  <div>
-                    <h2 className="font-display text-base font-semibold text-white">
-                      Our offices
-                    </h2>
-                    <Offices
-                      className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-2"
-                    />
-                  </div>
-                  <div className="sm:border-l sm:border-violet-500/20 sm:pl-16">
-                    <h2 className="font-display text-base font-semibold text-white">
-                      Follow us
-                    </h2>
-                    <SocialMedia className="mt-6" />
-                  </div>
-                </div>
-              </Container>
-            </div>
-          </motion.div>
-        </motion.div>
-      </header>
+            </svg>
+            Profile
+          </Link>
+        </MenuItem>
+        <MenuItem>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-300 data-focus:bg-white/10 data-focus:text-white"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Z"
+                clipRule="evenodd"
+              />
+              <path
+                fillRule="evenodd"
+                d="M19 10a.75.75 0 0 0-.75-.75H8.704l1.048-.943a.75.75 0 1 0-1.004-1.114l-2.5 2.25a.75.75 0 0 0 0 1.114l2.5 2.25a.75.75 0 1 0 1.004-1.114l-1.048-.943h9.546A.75.75 0 0 0 19 10Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Sign out
+          </button>
+        </MenuItem>
+      </MenuItems>
+    </Menu>
+  )
+}
+
+function Navbar() {
+  return (
+    <header className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex pt-6">
+      <Container className="w-full">
+        <div className="relative flex items-center gap-4">
+          <div className="flex flex-1">
+            <Link
+              href="/"
+              aria-label="Home"
+              className="pointer-events-auto shrink-0"
+            >
+              <Logomark className="h-12 sm:hidden" />
+              <Logo className="hidden h-14 sm:block" />
+            </Link>
+          </div>
+          <div className="flex justify-center">
+            <MobileNavigation className="pointer-events-auto md:hidden" />
+            <DesktopNavigation className="pointer-events-auto hidden md:block" />
+          </div>
+          <div className="flex flex-1 justify-end">
+            <UserMenu />
+          </div>
+        </div>
+      </Container>
+    </header>
+  )
+}
+
+function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) {
+  return (
+    <>
+      <Navbar />
 
       {videoSrc && (
         <div className="bg-zinc-950">
@@ -262,15 +343,8 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
         </div>
       )}
 
-      <motion.div
-        layout
-        style={{ borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
-        className="relative flex flex-auto overflow-hidden bg-zinc-950 pt-14"
-      >
-        <motion.div
-          layout
-          className="relative isolate flex w-full flex-col pt-9"
-        >
+      <div className="relative flex flex-auto overflow-hidden bg-zinc-950">
+        <div className="relative isolate flex w-full flex-col">
           <GridPattern
             className="absolute inset-x-0 -top-14 -z-10 h-[1000px] w-full mask-[linear-gradient(to_bottom_left,white_40%,transparent_50%)] fill-violet-500/5 stroke-purple-500/10"
             yOffset={-96}
@@ -280,19 +354,12 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
           <main className="w-full flex-auto">{children}</main>
 
           <Footer />
-        </motion.div>
-      </motion.div>
-    </MotionConfig>
+        </div>
+      </div>
+    </>
   )
 }
 
 export function RootLayout({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) {
-  let pathname = usePathname()
-  let [logoHovered, setLogoHovered] = useState(false)
-
-  return (
-    <RootLayoutContext.Provider value={{ logoHovered, setLogoHovered }}>
-      <RootLayoutInner key={pathname} videoSrc={videoSrc}>{children}</RootLayoutInner>
-    </RootLayoutContext.Provider>
-  )
+  return <RootLayoutInner videoSrc={videoSrc}>{children}</RootLayoutInner>
 }
