@@ -320,12 +320,12 @@ function UserMenu({
     return (
       <Link
         href="/login"
-        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25"
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 min-[1400px]:px-5 min-[1400px]:py-2 text-base min-[1400px]:text-lg font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25"
       >
         <svg
           viewBox="0 0 20 20"
           fill="currentColor"
-          className="h-4 w-4"
+          className="h-4 w-4 min-[1400px]:h-5 min-[1400px]:w-5"
           aria-hidden="true"
         >
           <path
@@ -349,7 +349,7 @@ function UserMenu({
 
   return (
     <Menu as="div" className="pointer-events-auto relative">
-      <MenuButton className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25">
+      <MenuButton className="flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 min-[1400px]:px-5 min-[1400px]:py-2 text-base min-[1400px]:text-lg font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25">
         {avatarUrl ? (
           <img
             src={avatarUrl}

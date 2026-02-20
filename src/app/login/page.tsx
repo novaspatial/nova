@@ -136,9 +136,9 @@ export default function LoginPage() {
           yOffset={-96}
           interactive
         />
-      <div className="flex flex-1 items-center justify-center px-4 pt-24 pb-12">
+      <div className="flex w-full flex-1 items-center justify-center px-4 py-12">
         <FadeIn className="w-full max-w-lg">
-          <div className="mb-24 flex justify-center">
+          <div className="mb-24 mt-12 flex justify-center">
             <Link href="/" aria-label="Home">
               <Logo className="h-14" />
             </Link>
@@ -153,13 +153,13 @@ export default function LoginPage() {
               }}
             />
           <div className="relative rounded-2xl bg-zinc-900 p-8">
-            <h1 className="text-center text-2xl font-bold text-white">
+            <h1 className="mt-4 text-center text-2xl font-bold text-white">
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h1>
             <p className="mt-2 text-center text-sm text-zinc-400">
               {mode === 'login'
                 ? 'Sign in to your account'
-                : 'Get started with a free account'}
+                : 'Get started with NovaSpatial'}
             </p>
 
             {/* TODO: Enable Google and Apple social login once provider credentials are configured */}
