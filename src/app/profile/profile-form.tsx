@@ -51,6 +51,7 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (!supabase) return
     setLoading(true)
     setFeedback(null)
 
@@ -151,7 +152,7 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
+    await supabase?.auth.signOut()
     router.push('/')
     router.refresh()
   }
