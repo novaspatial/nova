@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Container } from '@/components/Container'
 import { FadeIn } from '@/components/FadeIn'
+import { Footer } from '@/components/Footer'
+import { GridPattern } from '@/components/GridPattern'
 import { Logo } from '@/components/Logo'
 
 type AuthMode = 'login' | 'signup'
@@ -127,15 +128,29 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950">
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        <FadeIn className="w-full max-w-md">
-          <div className="mb-10 flex justify-center">
+      <div className="relative isolate flex flex-1 flex-col">
+        <GridPattern
+          className="absolute inset-x-0 -top-14 -z-10 h-[1000px] w-full mask-[linear-gradient(to_bottom_left,white_40%,transparent_50%)] fill-violet-500/5 stroke-purple-500/10"
+          yOffset={-96}
+          interactive
+        />
+      <div className="flex flex-1 items-center justify-center px-4 pt-24 pb-12">
+        <FadeIn className="w-full max-w-lg">
+          <div className="mb-24 flex justify-center">
             <Link href="/" aria-label="Home">
               <Logo className="h-14" />
             </Link>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/2 p-8 shadow-2xl shadow-violet-500/5 backdrop-blur-sm">
+          <div className="relative rounded-2xl p-px shadow-2xl shadow-violet-500/10">
+            <div
+              className="absolute inset-0 rounded-2xl animate-border-flow"
+              style={{
+                background:
+                  'conic-gradient(from var(--border-angle, 0deg), transparent 60%, #a78bfa 78%, #c084fc 82%, #7c3aed 90%, transparent 100%)',
+              }}
+            />
+          <div className="relative rounded-2xl bg-zinc-900 p-8">
             <h1 className="text-center text-2xl font-bold text-white">
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h1>
@@ -200,7 +215,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mx-auto mt-10 block w-1/2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading
                   ? 'Loading...'
@@ -244,7 +259,10 @@ export default function LoginPage() {
               )}
             </p>
           </div>
+          </div>
         </FadeIn>
+      </div>
+      <Footer />
       </div>
     </div>
   )
