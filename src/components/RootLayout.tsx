@@ -128,9 +128,9 @@ function NavItem({
       <Link
         href={href}
         className={clsx(
-          'relative block px-4 py-2.5 transition',
+          'relative block px-4 py-2.5 transition-all duration-300',
           highlight
-            ? 'animate-nav-highlight text-white font-semibold'
+            ? 'animate-nav-highlight text-white font-semibold hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(139,92,246,0.8)]'
             : isActive
               ? 'text-violet-400'
               : 'hover:text-violet-400',
@@ -203,7 +203,7 @@ function UserMenu() {
     return (
       <Link
         href="/login"
-        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25"
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-white/15 hover:text-white hover:ring-white/25"
       >
         <svg
           viewBox="0 0 20 20"
@@ -313,7 +313,7 @@ function Navbar() {
             <Link
               href="/"
               aria-label="Home"
-              className="pointer-events-auto shrink-0"
+              className="pointer-events-auto shrink-0 transition-all duration-300 ease-out hover:scale-105 hover:drop-shadow-[0_0_14px_rgba(139,92,246,0.5)]"
             >
               <Logomark className="h-12 sm:hidden" />
               <Logo className="hidden h-14 sm:block" />
