@@ -17,7 +17,7 @@ type FeedbackState = {
 } | null
 
 const inputClassName =
-  'mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500'
+  'mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-3 sm:px-4 py-3 text-base sm:text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500'
 
 function Feedback({ state }: { state: FeedbackState }) {
   if (!state) return null
@@ -159,7 +159,7 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
   return (
     <div>
-      <form onSubmit={handleSave} className="space-y-8">
+      <form onSubmit={handleSave} className="space-y-6 sm:space-y-8">
         {/* Display Name */}
         <div className="space-y-4">
           <h3 className="text-base font-semibold text-white">Display Name</h3>
@@ -249,20 +249,22 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
         <Feedback state={feedback} />
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Saving...' : 'Save Changes'}
-        </button>
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full sm:w-auto rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-8 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </form>
 
-      <div className="mt-8 border-t border-white/10 pt-8">
+      <div className="mt-6 sm:mt-8 border-t border-white/10 pt-6 sm:pt-8 flex justify-center">
         <button
           type="button"
           onClick={handleSignOut}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white"
+          className="w-full sm:w-auto rounded-xl border border-white/10 bg-white/5 px-8 py-3 sm:py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white hover:border-white/20 hover:scale-[1.03] active:scale-[0.98]"
         >
           Sign Out
         </button>
