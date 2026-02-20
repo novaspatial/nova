@@ -7,6 +7,7 @@ import { FadeIn } from '@/components/FadeIn'
 import { RootLayout } from '@/components/RootLayout'
 import { FAQ } from '@/components/FAQ'
 import { HeroContent } from '@/components/HeroContent'
+import { PromoPopup } from '@/components/PromoPopup'
 import { Testimonials } from '@/components/Testimonials'
 import { WorkClients } from '@/components/WorkClients'
 
@@ -18,12 +19,13 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <RootLayout videoSrc="/videos/hero-bg.mp4">
-      <Container className="mt-16 sm:mt-24 md:mt-36 xl:mt-44 3xl:mt-56">
+      <Container className="relative mt-16 sm:mt-24 md:mt-36 xl:mt-44 3xl:mt-56">
         <FadeIn className="max-w-3xl xl:max-w-4xl 3xl:max-w-5xl">
           <HeroContent />
         </FadeIn>
+        <PromoPopup />
       </Container>
-      <div className="mt-28 mb-32 sm:mt-52 sm:mb-52 xl:mt-72 xl:mb-72 3xl:mt-96 3xl:mb-96">
+      <div className="mt-28 mb-32 sm:mt-52 sm:mb-52 xl:mt-40 xl:mb-72 3xl:mt-52 3xl:mb-96">
         <WorkClients />
       </div>
 
