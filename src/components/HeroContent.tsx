@@ -15,23 +15,29 @@ export function HeroContent() {
         Start your Atmos with <br/> Spatial Tone Lock
       </h1>
       <p className="mt-3 sm:mt-6 xl:mt-8 max-w-xs sm:max-w-xl xl:max-w-3xl text-xs sm:text-lg xl:text-2xl text-neutral-300">
-        Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-        Lorem ipsum dolor sit amet consectetur adipisicing elit. Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-        Lorem ipsum dolor sit amet
+      Get world-class, remote Spatial Audio mixing from industry-leading engineers in our world class Dolby Atmos Certified Mix Studio. Our exclusive Spatial Tone Lock process guarantees your Immersive Mix retains the exact punch, glue, clipping and emotion of your original Stereo Master.
       </p>
       <ul className="mt-4 sm:mt-8 xl:mt-10 space-y-1.5 sm:space-y-3 xl:space-y-4 text-xs sm:text-base xl:text-xl text-neutral-300">
         <li className="flex items-center gap-2 sm:gap-3">
           {checkIcon}
-          Lorem ipsum dolor sit amet consectetur
+          Proprietary Spatial Tone Lock mix matching
+          </li>
+        <li className="flex items-center gap-2 sm:gap-3">
+          {checkIcon}
+          Expert engineers across all genres
         </li>
         <li className="flex items-center gap-2 sm:gap-3">
           {checkIcon}
-          Quisquam quos voluptatum doloremque veritatis
-        </li>
+          Dolby Atmos Certified World Class Mix Studio
+          </li>
         <li className="flex items-center gap-2 sm:gap-3">
           {checkIcon}
-          Adipisicing elit perspiciatis magni repellat
-        </li>
+          Spatial Mixing and Mastering
+          </li>
+        <li className="flex items-center gap-2 sm:gap-3">
+          {checkIcon}
+          Apple Music & Tidal compliant Dolby Atmos / Spatial Audio ADM files
+          </li>
       </ul>
     </>
   )
