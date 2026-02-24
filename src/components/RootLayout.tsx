@@ -1,27 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
 import {
-  Popover,
-  PopoverButton,
-  PopoverBackdrop,
-  PopoverPanel,
   Menu,
   MenuButton,
-  MenuItems,
   MenuItem,
+  MenuItems,
+  Popover,
+  PopoverBackdrop,
+  PopoverButton,
+  PopoverPanel,
 } from '@headlessui/react'
-import clsx from 'clsx'
 import type { User } from '@supabase/supabase-js'
+import clsx from 'clsx'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
-import dynamic from 'next/dynamic'
 import { Container } from '@/components/Container'
 import { Footer } from '@/components/Footer'
 import { GridPattern } from '@/components/GridPattern'
 import { Logo, Logomark } from '@/components/Logo'
 import { createClient } from '@/lib/supabase/client'
+import dynamic from 'next/dynamic'
 
 const VideoBackground = dynamic(
   () =>
@@ -39,9 +39,9 @@ const VideoBackground = dynamic(
 )
 
 const navLinks = [
-  { href: '/about', label: 'About Us', highlight: false },
+  { href: '/about', label: 'Engineers', highlight: false },
   { href: '/contact', label: 'Start Your Project!', highlight: true },
-  { href: '/blog', label: 'Blog', highlight: false },
+  { href: '/blog', label: 'Articles', highlight: false },
 ]
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
@@ -252,7 +252,7 @@ function NavItem({
         className={clsx(
           'relative block px-4 py-2.5 transition-all duration-300',
           highlight
-            ? 'animate-nav-highlight text-white font-semibold hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(139,92,246,0.8)]'
+            ? 'animate-nav-highlight font-semibold text-white hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(139,92,246,0.8)]'
             : isActive
               ? 'text-violet-400'
               : 'hover:text-violet-400',
@@ -272,13 +272,13 @@ function DesktopNavigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     <nav {...props}>
       <div className="relative rounded-full p-px shadow-lg shadow-violet-500/10">
         <div
-          className="absolute inset-0 rounded-full animate-border-flow"
+          className="absolute inset-0 animate-border-flow rounded-full"
           style={{
             background:
               'conic-gradient(from var(--border-angle, 0deg), transparent 60%, #a78bfa 78%, #c084fc 82%, #7c3aed 90%, transparent 100%)',
           }}
         />
-        <ul className="relative flex rounded-full bg-zinc-800/90 px-4 3xl:px-6 text-base 3xl:text-lg font-medium text-zinc-200 backdrop-blur-sm">
+        <ul className="relative flex rounded-full bg-zinc-800/90 px-4 text-base font-medium text-zinc-200 backdrop-blur-sm 3xl:px-6 3xl:text-lg">
           {navLinks.map(({ href, label, highlight }) => (
             <NavItem key={href} href={href} highlight={highlight}>
               {label}
@@ -335,7 +335,7 @@ function UserMenu({
     return (
       <Link
         href="/login"
-        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 min-[1400px]:px-5 min-[1400px]:py-2 text-base min-[1400px]:text-lg font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25"
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25 min-[1400px]:px-5 min-[1400px]:py-2 min-[1400px]:text-lg"
       >
         <svg
           viewBox="0 0 20 20"
@@ -364,7 +364,7 @@ function UserMenu({
 
   return (
     <Menu as="div" className="pointer-events-auto relative">
-      <MenuButton className="flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 min-[1400px]:px-5 min-[1400px]:py-2 text-base min-[1400px]:text-lg font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25">
+      <MenuButton className="flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25 min-[1400px]:px-5 min-[1400px]:py-2 min-[1400px]:text-lg">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -484,7 +484,13 @@ function Navbar() {
   )
 }
 
-function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) {
+function RootLayoutInner({
+  children,
+  videoSrc,
+}: {
+  children: React.ReactNode
+  videoSrc?: string
+}) {
   return (
     <>
       <Navbar />
@@ -512,6 +518,12 @@ function RootLayoutInner({ children, videoSrc }: { children: React.ReactNode; vi
   )
 }
 
-export function RootLayout({ children, videoSrc }: { children: React.ReactNode; videoSrc?: string }) {
+export function RootLayout({
+  children,
+  videoSrc,
+}: {
+  children: React.ReactNode
+  videoSrc?: string
+}) {
   return <RootLayoutInner videoSrc={videoSrc}>{children}</RootLayoutInner>
 }

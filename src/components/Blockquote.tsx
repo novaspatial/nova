@@ -1,5 +1,5 @@
-import Image, { type ImageProps } from 'next/image'
 import clsx from 'clsx'
+import Image, { type ImageProps } from 'next/image'
 
 import { Border } from '@/components/Border'
 

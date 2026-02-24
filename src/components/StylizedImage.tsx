@@ -1,6 +1,6 @@
-import { useId } from 'react'
-import Image, { type ImageProps } from 'next/image'
 import clsx from 'clsx'
+import Image, { type ImageProps } from 'next/image'
+import { useId } from 'react'
 
 const shapes = [
   {
@@ -31,12 +31,7 @@ export function StylizedImage({
   let { width, height, path } = shapes[shape]
 
   return (
-    <div
-      className={clsx(
-        className,
-        'relative flex aspect-719/680 w-full',
-      )}
-    >
+    <div className={clsx(className, 'relative flex aspect-719/680 w-full')}>
       <svg viewBox={`0 0 ${width} ${height}`} fill="none" className="h-full">
         <g clipPath={`url(#${id}-clip)`} className="group">
           <g className="origin-center scale-100 transition duration-500 motion-safe:group-hover:scale-105">

@@ -70,8 +70,8 @@ export default async function Blog() {
                       <Button
                         href={article.href}
                         aria-label={`Read more: ${article.title}`}
-                        className="mt-8 !bg-violet-500/20 !text-white"
-                        >                      
+                        className="!bg-violet-500/20! mt-8 text-white!"
+                      >
                         Read more
                       </Button>
                     </div>
@@ -82,7 +82,6 @@ export default async function Blog() {
           ))}
         </div>
       </Container>
-
     </RootLayout>
   )
 }

@@ -28,7 +28,7 @@ export function SectionIntro({
             <>
               <span
                 className={clsx(
-                  'mb-4 sm:mb-6 3xl:mb-8 block font-display text-xs sm:text-base 3xl:text-lg font-semibold',
+                  'mb-4 block font-display text-xs font-semibold sm:mb-6 sm:text-base 3xl:mb-8 3xl:text-lg',
                   invert ? 'text-neutral-950' : 'text-white',
                 )}
               >
@@ -41,7 +41,7 @@ export function SectionIntro({
             className={clsx(
               'block font-display tracking-tight text-balance',
               smaller
-                ? 'text-xl sm:text-2xl 3xl:text-3xl font-semibold'
+                ? 'text-xl font-semibold sm:text-2xl 3xl:text-3xl'
                 : 'text-2xl font-medium sm:text-4xl lg:text-5xl 3xl:text-6xl',
               invert ? 'text-neutral-950' : 'text-white',
             )}
@@ -52,7 +52,7 @@ export function SectionIntro({
         {children && (
           <div
             className={clsx(
-              'mt-4 sm:mt-6 3xl:mt-8 text-xs sm:text-xl 3xl:text-2xl',
+              'mt-4 text-xs sm:mt-6 sm:text-xl 3xl:mt-8 3xl:text-2xl',
               invert ? 'text-neutral-600' : 'text-neutral-300',
             )}
           >

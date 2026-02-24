@@ -1,5 +1,5 @@
-import { useId } from 'react'
 import clsx from 'clsx'
+import { useId } from 'react'
 
 export function Logomark({
   invert = false,
@@ -30,7 +30,13 @@ export function Logomark({
       />
       <defs>
         <filter id={`${id}-glow`} x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="0" stdDeviation="1.5" floodColor="#8b5cf6" floodOpacity="0.6" />
+          <feDropShadow
+            dx="0"
+            dy="0"
+            stdDeviation="1.5"
+            floodColor="#8b5cf6"
+            floodOpacity="0.6"
+          />
         </filter>
         <path
           id={`${id}-path`}

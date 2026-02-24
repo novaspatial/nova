@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import { Container } from '@/components/Container'
 import { FadeIn } from '@/components/FadeIn'
 import logoBrightPathLight from '@/images/clients/bright-path/logo-light.svg'
@@ -9,6 +8,7 @@ import logoMailSmirkLight from '@/images/clients/mail-smirk/logo-light.svg'
 import logoNorthAdventuresLight from '@/images/clients/north-adventures/logo-light.svg'
 import logoPhobiaLight from '@/images/clients/phobia/logo-light.svg'
 import logoUnsealLight from '@/images/clients/unseal/logo-light.svg'
+import Image from 'next/image'
 
 const workClients = [
   ['Phobia', logoPhobiaLight],
@@ -25,13 +25,22 @@ export function WorkClients() {
   return (
     <Container className="mt-24 sm:mt-32 lg:mt-40">
       <FadeIn>
-        <h2 className="font-display text-base font-medium tracking-tight text-white sm:text-2xl xl:text-4xl 3xl:text-6xl">
-          Trusted by Industry Giants
+        <h2 className="flex items-center justify-center gap-4 font-display text-sm font-medium tracking-tight text-white sm:gap-6 sm:text-lg md:text-xl lg:text-2xl xl:text-3xl 3xl:text-5xl">
+          <span
+            className="h-px max-w-16 min-w-8 flex-1 bg-neutral-600/50"
+            aria-hidden
+          />
+          <span className="text-center [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+            Trusted by Industry Leaders for Unrivaled Immersive Audio Mixes
+          </span>
+          <span
+            className="h-px max-w-16 min-w-8 flex-1 bg-neutral-600/50"
+            aria-hidden
+          />
         </h2>
       </FadeIn>
       <FadeIn>
-      
-        <div className="group relative sm:mt-4 overflow-hidden border-t border-neutral-700 pt-2 sm:pt-6">
+        <div className="group relative overflow-hidden border-t border-neutral-700 pt-2 sm:mt-4 sm:pt-6">
           {/* Fade edges */}
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-linear-to-r from-gray-950 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-linear-to-l from-gray-950 to-transparent" />
@@ -46,7 +55,7 @@ export function WorkClients() {
                 {workClients.map(([client, logo]) => (
                   <div
                     key={client}
-                   className="relative h-8 w-42 sm:h-10 sm:w-48 xl:h-11 xl:w-50 3xl:h-18 3xl:w-72 shrink-0"
+                    className="relative h-8 w-42 shrink-0 sm:h-10 sm:w-48 xl:h-11 xl:w-50 3xl:h-18 3xl:w-72"
                   >
                     <Image
                       src={logo}

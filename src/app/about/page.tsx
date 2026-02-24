@@ -216,7 +216,6 @@ export default async function About() {
         </StatList>
       </Container>
 
-
       <Team />
 
       <PageLinks

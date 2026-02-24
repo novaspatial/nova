@@ -1,49 +1,116 @@
-import {
-  MusicalNoteIcon,
-  StarIcon,
-  BoltIcon,
-  HeartIcon,
-} from '@heroicons/react/24/solid'
+import { Button } from '@/components/Button'
 import { Container } from '@/components/Container'
 import { FadeIn } from '@/components/FadeIn'
+import imageBlakeReid from '@/images/team/blake-reid.jpg'
+import imageChelseaHagon from '@/images/team/chelsea-hagon.jpg'
+import imageDriesVincent from '@/images/team/dries-vincent.jpg'
+import {
+  ClockIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
+  UserGroupIcon,
+} from '@heroicons/react/24/solid'
 
 const highlights = [
-  { icon: MusicalNoteIcon, label: 'Premium Quality' },
-  { icon: StarIcon, label: '5-Star Rated' },
-  { icon: BoltIcon, label: 'Fast Delivery' },
-  { icon: HeartIcon, label: 'Client Focused' },
+  { icon: ClockIcon, label: '20+ Years Experience' },
+  { icon: TrophyIcon, label: 'Award-Winning Quality' },
+  { icon: ShieldCheckIcon, label: 'Secure & Fast Delivery' },
+  { icon: UserGroupIcon, label: 'Client Focused' },
+]
+
+const testimonials = [
+  {
+    body: 'NOVA nailed the Atmos mix. They kept the exact punch and emotion of my original stereo master, but made it feel massive.',
+    author: {
+      name: 'Snotty Nose Rez Kids',
+      handle: 'Sony Music – Album of the Year 2025 Juno Awards',
+      image: imageDriesVincent,
+    },
+  },
+  {
+    body: 'Finally, an immersive mixing team that understands how to translate dense modern mixes to Atmos. The Spatial Tone Lock process is the real deal.',
+    author: {
+      name: 'Producer Name',
+      handle: 'Platinum-Selling Producer',
+      image: imageChelseaHagon,
+    },
+  },
+  {
+    body: 'The remote workflow was incredibly smooth. Being able to listen to binaural references and leave timestamped notes made the whole process effortless.',
+    author: {
+      name: 'Manager Name',
+      handle: 'Band',
+      image: imageBlakeReid,
+    },
+  },
 ]
 
 export function Testimonials() {
   return (
-    <div className="mt-24 mb-24 sm:mt-40 sm:mb-40 xl:mt-56 xl:mb-56 3xl:mt-72 3xl:mb-72">
+    <div className="mt-12 mb-24 sm:mt-32 sm:mb-32 xl:mt-40 xl:mb-40 3xl:mt-52 3xl:mb-52">
       <Container>
         <FadeIn>
-          <div className="flex flex-col items-center text-center max-w-3xl 3xl:max-w-4xl mx-auto">
-            <span className="mb-4 sm:mb-6 3xl:mb-8 block font-display text-xs sm:text-base 3xl:text-lg font-semibold text-white">
-            Client Success
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="mb-4 block font-display text-xs font-semibold text-white sm:mb-6 sm:text-base 3xl:mb-8 3xl:text-lg">
+              Client Success
             </span>
             <h2 className="font-display text-2xl font-medium tracking-tight text-white sm:text-4xl lg:text-5xl 3xl:text-6xl">
-            Over 20 Years of Mixing Excellence
+              Over 20 Years of Mixing Excellence
             </h2>
-            <p className="mt-4 sm:mt-6 3xl:mt-8 text-xs sm:text-xl 3xl:text-2xl text-neutral-300">
-              Join thousands of musicians who&apos;ve transformed their sound
-              with us. Our clients love the clarity, power, and professionalism
-              we bring to every track. Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos. Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.
-
-            </p>
-            <div className="mt-8 sm:mt-12 3xl:mt-16 grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-10 3xl:gap-14">
-              {highlights.map(({ icon: Icon, label }) => (
-                <div key={label} className="group flex flex-col items-center gap-2 sm:gap-3 3xl:gap-4 cursor-pointer">
-                  <div className="flex items-center justify-center size-10 sm:size-14 3xl:size-16 rounded-full bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:ring-white/25 group-hover:shadow-lg group-hover:shadow-white/5">
-                    <Icon className="size-5 sm:size-7 3xl:size-8 text-white transition-transform duration-300 group-hover:scale-110" />
-                  </div>
-                  <span className="text-xs sm:text-sm 3xl:text-base font-medium text-neutral-300 transition-colors duration-300 group-hover:text-white">
-                    {label}
-                  </span>
+          </div>
+          <div className="mx-auto mt-10 flow-root max-w-2xl sm:mt-16 lg:mx-0 lg:max-w-none">
+            <div className="-mt-8 sm:-mx-4 sm:columns-2 sm:text-[0] lg:columns-3">
+              {testimonials.map((testimonial) => (
+                <div
+                  key={testimonial.author.name}
+                  className="pt-8 sm:inline-block sm:w-full sm:px-4"
+                >
+                  <figure className="rounded-2xl bg-white/5 p-6 text-sm/6 ring-1 ring-white/10 sm:p-8">
+                    <blockquote className="text-neutral-300">
+                      <p>&ldquo;{testimonial.body}&rdquo;</p>
+                    </blockquote>
+                    <figcaption className="mt-6 flex items-center gap-x-4">
+                      <img
+                        src={testimonial.author.image.src}
+                        alt=""
+                        className="size-10 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                      />
+                      <div>
+                        <div className="font-semibold text-white">
+                          {testimonial.author.name}
+                        </div>
+                        <div className="text-neutral-400">
+                          {testimonial.author.handle}
+                        </div>
+                      </div>
+                    </figcaption>
+                  </figure>
                 </div>
               ))}
             </div>
+          </div>
+          <div className="mx-auto mt-8 grid max-w-3xl grid-cols-2 gap-6 sm:mt-10 sm:grid-cols-4 sm:gap-10 3xl:mt-12 3xl:max-w-4xl 3xl:gap-14">
+            {highlights.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="group flex cursor-pointer flex-col items-center gap-2 sm:gap-3 3xl:gap-4"
+              >
+                <div className="flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:shadow-lg group-hover:shadow-white/5 group-hover:ring-white/25 sm:size-16 3xl:size-20">
+                  <Icon className="size-6 text-white transition-transform duration-300 group-hover:scale-110 sm:size-8 3xl:size-10" />
+                </div>
+                <span className="text-xs font-medium text-neutral-300 transition-colors duration-300 group-hover:text-white sm:text-sm 3xl:text-base">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 text-center sm:mt-8 3xl:mt-10">
+            <p className="text-sm text-neutral-300 sm:text-base 3xl:text-lg">
+              See why thousands of artists trust us with their mixes
+            </p>
+            <Button href="/contact" className="mt-6 sm:mt-8">
+              Start your Project
+            </Button>
           </div>
         </FadeIn>
       </Container>
