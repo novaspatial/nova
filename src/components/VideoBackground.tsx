@@ -27,7 +27,7 @@ export function VideoBackground({
   return (
     <div className="relative mx-4 mt-2 mb-4 overflow-hidden rounded-4xl bg-zinc-900">
       {!isLoaded && (
-        <div className="absolute inset-0 animate-pulse bg-zinc-800 rounded-4xl" />
+        <div className="absolute inset-0 animate-pulse rounded-4xl bg-zinc-800" />
       )}
       <video
         ref={videoRef}

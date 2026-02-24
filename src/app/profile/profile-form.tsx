@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 type Profile = {
   id: string
@@ -39,9 +39,7 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
   const router = useRouter()
   const supabase = createClient()
 
-  const [displayName, setDisplayName] = useState(
-    profile?.display_name ?? '',
-  )
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
   const [newEmail, setNewEmail] = useState(profile?.email ?? '')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -59,7 +57,8 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
     const nameChanged = displayName !== (profile?.display_name ?? '')
     const emailChanged = newEmail !== profile?.email
-    const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0
+    const wantsPasswordChange =
+      newPassword.length > 0 || confirmPassword.length > 0
 
     if (!nameChanged && !emailChanged && !wantsPasswordChange) {
       setFeedback({ type: 'error', message: 'No changes to save.' })
@@ -209,7 +208,9 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
         {/* Password */}
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-white">Change Password</h3>
+          <h3 className="text-base font-semibold text-white">
+            Change Password
+          </h3>
           <p className="text-sm text-zinc-500">
             Leave blank to keep your current password.
           </p>
@@ -253,18 +254,18 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-8 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:scale-[1.03] hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
 
-      <div className="mt-6 sm:mt-8 border-t border-white/10 pt-6 sm:pt-8 flex justify-center">
+      <div className="mt-6 flex justify-center border-t border-white/10 pt-6 sm:mt-8 sm:pt-8">
         <button
           type="button"
           onClick={handleSignOut}
-          className="w-full sm:w-auto rounded-xl border border-white/10 bg-white/5 px-8 py-3 sm:py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-white/10 hover:text-white hover:border-white/20 hover:scale-[1.03] active:scale-[0.98]"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-8 py-3 text-sm font-medium text-zinc-400 transition hover:scale-[1.03] hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.98] sm:w-auto sm:py-2.5"
         >
           Sign Out
         </button>

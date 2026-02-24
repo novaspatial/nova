@@ -1,6 +1,6 @@
-import { Blockquote } from '@/components/Blockquote'
 import { Section } from '@/components/Section'
 import composition from '@/images/composition.png'
+import Link from 'next/link'
 
 export function Build() {
   return (
@@ -18,7 +18,7 @@ export function Build() {
       </div>
 
       <h3 className="mt-4 sm:mt-6 3xl:mt-8 font-display text-sm sm:text-base 3xl:text-lg font-semibold text-white">
-      Experience Spatial Tone Lock - Start your Project Now!
+      Experience Spatial Tone Lock - <Link href="/contact" className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent decoration-violet-400/0 underline underline-offset-4 transition-all duration-300 hover:from-indigo-200 hover:via-violet-200 hover:to-purple-200 hover:decoration-violet-400 hover:scale-105 inline-block">Start your Project Now !</Link>
       </h3>
     </Section>
   )

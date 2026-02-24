@@ -1,5 +1,5 @@
-import Link from 'next/link'
 import clsx from 'clsx'
+import Link from 'next/link'
 
 import { Border } from '@/components/Border'
 import { Container } from '@/components/Container'

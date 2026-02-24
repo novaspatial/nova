@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { RootLayout } from '@/components/RootLayout'
 import { Container } from '@/components/Container'
+import { RootLayout } from '@/components/RootLayout'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { ProfileForm } from './profile-form'
 
 export const metadata = {

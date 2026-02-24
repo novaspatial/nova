@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useEffect, useId, useRef, useState } from 'react'
 
 function Block({
   x,
@@ -143,13 +143,25 @@ export function GridPattern({
         ))}
       </svg>
       <defs>
-        <linearGradient id={hoveredGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient
+          id={hoveredGradientId}
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="100%"
+        >
           <stop offset="0%" stopColor="#131134" />
           <stop offset="35%" stopColor="#1c0b39" />
           <stop offset="65%" stopColor="#220b35" />
           <stop offset="100%" stopColor="#2c082e" />
         </linearGradient>
-        <linearGradient id={staticGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient
+          id={staticGradientId}
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="100%"
+        >
           <stop offset="0%" stopColor="#1e1b4b" />
           <stop offset="50%" stopColor="#2e1065" />
           <stop offset="100%" stopColor="#4a044e" />

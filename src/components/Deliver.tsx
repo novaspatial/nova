@@ -4,14 +4,15 @@ import mix from '@/images/mix.png'
 
 export function Deliver() {
   return (
-    <Section title="Seamless Remote Collaboration" image={{ src: mix, shape: 2 }}>
-      <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-neutral-300">
+    <Section
+      title="Seamless Remote Collaboration"
+      image={{ src: mix, shape: 2 }}>
+      <div className="space-y-3 text-xs text-neutral-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
         <p>
           Our streamlined workflow makes world-class spatial mixing effortless,
           no matter where you are in the world.
         </p>
       </div>
-
       <List className="mt-6 sm:mt-8">
         <ListItem title="Step 1: Secure Upload">
           Securely transfer your multitrack stems and final Stereo Master

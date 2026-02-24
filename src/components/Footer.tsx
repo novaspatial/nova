@@ -26,10 +26,13 @@ function Navigation() {
       <ul role="list" className="grid grid-cols-2 gap-4 sm:gap-8">
         {navigation.map((section, sectionIndex) => (
           <li key={sectionIndex}>
-            <div className="font-display text-[10px] sm:text-sm 3xl:text-base font-semibold tracking-wider text-white">
+            <div className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
               {section.title}
             </div>
-            <ul role="list" className="mt-2 sm:mt-4 text-[10px] sm:text-sm 3xl:text-base text-white/70">
+            <ul
+              role="list"
+              className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base"
+            >
               {section.links.map((link, linkIndex) => (
                 <li key={linkIndex} className="mt-2 sm:mt-4">
                   <Link
@@ -64,10 +67,10 @@ function ArrowIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 function NewsletterForm() {
   return (
     <form className="max-w-sm 3xl:max-w-md">
-      <h2 className="font-display text-[10px] sm:text-sm 3xl:text-base font-semibold tracking-wider text-white">
+      <h2 className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
         Sign up for our newsletter
       </h2>
-      <p className="mt-2 sm:mt-4 text-[10px] sm:text-sm 3xl:text-base text-white/70">
+      <p className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base">
         Subscribe to get the latest design news, articles, resources and
         inspiration.
       </p>
@@ -77,13 +80,13 @@ function NewsletterForm() {
           placeholder="Email address"
           autoComplete="email"
           aria-label="Email address"
-          className="block w-full rounded-xl sm:rounded-2xl border border-white/20 bg-transparent py-2 sm:py-4 3xl:py-5 pr-12 sm:pr-20 pl-3 sm:pl-6 3xl:pl-8 text-[10px] sm:text-base/6 3xl:text-lg text-white ring-4 ring-transparent transition placeholder:text-white/50 focus:border-violet-400 focus:ring-violet-500/10 focus:outline-hidden"
+          className="block w-full rounded-xl border border-white/20 bg-transparent py-2 pr-12 pl-3 text-[10px] text-white ring-4 ring-transparent transition placeholder:text-white/50 focus:border-violet-400 focus:ring-violet-500/10 focus:outline-hidden sm:rounded-2xl sm:py-4 sm:pr-20 sm:pl-6 sm:text-base/6 3xl:py-5 3xl:pl-8 3xl:text-lg"
         />
-        <div className="absolute inset-y-0.5 sm:inset-y-1 right-0.5 sm:right-1 flex justify-end">
+        <div className="absolute inset-y-0.5 right-0.5 flex justify-end sm:inset-y-1 sm:right-1">
           <button
             type="submit"
             aria-label="Submit"
-            className="flex aspect-square h-full items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-r from-indigo-900 via-violet-800 to-purple-900 text-white transition hover:from-indigo-950 hover:via-violet-900 hover:to-purple-950"
+            className="flex aspect-square h-full items-center justify-center rounded-lg bg-gradient-to-r from-indigo-900 via-violet-800 to-purple-900 text-white transition hover:from-indigo-950 hover:via-violet-900 hover:to-purple-950 sm:rounded-xl"
           >
             <ArrowIcon className="w-3 sm:w-4 3xl:w-5" />
           </button>
@@ -103,11 +106,11 @@ export function Footer() {
             <NewsletterForm />
           </div>
         </div>
-        <div className="mt-10 sm:mt-24 mb-8 sm:mb-20 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-t border-violet-500/20 pt-6 sm:pt-12">
+        <div className="mt-10 mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-t border-violet-500/20 pt-6 sm:mt-24 sm:mb-20 sm:pt-12">
           <Link href="/" aria-label="Home">
             <Logo className="h-5 sm:h-8 3xl:h-10" fillOnHover />
           </Link>
-          <p className="text-[10px] sm:text-sm 3xl:text-base text-white/70">
+          <p className="text-[10px] text-white/70 sm:text-sm 3xl:text-base">
             © Studio Agency Inc. {new Date().getFullYear()}
           </p>
         </div>

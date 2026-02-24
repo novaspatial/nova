@@ -51,6 +51,8 @@
   --animate-border-flow: border-flow 4s linear infinite;
   --animate-nav-highlight: nav-highlight 3s ease-in-out infinite;
   --animate-nav-highlight-bg: nav-highlight-bg 3s ease-in-out infinite;
+  --animate-gradient-shimmer: gradient-shimmer 4s ease-in-out infinite;
+  --animate-hero-glow: hero-glow 3s ease-in-out infinite;
 }
 
 @keyframes marquee {
@@ -100,6 +102,28 @@
   50% {
     opacity: 0.8;
     transform: scale(1.05);
+  }
+}
+
+@keyframes gradient-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes hero-glow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    text-shadow: 0 0 6px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    background-position: 100% 50%;
+    text-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
   }
 }
 
