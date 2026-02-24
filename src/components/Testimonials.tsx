@@ -21,10 +21,10 @@ export function Testimonials() {
         <FadeIn>
           <div className="flex flex-col items-center text-center max-w-3xl 3xl:max-w-4xl mx-auto">
             <span className="mb-4 sm:mb-6 3xl:mb-8 block font-display text-xs sm:text-base 3xl:text-lg font-semibold text-white">
-              Testimonials
+            Client Success
             </span>
             <h2 className="font-display text-2xl font-medium tracking-tight text-white sm:text-4xl lg:text-5xl 3xl:text-6xl">
-              2000+ Happy Users
+            Over 20 Years of Mixing Excellence
             </h2>
             <p className="mt-4 sm:mt-6 3xl:mt-8 text-xs sm:text-xl 3xl:text-2xl text-neutral-300">
               Join thousands of musicians who&apos;ve transformed their sound

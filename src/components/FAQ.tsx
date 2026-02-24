@@ -12,30 +12,27 @@ import { FadeIn } from '@/components/FadeIn'
 
 const faqs = [
   {
-    question: "What's the best thing about Switzerland?",
+    question: "What files do I need to send for a Dolby Atmos mix?",
     answer:
-      "I don't know, but the flag is a big plus. Lorem ipsum dolor sit amet consectetur adipisicing elit. Quas cupiditate laboriosam fugiat.",
+    "We require your consolidated stems (WAV, 24-bit or 32-bit float, 48kHz native preferred) and your final, approved Stereo Master. All stems must start at exactly the same timecode so they line up perfectly when dropped into our system."
   },
   {
-    question: 'How do you make holy water?',
+    question: 'Should my stems be "wet" (with effects) or "dry"?',
     answer:
-      'You boil the hell out of it. Lorem ipsum dolor sit amet consectetur adipisicing elit. Magnam aut tempora vitae odio inventore fuga aliquam nostrum quod porro. Delectus quia facere id sequi expedita natus.',
+    "We need \u201cwet\u201d stems. Because our goal is to perfectly translate your original vision using our Spatial Tone Lock\u2122 process, your stems should include all your EQ, compression, delays, and reverbs. When all your stems are played together at zero (unity gain), they should sound identical to your final stereo mix."
   },
   {
-    question: 'What do you call someone with no body and no nose?',
+    question: 'Do I need to have my song mixed in stereo first?',
     answer:
-      'Nobody knows. Lorem ipsum dolor sit amet consectetur adipisicing elit. Culpa, voluptas ipsa quia excepturi, quibusdam natus exercitationem sapiente tempore labore voluptatem.',
-  },
+  "Yes. We highly recommend having a finished and approved stereo mix before moving to the Atmos stage. The stereo master acts as the blueprint for our engineers to match the punch, glue, and emotion of your record in the immersive space. If you need a stereo mix of your unmixed project, we are happy to provide that service as well for an additional fee."},
   {
-    question: 'Why do you never see elephants hiding in trees?',
+    question: "How do I review a Dolby Atmos mix if I don't have a multi-speaker studio?",
     answer:
-      "Because they're so good at it. Lorem ipsum dolor sit amet consectetur adipisicing elit. Quas cupiditate laboriosam fugiat.",
-  },
+"You don't need a complex speaker setup to review our work. Our secure online system lets you play a reference file easily play on an iPhone, iPad, or Mac using AirPods or supported headphones. This utilizes Apple's native spatial rendering, allowing you to hear exactly how the mix will sound to the vast majority of your listeners on Apple Music." },
   {
-    question: "Why can't you hear a pterodactyl go to the bathroom?",
+    question: "Will my Atmos mix sound quieter or weaker than my stereo master?",
     answer:
-      'Because the pee is silent. Lorem ipsum dolor sit amet, consectetur adipisicing elit. Ipsam, quas voluptatibus ex culpa ipsum, aspernatur blanditiis fugiat ullam magnam suscipit deserunt illum natus facilis atque vero consequatur! Quisquam, debitis error.',
-  },
+"This is the most common issue with amateur Atmos mixing, but not with NovaSpatial. Dolby Atmos has strict loudness limits (-18 LUFS), which is quieter on paper than modern stereo masters. However, our proprietary Spatial Tone Lock workflow utilizes advanced spatial limiting and dynamic matching to ensure your mix retains its perceived impact, weight, and aggressive energy when users toggle between stereo and spatial on their devices."},
   {
     question: 'Why did the invisible man turn down the job offer?',
     answer:

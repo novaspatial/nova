@@ -24,7 +24,7 @@ export function TagListItem({
   return (
     <li
       className={clsx(
-        'rounded-full bg-gradient-to-r from-indigo-900/20 via-violet-800/20 to-purple-900/20 px-1.5 sm:px-4 3xl:px-5 py-px sm:py-1.5 3xl:py-2 text-[8px] sm:text-base 3xl:text-lg text-white',
+        'rounded-full bg-gradient-to-r from-indigo-900/20 via-violet-800/20 to-purple-900/20 px-1.5 sm:px-4 xl:px-3 3xl:px-5 py-px sm:py-1.5 xl:py-1 3xl:py-2 text-[8px] sm:text-base xl:text-sm 3xl:text-lg text-white',
         className,
       )}
     >
