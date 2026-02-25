@@ -104,14 +104,6 @@ export function Testimonials() {
               </div>
             ))}
           </div>
-          <div className="mt-6 text-center sm:mt-8 3xl:mt-10">
-            <p className="text-sm text-neutral-300 sm:text-base 3xl:text-lg">
-              See why thousands of artists trust us with their mixes
-            </p>
-            <Button href="/contact" className="mt-6 sm:mt-8">
-              Start your Project
-            </Button>
-          </div>
         </FadeIn>
       </Container>
     </div>

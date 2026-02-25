@@ -26,7 +26,7 @@ export function WorkClients() {
     <Container className="mt-24 sm:mt-32 lg:mt-40">
       <FadeIn>
         <h2 className="font-display text-sm font-medium tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] sm:text-[1rem] md:text-[1.125rem] lg:text-[1.3125rem] xl:text-[1.5625rem] 3xl:text-[2.4375rem]">
-          Trusted by Industry Leaders for Unrivaled Immersive Audio Mixes
+          Trusted by Industry Leaders for Unrivaled Audio Mixes
         </h2>
       </FadeIn>
       <FadeIn>

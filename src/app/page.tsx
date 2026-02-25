@@ -1,10 +1,10 @@
 import { Build } from '@/components/Build'
 import { Container } from '@/components/Container'
-import { Deliver } from '@/components/Deliver'
 import { Discover } from '@/components/Discover'
 import { FadeIn } from '@/components/FadeIn'
 import { FAQ } from '@/components/FAQ'
 import { HeroContent } from '@/components/HeroContent'
+import { HowItWorks } from '@/components/HowItWorks'
 import { PromoPopup } from '@/components/PromoPopup'
 import { RootLayout } from '@/components/RootLayout'
 import { Testimonials } from '@/components/Testimonials'
@@ -31,9 +31,9 @@ export default function Home() {
       <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
         <Discover />
         <Build />
-        <Deliver />
       </div>
       <Testimonials />
+      <HowItWorks />
       <FAQ />
     </RootLayout>
   )
