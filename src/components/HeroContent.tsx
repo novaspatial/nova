@@ -26,10 +26,10 @@ export function HeroContent() {
         Elevate your mix with <br />{' '}
         <span className="animate-hero-glow bg-gradient-to-r from-indigo-400 via-violet-500 to-purple-600 bg-[length:200%_auto] bg-clip-text text-transparent">
           NOVA Spatial Tone Lock
-        </span>{' '}
+        </span>
         <br /> new standard in Atmos Mixing
       </h1>
-      <p className="mt-3 max-w-sm text-xs text-neutral-300 sm:mt-6 sm:max-w-2xl sm:text-lg xl:mt-8 xl:max-w-4xl xl:text-2xl">
+      <p className="mt-3 max-w-xs text-[11px] text-neutral-300 sm:mt-6 sm:max-w-xl sm:text-base xl:mt-8 xl:max-w-3xl xl:text-xl">
         Get world-class, remote Spatial Audio mixing from industry-leading
         engineers in our world class Dolby Atmos Certified Mix Studio. Our
         exclusive Spatial Tone Lock process guarantees your Immersive Mix

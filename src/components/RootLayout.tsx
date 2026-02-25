@@ -39,9 +39,9 @@ const VideoBackground = dynamic(
 )
 
 const navLinks = [
-  { href: '/about', label: 'Engineers', highlight: false },
+  { href: '/about', label: 'About Us', highlight: false },
   { href: '/contact', label: 'Start Your Project!', highlight: true },
-  { href: '/blog', label: 'Articles', highlight: false },
+  { href: '/blog', label: 'Blog', highlight: false },
 ]
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {

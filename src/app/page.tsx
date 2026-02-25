@@ -28,7 +28,7 @@ export default function Home() {
       <div className="mt-28 mb-24 sm:mt-52 sm:mb-40 xl:mt-40 xl:mb-52 3xl:mt-52 3xl:mb-68">
         <WorkClients />
       </div>
-      <div className="mt-8 space-y-24 [counter-reset:section] sm:mt-10 sm:space-y-32 lg:mt-12 lg:space-y-40">
+      <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
         <Discover />
         <Build />
         <Deliver />
