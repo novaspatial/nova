@@ -36,7 +36,7 @@ export function Discover() {
         </p>
       </div>
 
-      <h3 className="mt-8 font-display text-sm font-semibold text-white sm:mt-12 sm:text-base 3xl:mt-16 3xl:text-lg">
+      <h3 className="mt-6 font-display text-sm font-semibold text-white sm:mt-10 sm:text-base 3xl:mt-12 3xl:text-lg">
         <Link
           href="/contact"
           className="inline-block bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent underline decoration-violet-400/0 underline-offset-4 transition-all duration-300 hover:scale-105 hover:from-indigo-200 hover:via-violet-200 hover:to-purple-200 hover:decoration-violet-400"
@@ -44,7 +44,7 @@ export function Discover() {
           Book Your Atmos Mix !
         </Link>
       </h3>
-      <TagList className="mt-3 sm:mt-4">
+      <TagList className="mt-2 sm:mt-3">
         <TagListItem>Dolby Atmos Certified Facility</TagListItem>
         <TagListItem>Spatial Tone Lock Translation</TagListItem>
         <TagListItem>Flagship ATC Monitoring</TagListItem>

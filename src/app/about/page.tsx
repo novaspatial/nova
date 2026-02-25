@@ -24,37 +24,6 @@ import imageWhitneyFrancis from '@/images/team/whitney-francis.jpg'
 import { loadArticles } from '@/lib/mdx'
 import { RootLayout } from '@/components/RootLayout'
 
-function Culture() {
-  return (
-    <div className="mt-24 rounded-4xl bg-neutral-950 py-24 sm:mt-32 lg:mt-40 lg:py-32">
-      <SectionIntro
-        eyebrow="Our culture"
-        title="Balance your passion with your passion for life."
-      >
-        <p>
-          We are a group of like-minded people who share the same core values.
-        </p>
-      </SectionIntro>
-      <Container className="mt-16">
-        <GridList>
-          <GridListItem title="Loyalty">
-            Our team has been with us since the beginning because none of them
-            are allowed to have LinkedIn profiles.
-          </GridListItem>
-          <GridListItem title="Trust">
-            We don’t care when our team works just as long as they are working
-            every waking second.
-          </GridListItem>
-          <GridListItem title="Compassion">
-            You never know what someone is going through at home and we make
-            sure to never find out.
-          </GridListItem>
-        </GridList>
-      </Container>
-    </div>
-  )
-}
-
 const team = [
   {
     title: 'Leadership',
@@ -188,31 +157,24 @@ export default async function About() {
 
   return (
     <RootLayout>
-      <PageIntro eyebrow="About us" title="Our strength is collaboration">
+      <PageIntro eyebrow="About us" title="Elite Engineers. Uncompromised Spatial Audio.">
         <p>
-          We believe that our strength lies in our collaborative approach, which
-          puts our clients at the center of everything we do.
+        NovaSpatial was founded on a singular vision: to bring world-class, uncompromised immersive audio to artists and labels worldwide. Our award-winning team represents a diverse, top-tier range of expertise across the entire spectrum of modern music mixing and spatial audio formatting.
         </p>
         <div className="mt-10 max-w-2xl space-y-6 text-base">
           <p>
-            Studio was started by three friends who noticed that developer
-            studios were charging clients double what an in-house team would
-            cost. Since the beginning, we have been committed to doing things
-            differently by charging triple instead.
+          With decades of industry experience, our engineers have been at the helm of records that have amassed billions of streams globally. We have spent our careers perfecting the art of sonic translation, ensuring that the raw energy and emotional impact of a record is never lost—whether it is a pristine stereo master or a fully immersive Dolby Atmos experience.
           </p>
           <p>
-            At Studio, we’re more than just colleagues — we’re a family. This
-            means we pay very little and expect people to work late. We want our
-            employees to bring their whole selves to work. In return, we just
-            ask that they keep themselves there until at least 6:30pm.
+          Beyond the technical precision of our proprietary Spatial Tone Lock process, our true strength lies in our relentless dedication to client satisfaction. We treat every single project with the utmost care, prioritizing seamless communication, remote accessibility, and meticulous attention to detail to ensure your sonic vision is perfectly realized.
           </p>
         </div>
       </PageIntro>
       <Container className="mt-16">
         <StatList>
-          <StatListItem value="35" label="Underpaid employees" />
-          <StatListItem value="52" label="Placated clients" />
-          <StatListItem value="$25M" label="Invoices billed" />
+          <StatListItem value="20+" label="Years of Experience" />
+          <StatListItem value="1B+" label="Global Streams" />
+          <StatListItem value="10,000+" label="Projects Completed" />
         </StatList>
       </Container>
 

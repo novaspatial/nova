@@ -25,18 +25,8 @@ export function WorkClients() {
   return (
     <Container className="mt-24 sm:mt-32 lg:mt-40">
       <FadeIn>
-        <h2 className="flex items-center justify-center gap-4 font-display text-sm font-medium tracking-tight text-white sm:gap-6 sm:text-lg md:text-xl lg:text-2xl xl:text-3xl 3xl:text-5xl">
-          <span
-            className="h-px max-w-16 min-w-8 flex-1 bg-neutral-600/50"
-            aria-hidden
-          />
-          <span className="text-center [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
-            Trusted by Industry Leaders for Unrivaled Immersive Audio Mixes
-          </span>
-          <span
-            className="h-px max-w-16 min-w-8 flex-1 bg-neutral-600/50"
-            aria-hidden
-          />
+        <h2 className="font-display text-sm font-medium tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)] sm:text-[1rem] md:text-[1.125rem] lg:text-[1.3125rem] xl:text-[1.5625rem] 3xl:text-[2.4375rem]">
+          Trusted by Industry Leaders for Unrivaled Immersive Audio Mixes
         </h2>
       </FadeIn>
       <FadeIn>
@@ -55,7 +45,7 @@ export function WorkClients() {
                 {workClients.map(([client, logo]) => (
                   <div
                     key={client}
-                    className="relative h-8 w-42 shrink-0 sm:h-10 sm:w-48 xl:h-11 xl:w-50 3xl:h-18 3xl:w-72"
+                    className="relative h-7 w-36 shrink-0 sm:h-9 sm:w-44 xl:h-10 xl:w-48 3xl:h-16 3xl:w-64"
                   >
                     <Image
                       src={logo}
