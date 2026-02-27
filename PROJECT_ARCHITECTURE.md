@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Project Overview
+## Project Overview
 
 | Property                | Value                                                |
 | ----------------------- | ---------------------------------------------------- |
@@ -94,114 +94,6 @@
 
 ---
 
-## 2. Folder & File Architecture
-
-```
-nova/
-├── mdx-components.tsx              # Root MDX component overrides
-├── next.config.mjs                 # Next.js config (MDX, caching headers)
-├── next-env.d.ts                   # Next.js TS declarations (auto-generated)
-├── package.json                    # Dependencies & scripts
-├── package-lock.json               # npm lock file
-├── postcss.config.js               # PostCSS with @tailwindcss/postcss
-├── prettier.config.js              # Prettier config (single quotes, no semi, TW sorting)
-├── tsconfig.json                   # TypeScript config (strict, path alias @/*)
-├── README.md                       # Minimal readme
-├── public/
-│   └── videos/
-│       ├── hero-bg.mp4             # Hero background video (10.4 MB)
-│       └── hero-bg-poster.jpg      # Video poster image (167 KB)
-├── supabase/
-│   └── migrations/
-│       ├── 20260219_create_profiles.sql   # Profiles table + RLS + trigger
-│       └── 20260220_add_first_mix_discount.sql  # Add discount column
-└── src/
-    ├── app/                        # Next.js App Router pages
-    │   ├── layout.tsx              # Root HTML layout (metadata, global CSS)
-    │   ├── page.tsx                # Homepage
-    │   ├── not-found.tsx           # 404 page
-    │   ├── about/
-    │   │   └── page.tsx            # About page (team, stats)
-    │   ├── auth/
-    │   │   └── callback/
-    │   │       └── route.ts        # OAuth callback API route
-    │   ├── blog/
-    │   │   ├── page.tsx            # Blog listing
-    │   │   ├── wrapper.tsx         # MDX article layout wrapper
-    │   │   ├── a-short-guide-to-component-naming/
-    │   │   │   ├── page.mdx
-    │   │   │   └── *.jpg           # Article images
-    │   │   ├── 3-lessons-we-learned-going-back-to-the-office/
-    │   │   │   ├── page.mdx
-    │   │   │   └── *.jpg
-    │   │   └── future-of-web-development/
-    │   │       ├── page.mdx
-    │   │       └── *.jpg
-    │   ├── contact/
-    │   │   └── page.tsx            # Contact form + details
-    │   ├── login/
-    │   │   └── page.tsx            # Login/signup page
-    │   └── profile/
-    │       ├── page.tsx            # Profile page (server component)
-    │       └── profile-form.tsx    # Profile edit form (client component)
-    ├── components/                 # 31 reusable React components
-    │   ├── Blockquote.tsx
-    │   ├── Border.tsx
-    │   ├── Build.tsx
-    │   ├── Button.tsx
-    │   ├── Container.tsx
-    │   ├── Discover.tsx
-    │   ├── FadeIn.tsx
-    │   ├── FAQ.tsx
-    │   ├── Footer.tsx
-    │   ├── GrayscaleTransitionImage.tsx
-    │   ├── GridList.tsx
-    │   ├── GridPattern.tsx
-    │   ├── HeroContent.tsx
-    │   ├── HowItWorks.tsx
-    │   ├── List.tsx
-    │   ├── Logo.tsx
-    │   ├── MDXComponents.tsx
-    │   ├── Offices.tsx
-    │   ├── PageIntro.tsx
-    │   ├── PageLinks.tsx
-    │   ├── PromoPopup.tsx
-    │   ├── RootLayout.tsx
-    │   ├── Section.tsx
-    │   ├── SectionIntro.tsx
-    │   ├── SocialMedia.tsx
-    │   ├── StatList.tsx
-    │   ├── StylizedImage.tsx
-    │   ├── TagList.tsx
-    │   ├── Testimonials.tsx
-    │   ├── VideoBackground.tsx
-    │   └── WorkClients.tsx
-    ├── fonts/
-    │   └── Mona-Sans.var.woff2    # Variable font (134 KB)
-    ├── images/
-    │   ├── clients/               # 8 client logo directories (light/dark SVGs)
-    │   ├── team/                   # 12 team member photos (JPG)
-    │   ├── composition.png         # (2.1 MB)
-    │   ├── laptop.jpg
-    │   ├── meeting.jpg
-    │   ├── mix.png                 # (10.6 MB)
-    │   ├── nova.png                # (12.2 MB)
-    │   └── whiteboard.jpg
-    ├── lib/
-    │   ├── formatDate.ts           # Date formatting utility
-    │   ├── mdx.ts                  # MDX entry loading + Article type
-    │   └── supabase/
-    │       ├── client.ts           # Browser Supabase client factory
-    │       └── server.ts           # Server Supabase client factory
-    ├── middleware.ts                # Auth middleware (protects /profile)
-    ├── styles/
-    │   ├── base.css                # @font-face for Mona Sans
-    │   ├── tailwind.css            # Tailwind imports + @theme + keyframes
-    │   └── typography.css          # MDX/prose typography styles
-    └── types/
-        └── css.d.ts                # CSS module type declaration
-```
-
 ### Naming Conventions
 
 | Type              | Convention                                   | Example                             |
@@ -223,7 +115,7 @@ import { Button } from '@/components/Button'
 
 ---
 
-## 3. Routing Structure
+## Routing Structure
 
 ### Pages
 
@@ -263,63 +155,6 @@ import { Button } from '@/components/Button'
 
 ---
 
-## 4. Component Architecture
-
-### All Components
-
-| Component                  | File                           | Client? | Props                                                 | Purpose                                    |
-| -------------------------- | ------------------------------ | ------- | ----------------------------------------------------- | ------------------------------------------ |
-| `Blockquote`               | `Blockquote.tsx`               | No      | `author`, `children`, `className`, `image`            | Testimonial blockquotes                    |
-| `Border`                   | `Border.tsx`                   | No      | `as`, `className`, `position`, `invert`               | Decorative border element                  |
-| `Build`                    | `Build.tsx`                    | No      | None                                                  | "Spatial Tone Lock" feature section        |
-| `Button`                   | `Button.tsx`                   | No      | `invert`, `className`, `children` + Link/button props | CTA button (link or button)                |
-| `Container`                | `Container.tsx`                | No      | `as`, `className`, `children`                         | Max-width responsive container             |
-| `Discover`                 | `Discover.tsx`                 | No      | None                                                  | "Dolby Atmos Facility" section             |
-| `FadeIn`                   | `FadeIn.tsx`                   | **Yes** | Framer Motion div props                               | Viewport-triggered fade animation          |
-| `FadeInStagger`            | `FadeIn.tsx`                   | **Yes** | `faster` + Framer Motion div props                    | Staggered child animations                 |
-| `FAQ`                      | `FAQ.tsx`                      | **Yes** | None                                                  | Expandable FAQ accordion                   |
-| `Footer`                   | `Footer.tsx`                   | No      | None                                                  | Site footer (nav, newsletter, social)      |
-| `GrayscaleTransitionImage` | `GrayscaleTransitionImage.tsx` | **Yes** | Image props                                           | Scroll-based grayscale transition          |
-| `GridList`                 | `GridList.tsx`                 | No      | `children`, `className`                               | 3-column grid with fade-in                 |
-| `GridListItem`             | `GridList.tsx`                 | No      | `title`, `children`, `className`, `invert`            | Grid item with border                      |
-| `GridPattern`              | `GridPattern.tsx`              | **Yes** | `yOffset`, `interactive` + SVG props                  | Interactive SVG background pattern         |
-| `HeroContent`              | `HeroContent.tsx`              | No      | None                                                  | Hero section text + feature list           |
-| `HowItWorks`               | `HowItWorks.tsx`               | **Yes** | None                                                  | 4-step interactive timeline                |
-| `List`                     | `List.tsx`                     | No      | `children`, `className`                               | Animated list component                    |
-| `ListItem`                 | `List.tsx`                     | No      | `title`, `children`                                   | List item with border                      |
-| `Logo`                     | `Logo.tsx`                     | No      | `invert`, `filled`, `fillOnHover` + SVG props         | Animated logo                              |
-| `Logomark`                 | `Logo.tsx`                     | No      | SVG props                                             | Logo icon only                             |
-| `MDXComponents`            | `MDXComponents.tsx`            | No      | N/A (export object)                                   | MDX element overrides                      |
-| `Offices`                  | `Offices.tsx`                  | No      | `invert` + UL props                                   | Office locations list                      |
-| `PageIntro`                | `PageIntro.tsx`                | No      | `eyebrow`, `title`, `children`, `centered`            | Page header section                        |
-| `PageLinks`                | `PageLinks.tsx`                | No      | `title`, `pages`, `intro`, `className`                | Article/page link grid                     |
-| `PromoPopup`               | `PromoPopup.tsx`               | **Yes** | None                                                  | Auto-show promo modal (50% off)            |
-| `RootLayout`               | `RootLayout.tsx`               | **Yes** | `children`, `videoSrc`                                | Main layout (navbar, grid pattern, footer) |
-| `Section`                  | `Section.tsx`                  | No      | `title`, `image`, `children`                          | Two-column section template                |
-| `SectionIntro`             | `SectionIntro.tsx`             | No      | `title`, `eyebrow`, `children`, `smaller`, `invert`   | Section header                             |
-| `SocialMedia`              | `SocialMedia.tsx`              | No      | `className`, `invert`                                 | Social media links                         |
-| `StatList`                 | `StatList.tsx`                 | No      | FadeInStagger props                                   | Statistics grid                            |
-| `StatListItem`             | `StatList.tsx`                 | No      | `label`, `value`                                      | Individual stat                            |
-| `StylizedImage`            | `StylizedImage.tsx`            | No      | Image props + `shape`                                 | SVG-clipped decorative images              |
-| `TagList`                  | `TagList.tsx`                  | No      | `children`, `className`                               | Flex-wrapped tag list                      |
-| `TagListItem`              | `TagList.tsx`                  | No      | `children`                                            | Individual tag                             |
-| `Testimonials`             | `Testimonials.tsx`             | No      | None                                                  | Client testimonials + highlights           |
-| `VideoBackground`          | `VideoBackground.tsx`          | **Yes** | `src`, `poster`                                       | Background video with preload              |
-| `WorkClients`              | `WorkClients.tsx`              | No      | None                                                  | Scrolling client logos marquee             |
-
-### Client Components (10 files with `'use client'`)
-
-- `FadeIn.tsx` — Animation requires browser APIs
-- `FAQ.tsx` — Headless UI Disclosure (interactive)
-- `GrayscaleTransitionImage.tsx` — Scroll tracking
-- `GridPattern.tsx` — Mouse tracking
-- `HowItWorks.tsx` — Expandable state
-- `PromoPopup.tsx` — Timer, sessionStorage
-- `RootLayout.tsx` — Auth state, navigation, router
-- `VideoBackground.tsx` — Video element ref
-- `login/page.tsx` — Form state, auth
-- `profile/profile-form.tsx` — Form state, auth
-
 ### Custom Hooks
 
 | Hook          | Location                    | Purpose                                                                                        |
@@ -332,69 +167,9 @@ import { Button } from '@/components/Button'
 | ---------------------- | ------------ | --------------------------------------------------------------------------------------------------- |
 | `FadeInStaggerContext` | `FadeIn.tsx` | Coordinates staggered animation timing between parent `FadeInStagger` and child `FadeIn` components |
 
-### Component Dependency Graph
-
-```
-RootLayout (client)
-├── Navbar
-│   ├── Logo / Logomark
-│   ├── Container
-│   ├── DesktopNavigation → NavItem
-│   ├── MobileNavigation → MobileNavItem (Headless UI Popover)
-│   └── UserMenu (Headless UI Menu)
-├── VideoBackground (dynamic import, client)
-├── GridPattern (client)
-└── Footer
-    ├── Logo
-    ├── Container
-    ├── FadeIn
-    └── socialMediaProfiles
-
-Home Page (server)
-├── RootLayout
-├── Container + FadeIn
-├── HeroContent
-├── PromoPopup (client)
-├── WorkClients
-├── Discover → Section → StylizedImage + TagList
-├── Build → Section + TagList
-├── Testimonials → Button + Container + FadeIn
-├── HowItWorks (client) → TimelineStep + Button
-└── FAQ (client)
-
-About Page (server, async)
-├── RootLayout
-├── PageIntro
-├── Container + StatList
-├── GridList + GridListItem
-└── PageLinks
-
-Blog Page (server, async)
-├── RootLayout
-├── PageIntro
-├── Container + Border + Button + FadeIn
-
-Contact Page (server)
-├── RootLayout
-├── PageIntro
-├── ContactForm (TextInput, RadioInput)
-└── ContactDetails (Border, Offices, SocialMedia)
-
-Login Page (client)
-├── GridPattern
-├── FadeIn + Logo + Footer
-
-Profile Page (server, async)
-├── RootLayout
-├── Container
-└── ProfileForm (client)
-```
-
 ---
 
-## 5. Styling & Design System
-
-### 5.1 CSS Methodology
+## Styling & Design System
 
 **Tailwind CSS v4** with the new `@tailwindcss/postcss` integration (no `tailwind.config.js` — configuration is done via `@theme` in CSS).
 
@@ -403,9 +178,7 @@ Profile Page (server, async)
 - **Typography styles:** `src/styles/typography.css` (prose/MDX content styling)
 - **No CSS Modules, no styled-components, no Sass**
 
-### 5.2 Color Palette
-
-#### Primary Brand Colors (Violet/Purple/Indigo Gradient System)
+### Primary Brand Colors (Violet/Purple/Indigo Gradient System)
 
 | Color            | Value                           | Where Used                                                  | Purpose              |
 | ---------------- | ------------------------------- | ----------------------------------------------------------- | -------------------- |
@@ -463,23 +236,6 @@ Profile Page (server, async)
 | Emerald 300       | `text-emerald-300`                           | Success message text | Success text       |
 | Emerald 500/10-20 | `bg-emerald-500/10`, `border-emerald-500/20` | Success container    | Success background |
 
-#### Google Icon Colors (login page only)
-
-| Color     | Value         | Purpose     |
-| --------- | ------------- | ----------- |
-| `#4285F4` | Google Blue   | Google icon |
-| `#34A853` | Google Green  | Google icon |
-| `#FBBC05` | Google Yellow | Google icon |
-| `#EA4335` | Google Red    | Google icon |
-
-#### Color Inconsistencies & Recommendations
-
-1. **Zinc vs Neutral overlap:** The project uses both `zinc-*` and `neutral-*` color scales interchangeably (e.g., `bg-neutral-950` on body, `bg-zinc-950` in components). These are different Tailwind palettes. **Recommend:** Standardize on one (zinc appears dominant).
-2. **Hardcoded hex in CSS keyframes:** Colors like `#fff`, `#c4b5fd`, `rgba(139,92,246,...)` in `tailwind.css` keyframes could use Tailwind theme references.
-3. **Hardcoded SVG gradient stops:** `GridPattern.tsx` uses hardcoded hex values (`#131134`, `#1c0b39`, etc.) instead of Tailwind utilities.
-
-### 5.3 Typography
-
 #### Fonts
 
 | Font                     | Source                                  | Weight Range | Usage                                             |
@@ -514,14 +270,14 @@ Additional inline sizes: `text-[10px]` (Footer small text), `text-[11px]` (Promo
 - `font-semibold` — Section titles, typography headings, badges
 - `font-bold` — Buttons, hero text, login headings
 
-### 5.4 Spacing & Layout
+### Spacing & Layout
 
 - **Spacing scale:** Tailwind v4 default spacing (0.25rem increments)
 - **Custom radius:** `--radius-4xl: 2.5rem` (40px)
 - **Container:** Uses `Container` component with `mx-auto max-w-7xl px-6 lg:px-8`
 - **Layout patterns:** Flexbox (navigation, cards), CSS Grid (footer, highlights, testimonials), CSS columns (testimonials 2-3 col)
 
-### 5.5 Responsive / Mobile-Friendly CSS
+### Responsive / Mobile-Friendly CSS
 
 #### Breakpoints
 
@@ -551,22 +307,9 @@ The `3xl` breakpoint is used extensively throughout the project for large displa
 - **Timeline:** Stacked cards on mobile, alternating left/right on `lg:`
 - **Footer text:** `text-[10px]` on mobile → `sm:text-sm` → `3xl:text-base`
 
-#### Components with NO Responsive Styles (Potential Issues)
-
-- **`PromoPopup`:** Hidden on screens below `lg:` (`hidden lg:block`) — intentionally desktop-only
-- **`GrayscaleTransitionImage`:** No responsive image sizing (depends on parent)
-
-#### Mobile-Friendliness Assessment
-
-- **Viewport meta tag:** Not explicitly set (Next.js adds it automatically)
-- **Touch targets:** Expandable timeline buttons have `min-h-11` (44px) — good
-- **Font scaling:** Smallest mobile text is `text-[10px]` in footer — borderline small
-- **Horizontal scroll:** No fixed widths detected that would cause overflow
-- **PromoPopup:** Desktop-only, avoids cluttering mobile
-
 ---
 
-## 6. State Management
+## State Management
 
 ### Approach: React State + Supabase Auth
 
@@ -763,81 +506,5 @@ No explicit `.eslintrc` file. Uses `eslint-config-next` via the `eslint` and `es
 | `nav-highlight-bg` | 3s ease-in-out infinite | Nav highlight background pulse        |
 | `gradient-shimmer` | 4s ease-in-out infinite | Gradient background shift             |
 | `hero-glow`        | 3s ease-in-out infinite | Hero text glow effect                 |
-
----
-
-## 10. Testing
-
-**No testing framework is configured.** No test files exist in the project.
-
-- No Jest, Vitest, Playwright, or Cypress configuration
-- No `__tests__` directories or `*.test.*` / `*.spec.*` files
-- The `package.json` has a `lint` script (`next lint`) but no `test` script
-
-**Test coverage: 0%**
-
----
-
-## 11. Deployment & DevOps
-
-### Deployment Target
-
-**Vercel** (inferred from):
-
-- `.vercel` in `.gitignore`
-- Standard Next.js project structure
-- No Docker/custom deployment configs
-
-### CI/CD
-
-**None configured.** No `.github/workflows/`, `.gitlab-ci.yml`, or other CI/CD files.
-
-### Environment Setup
-
-- `.env.local` — Contains Supabase URL and publishable key
-- No `.env.example` file exists (should be created for onboarding)
-- All env vars are `NEXT_PUBLIC_` (client-safe)
-
----
-
-## 12. Known Issues & Recommendations
-
-### High Priority
-
-| Issue                              | Type        | Location                                                                                                | Fix                                                                                                |
-| ---------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Supabase credentials committed** | Security    | `.env.local` is gitignored, but publishable key appears in agent output. Verify it's not in git history | Rotate key if exposed; add `.env.example` with placeholder values                                  |
-| **No `.env.example` file**         | DevOps      | Project root                                                                                            | Create `.env.example` with `NEXT_PUBLIC_SUPABASE_URL=` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=` |
-| **No error boundaries**            | Reliability | App-wide                                                                                                | Add `error.tsx` files in `src/app/` and key route groups                                           |
-| **No loading states**              | UX          | Async routes (`/about`, `/blog`, `/profile`)                                                            | Add `loading.tsx` files for routes that fetch data                                                 |
-| **Zero test coverage**             | Quality     | Project-wide                                                                                            | Set up Vitest + React Testing Library; prioritize auth flow and middleware tests                   |
-| **Large images**                   | Performance | `src/images/nova.png` (12.2 MB), `mix.png` (10.6 MB)                                                    | Compress images; consider WebP/AVIF formats                                                        |
-
-### Medium Priority
-
-| Issue                                   | Type        | Location                                           | Fix                                                     |
-| --------------------------------------- | ----------- | -------------------------------------------------- | ------------------------------------------------------- |
-| **Raw `<img>` tags**                    | Performance | `Testimonials.tsx:73-74`, `RootLayout.tsx:150,369` | Replace with `next/image` for optimization              |
-| **`font-display: block`**               | Performance | `base.css:4`                                       | Change to `font-display: swap` to avoid FOIT            |
-| **Not using `next/font`**               | Performance | Font loading                                       | Migrate to `next/font/local` for automatic optimization |
-| **Zinc vs Neutral inconsistency**       | Consistency | Multiple files                                     | Standardize on `zinc-*` throughout                      |
-| **No metadata on login page**           | SEO         | `src/app/login/page.tsx`                           | Add `metadata` export with title and description        |
-| **Missing `alt` on testimonial images** | A11y        | `Testimonials.tsx:76`                              | Add descriptive alt text for author photos              |
-| **Missing `alt` on user avatars**       | A11y        | `RootLayout.tsx:150,369`                           | Add alt text (e.g., "User avatar")                      |
-| **No CI/CD pipeline**                   | DevOps      | Project root                                       | Set up GitHub Actions for lint, build, and deploy       |
-
-### Low Priority
-
-| Issue                              | Type            | Location                      | Fix                                                            |
-| ---------------------------------- | --------------- | ----------------------------- | -------------------------------------------------------------- |
-| **Hardcoded gradient hex values**  | Maintainability | `GridPattern.tsx:153-167`     | Extract to CSS variables or Tailwind theme                     |
-| **Hardcoded FAQ/testimonial data** | Scalability     | `FAQ.tsx`, `Testimonials.tsx` | Consider moving to CMS or MDX files                            |
-| **Social login not configured**    | Feature gap     | `login/page.tsx:165`          | Configure Google/Apple OAuth providers in Supabase             |
-| **`console.log` check**            | Code quality    | Project-wide                  | No `console.log` statements found — clean                      |
-| **PromoPopup desktop-only**        | UX              | `PromoPopup.tsx:48`           | Consider mobile-friendly version (bottom sheet)                |
-| **No sitemap or robots.txt**       | SEO             | `public/`                     | Add `sitemap.xml` and `robots.txt` via Next.js metadata API    |
-| **Stale metadata title**           | SEO             | `layout.tsx:8`                | Title says "Studio" — should reference "Nova" or "NovaSpatial" |
-| **Missing Suspense boundaries**    | Performance     | Async components              | Wrap async content in `<Suspense>` with fallbacks              |
-| **`useEffect` missing dependency** | React           | `RootLayout.tsx:316`          | `useAuthUser` has empty deps array but references `supabase`   |
 
 ---
