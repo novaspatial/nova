@@ -75,7 +75,7 @@ export function FAQ() {
                 Frequently asked questions
               </span>
             </h2>
-            <p className="mt-4 text-xs text-neutral-300 sm:mt-6 sm:text-xl 3xl:mt-8 3xl:text-2xl">
+            <p className="mt-4 text-xs text-zinc-300 sm:mt-6 sm:text-xl 3xl:mt-8 3xl:text-2xl">
               Can&apos;t find the answer you&apos;re looking for? Feel free to
               reach out to our team.
             </p>
@@ -89,7 +89,7 @@ export function FAQ() {
               >
                 <dt>
                   <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
-                    <span className="text-[10px]/4 font-semibold transition-colors duration-200 group-hover:text-neutral-300 sm:text-base/7 3xl:text-lg/8">
+                    <span className="text-[10px]/4 font-semibold transition-colors duration-200 group-hover:text-zinc-300 sm:text-base/7 3xl:text-lg/8">
                       {faq.question}
                     </span>
                     <span className="ml-3 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-800/90 text-white ring-1 ring-white/10 transition-all duration-200 group-hover:scale-110 group-hover:bg-zinc-700/90 group-hover:ring-white/25 sm:ml-6 sm:h-7 sm:w-7 3xl:h-9 3xl:w-9">
@@ -108,7 +108,7 @@ export function FAQ() {
                   as="dd"
                   className="mt-1 pr-6 sm:mt-2 sm:pr-12 3xl:mt-3"
                 >
-                  <p className="text-[10px]/4 text-neutral-300 sm:text-base/7 3xl:text-lg/8">
+                  <p className="text-[10px]/4 text-zinc-300 sm:text-base/7 3xl:text-lg/8">
                     {faq.answer}
                   </p>
                 </DisclosurePanel>

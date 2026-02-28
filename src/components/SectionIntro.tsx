@@ -29,7 +29,7 @@ export function SectionIntro({
               <span
                 className={clsx(
                   'mb-4 block font-display text-xs font-semibold sm:mb-6 sm:text-base 3xl:mb-8 3xl:text-lg',
-                  invert ? 'text-neutral-950' : 'text-white',
+                  invert ? 'text-zinc-950' : 'text-white',
                 )}
               >
                 {eyebrow}
@@ -43,7 +43,7 @@ export function SectionIntro({
               smaller
                 ? 'text-xl font-semibold sm:text-2xl 3xl:text-3xl'
                 : 'text-2xl font-medium sm:text-4xl lg:text-5xl 3xl:text-6xl',
-              invert ? 'text-neutral-950' : 'text-white',
+              invert ? 'text-zinc-950' : 'text-white',
             )}
           >
             {title}
@@ -53,7 +53,7 @@ export function SectionIntro({
           <div
             className={clsx(
               'mt-4 text-xs sm:mt-6 sm:text-xl 3xl:mt-8 3xl:text-2xl',
-              invert ? 'text-neutral-600' : 'text-neutral-300',
+              invert ? 'text-zinc-600' : 'text-zinc-300',
             )}
           >
             {children}

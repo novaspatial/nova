@@ -29,14 +29,14 @@ export function HeroContent() {
         </span>
         <br /> new standard in Atmos Mixing
       </h1>
-      <p className="mt-3 max-w-xs text-[11px] text-neutral-300 sm:mt-6 sm:max-w-xl sm:text-base xl:mt-8 xl:max-w-3xl xl:text-xl">
+      <p className="mt-3 max-w-xs text-[11px] text-zinc-300 sm:mt-6 sm:max-w-xl sm:text-base xl:mt-8 xl:max-w-3xl xl:text-xl">
         Get world-class, remote Spatial Audio mixing from industry-leading
         engineers in our world class Dolby Atmos Certified Mix Studio. Our
         exclusive Spatial Tone Lock process guarantees your Immersive Mix
         retains the exact punch, glue, clipping and emotion of your original
         Stereo Master.
       </p>
-      <ul className="mt-4 space-y-1.5 text-xs text-neutral-300 sm:mt-8 sm:space-y-3 sm:text-base xl:mt-10 xl:space-y-4 xl:text-xl">
+      <ul className="mt-4 space-y-1.5 text-xs text-zinc-300 sm:mt-8 sm:space-y-3 sm:text-base xl:mt-10 xl:space-y-4 xl:text-xl">
         <li className="flex items-center gap-2 sm:gap-3">
           {checkIcon}
           Spatial Mixing and Mastering

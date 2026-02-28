@@ -28,7 +28,7 @@ export default async function BlogArticleWrapper({
             </h1>
             <time
               dateTime={article.date}
-              className="order-first text-sm text-neutral-400"
+              className="order-first text-sm text-zinc-400"
             >
               {formatDate(article.date)}
             </time>

@@ -150,10 +150,10 @@ export function GridPattern({
           x2="100%"
           y2="100%"
         >
-          <stop offset="0%" stopColor="#131134" />
-          <stop offset="35%" stopColor="#1c0b39" />
-          <stop offset="65%" stopColor="#220b35" />
-          <stop offset="100%" stopColor="#2c082e" />
+          <stop offset="0%" stopColor="var(--color-grid-hover-1)" />
+          <stop offset="35%" stopColor="var(--color-grid-hover-2)" />
+          <stop offset="65%" stopColor="var(--color-grid-hover-3)" />
+          <stop offset="100%" stopColor="var(--color-grid-hover-4)" />
         </linearGradient>
         <linearGradient
           id={staticGradientId}
@@ -162,9 +162,9 @@ export function GridPattern({
           x2="100%"
           y2="100%"
         >
-          <stop offset="0%" stopColor="#1e1b4b" />
-          <stop offset="50%" stopColor="#2e1065" />
-          <stop offset="100%" stopColor="#4a044e" />
+          <stop offset="0%" stopColor="var(--color-grid-static-1)" />
+          <stop offset="50%" stopColor="var(--color-grid-static-2)" />
+          <stop offset="100%" stopColor="var(--color-grid-static-3)" />
         </linearGradient>
         <pattern
           id={id}

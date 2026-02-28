@@ -5,7 +5,7 @@ import Link from 'next/link'
 export function Build() {
   return (
     <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
-      <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-neutral-300">
+      <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-zinc-300">
         <p>
         Part of what makes Atmos Spatial Audio so incredible is the added dynamic range and spread that results from going from stereo to fully immersive. But without the right technical knowledge and tools, Spatial Audio mixes often sound flat and dull and lack the energy of the Stereo Master. That is why we developed Spatial Tone Lock - a specialized workflow that combines our engineers' highly trained ears with proprietary audio plugins and reference tools to guarantee your spatial mix hits just as hard as the original.
         </p>

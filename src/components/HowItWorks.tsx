@@ -97,7 +97,7 @@ function TimelineStep({
               isExpanded ? 'max-h-96' : 'max-h-14 sm:max-h-14 3xl:max-h-16'
             }`}
           >
-            <p className="mt-2 text-xs leading-relaxed text-neutral-400 sm:text-sm 3xl:text-base">
+            <p className="mt-2 text-xs leading-relaxed text-zinc-400 sm:text-sm 3xl:text-base">
               {step.description}
             </p>
           </div>
@@ -133,7 +133,7 @@ export function HowItWorks() {
               <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
                 Seamless Remote Collaboration
               </h2>
-              <p className="mt-2 text-sm text-neutral-400 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
+              <p className="mt-2 text-sm text-zinc-400 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
                 Our streamlined workflow makes world-class spatial mixing
                 effortless, no matter where you are in the world.
               </p>
@@ -163,8 +163,8 @@ export function HowItWorks() {
             {trustBadges.map(({ icon: Icon, label }) => (
               <FadeIn key={label}>
                 <div className="group flex cursor-default items-center gap-1.5 transition-all duration-300 hover:scale-105 3xl:gap-2">
-                  <Icon className="size-4 text-neutral-500 transition-colors duration-300 group-hover:text-violet-400 sm:size-4 3xl:size-5" />
-                  <span className="text-xs text-neutral-500 transition-colors duration-300 group-hover:text-neutral-300 sm:text-xs 3xl:text-sm">
+                  <Icon className="size-4 text-zinc-500 transition-colors duration-300 group-hover:text-violet-400 sm:size-4 3xl:size-5" />
+                  <span className="text-xs text-zinc-500 transition-colors duration-300 group-hover:text-zinc-300 sm:text-xs 3xl:text-sm">
                     {label}
                   </span>
                 </div>
