@@ -96,7 +96,7 @@ function ContactDetails() {
       <h2 className="font-display text-base font-semibold text-white">
         Our offices
       </h2>
-      <p className="mt-6 text-base text-neutral-300">
+      <p className="mt-6 text-base text-zinc-300">
         Prefer doing things in person? We don’t but we have to list our
         addresses here for legal reasons.
       </p>

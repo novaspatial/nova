@@ -9,7 +9,7 @@ export function Discover() {
       title="World-Class Dolby Atmos Certified Mixing Facility"
       image={{ src: nova }}
     >
-      <div className="space-y-3 text-xs text-neutral-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
+      <div className="space-y-3 text-xs text-zinc-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
         <p>
           Nova Spatial operates out of a premier, purpose-built mix studio. Our
           flagship mix room was custom-designed by renowned studio architect

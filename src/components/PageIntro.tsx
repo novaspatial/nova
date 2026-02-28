@@ -35,7 +35,7 @@ export function PageIntro({
         </h1>
         <div
           className={clsx(
-            'mt-6 max-w-3xl text-xl text-neutral-300',
+            'mt-6 max-w-3xl text-xl text-zinc-300',
             centered && 'mx-auto',
           )}
         >

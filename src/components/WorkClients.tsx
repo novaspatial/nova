@@ -30,7 +30,7 @@ export function WorkClients() {
         </h2>
       </FadeIn>
       <FadeIn>
-        <div className="group relative overflow-hidden border-t border-neutral-700 pt-2 sm:mt-4 sm:pt-6">
+        <div className="group relative overflow-hidden border-t border-zinc-700 pt-2 sm:mt-4 sm:pt-6">
           {/* Fade edges */}
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-linear-to-r from-gray-950 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-linear-to-l from-gray-950 to-transparent" />

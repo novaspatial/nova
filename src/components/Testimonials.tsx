@@ -1,6 +1,7 @@
 import { Button } from '@/components/Button'
 import { Container } from '@/components/Container'
 import { FadeIn } from '@/components/FadeIn'
+import Image from 'next/image'
 import imageBlakeReid from '@/images/team/blake-reid.jpg'
 import imageChelseaHagon from '@/images/team/chelsea-hagon.jpg'
 import imageDriesVincent from '@/images/team/dries-vincent.jpg'
@@ -66,20 +67,20 @@ export function Testimonials() {
                   className="pt-6 sm:inline-block sm:w-full sm:pt-8 sm:px-4"
                 >
                   <figure className="min-w-0 rounded-2xl bg-white/5 p-4 text-sm leading-relaxed ring-1 ring-white/10 sm:p-6 lg:p-8">
-                    <blockquote className="text-neutral-300">
+                    <blockquote className="text-zinc-300">
                       <p className="text-sm sm:text-base">&ldquo;{testimonial.body}&rdquo;</p>
                     </blockquote>
                     <figcaption className="mt-4 flex min-w-0 items-center gap-x-3 sm:mt-6 sm:gap-x-4">
-                      <img
-                        src={testimonial.author.image.src}
-                        alt=""
+                      <Image
+                        src={testimonial.author.image}
+                        alt={`User profile picture of ${testimonial.author.name}`}
                         className="size-10 shrink-0 rounded-full object-cover ring-1 ring-white/10"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold text-white">
                           {testimonial.author.name}
                         </div>
-                        <div className="truncate text-xs text-neutral-400 sm:text-sm">
+                        <div className="truncate text-xs text-zinc-400 sm:text-sm">
                           {testimonial.author.handle}
                         </div>
                       </div>
@@ -98,7 +99,7 @@ export function Testimonials() {
                 <div className="flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:shadow-lg group-hover:shadow-white/5 group-hover:ring-white/25 sm:size-16 3xl:size-20">
                   <Icon className="size-6 text-white transition-transform duration-300 group-hover:scale-110 sm:size-8 3xl:size-10" />
                 </div>
-                <span className="text-center text-xs font-medium text-neutral-300 transition-colors duration-300 group-hover:text-white sm:text-sm 3xl:text-base">
+                <span className="text-center text-xs font-medium text-zinc-300 transition-colors duration-300 group-hover:text-white sm:text-sm 3xl:text-base">
                   {label}
                 </span>
               </div>

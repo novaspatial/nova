@@ -17,13 +17,13 @@ export function Logomark({
         clipPath={`url(#${id}-clip)`}
         className={clsx(
           'w-8 transition-all duration-700',
-          invert ? 'fill-neutral-950' : 'fill-white',
+          invert ? 'fill-zinc-950' : 'fill-white',
           filled ? 'h-8' : 'h-0 group-hover/logo:h-8',
         )}
       />
       <use
         href={`#${id}-path`}
-        className={invert ? 'stroke-neutral-950' : 'stroke-violet-500'}
+        className={invert ? 'stroke-zinc-950' : 'stroke-violet-500'}
         fill="none"
         strokeWidth="1.5"
         filter={invert ? undefined : `url(#${id}-glow)`}
@@ -74,7 +74,7 @@ export function Logo({
         filled={filled}
       />
       <text
-        className={invert ? 'fill-neutral-950' : 'fill-white'}
+        className={invert ? 'fill-zinc-950' : 'fill-white'}
         x="28"
         y="23"
         fontSize="18"

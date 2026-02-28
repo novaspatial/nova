@@ -38,14 +38,14 @@ function PageLink({ page }: { page: Page }) {
         </h3>
         <time
           dateTime={page.date}
-          className="order-first text-sm text-neutral-400"
+          className="order-first text-sm text-zinc-400"
         >
           {formatDate(page.date)}
         </time>
-        <p className="mt-2.5 text-base text-neutral-400">{page.description}</p>
+        <p className="mt-2.5 text-base text-zinc-400">{page.description}</p>
         <Link
           href={page.href}
-          className="mt-6 flex gap-x-3 text-base font-semibold text-white transition hover:text-neutral-300"
+          className="mt-6 flex gap-x-3 text-base font-semibold text-white transition hover:text-zinc-300"
           aria-label={`Read more: ${page.title}`}
         >
           Read more

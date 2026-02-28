@@ -15,7 +15,7 @@ export function List({
       <ul
         role="list"
         className={clsx(
-          'text-xs text-neutral-300 sm:text-base 3xl:text-lg',
+          'text-xs text-zinc-300 sm:text-base 3xl:text-lg',
           className,
         )}
       >
