@@ -1,8 +1,8 @@
 import { Container } from '@/components/Container'
 import { RootLayout } from '@/components/RootLayout'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect } from 'next/navigation'
-import { ProfileForm } from './profile-form'
+import { ProfileForm } from './ProfileForm'
 
 export const metadata = {
   title: 'Profile',

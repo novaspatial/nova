@@ -90,7 +90,7 @@ export default async function config() {
           unifiedConditional,
           [
             new RegExp(`^${escapeStringRegexp(path.resolve('src/app/blog'))}`),
-            [[remarkMDXLayout, '@/app/blog/wrapper', 'article']],
+            [[remarkMDXLayout, '@/app/blog/BlogWrapper', 'article']],
           ],
         ],
       ],

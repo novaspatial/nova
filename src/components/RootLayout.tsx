@@ -21,7 +21,7 @@ import { Container } from '@/components/Container'
 import { Footer } from '@/components/Footer'
 import { GridPattern } from '@/components/GridPattern'
 import { Logo, Logomark } from '@/components/Logo'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/supabaseClient'
 import dynamic from 'next/dynamic'
 
 const VideoBackground = dynamic(
@@ -150,7 +150,7 @@ function MobileNavigation({
                   {avatarUrl ? (
                     <Image
                       src={avatarUrl}
-                      alt="User profile picture"
+                      alt="User avatar"
                       width={28}
                       height={28}
                       className="h-7 w-7 rounded-full object-cover"
@@ -372,7 +372,7 @@ function UserMenu({
         {avatarUrl ? (
           <Image
             src={avatarUrl}
-            alt="User profile picture"
+            alt="User avatar"
             width={24}
             height={24}
             className="h-6 w-6 rounded-full object-cover"
