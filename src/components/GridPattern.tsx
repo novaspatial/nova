@@ -51,14 +51,14 @@ export function GridPattern({
   yOffset?: number
   interactive?: boolean
 }) {
-  let id = useId()
-  let ref = useRef<React.ElementRef<'svg'>>(null)
-  let currentBlock = useRef<[x: number, y: number] | undefined>(undefined)
-  let counter = useRef(0)
-  let [hoveredBlocks, setHoveredBlocks] = useState<
+  const id = useId()
+  const ref = useRef<React.ElementRef<'svg'>>(null)
+  const currentBlock = useRef<[x: number, y: number] | undefined>(undefined)
+  const counter = useRef(0)
+  const [hoveredBlocks, setHoveredBlocks] = useState<
     Array<[x: number, y: number, key: number]>
   >([])
-  let staticBlocks = [
+  const staticBlocks = [
     [1, 1],
     [2, 2],
     [4, 3],
@@ -77,7 +77,7 @@ export function GridPattern({
         return
       }
 
-      let rect = ref.current.getBoundingClientRect()
+      const rect = ref.current.getBoundingClientRect()
       let x = event.clientX - rect.left
       let y = event.clientY - rect.top
       if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
@@ -97,8 +97,8 @@ export function GridPattern({
       currentBlock.current = [x, y]
 
       setHoveredBlocks((blocks) => {
-        let key = counter.current++
-        let block = [x, y, key] as (typeof hoveredBlocks)[number]
+        const key = counter.current++
+        const block = [x, y, key] as (typeof hoveredBlocks)[number]
         return [...blocks, block].filter(
           (block) => !(block[0] === x && block[1] === y && block[2] !== key),
         )
@@ -112,8 +112,8 @@ export function GridPattern({
     }
   }, [yOffset, interactive])
 
-  let hoveredGradientId = `${id}-hovered-gradient`
-  let staticGradientId = `${id}-static-gradient`
+  const hoveredGradientId = `${id}-hovered-gradient`
+  const staticGradientId = `${id}-static-gradient`
 
   return (
     <svg ref={ref} aria-hidden="true" {...props}>

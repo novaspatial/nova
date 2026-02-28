@@ -15,7 +15,7 @@ export function Border<T extends React.ElementType = 'div'>({
   ...props
 }: Omit<React.ComponentPropsWithoutRef<T>, keyof BorderProps<T>> &
   BorderProps<T>) {
-  let Component = as ?? 'div'
+  const Component = as ?? 'div'
 
   return (
     <Component

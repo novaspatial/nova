@@ -247,7 +247,7 @@ function NavItem({
   children: React.ReactNode
   highlight?: boolean
 }) {
-  let isActive = usePathname() === href
+  const isActive = usePathname() === href
 
   return (
     <li>

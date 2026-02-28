@@ -22,7 +22,7 @@ export function Button({
       : 'bg-gradient-to-r from-indigo-900/80 via-violet-800/80 to-purple-900/80 text-white shadow-lg shadow-violet-500/20 hover:from-indigo-950 hover:via-violet-900 hover:to-purple-950 hover:shadow-xl hover:shadow-violet-500/40 hover:scale-105',
   )
 
-  let inner = <span className="relative top-px">{children}</span>
+  const inner = <span className="relative top-px">{children}</span>
 
   if (typeof props.href === 'undefined') {
     return (

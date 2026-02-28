@@ -27,8 +27,8 @@ export function StylizedImage({
   className,
   ...props
 }: ImagePropsWithOptionalAlt & { shape?: 0 | 1 | 2 }) {
-  let id = useId()
-  let { width, height, path } = shapes[shape]
+  const id = useId()
+  const { width, height, path } = shapes[shape]
 
   return (
     <div className={clsx(className, 'relative flex aspect-719/680 w-full')}>

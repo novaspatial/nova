@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 }
 
 async function ArticlesList() {
-  let articles = await loadArticles()
+  const articles = await loadArticles()
 
   return (
     <div className="space-y-24 lg:space-y-32">

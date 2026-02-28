@@ -13,8 +13,8 @@ export default async function BlogArticleWrapper({
   article: MDXEntry<Article>
   children: React.ReactNode
 }) {
-  let allArticles = await loadArticles()
-  let moreArticles = allArticles
+  const allArticles = await loadArticles()
+  const moreArticles = allArticles
     .filter(({ metadata }) => metadata !== article)
     .slice(0, 2)
 
