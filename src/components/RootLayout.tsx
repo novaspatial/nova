@@ -12,9 +12,10 @@ import {
 } from '@headlessui/react'
 import type { User } from '@supabase/supabase-js'
 import clsx from 'clsx'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
 import { Container } from '@/components/Container'
 import { Footer } from '@/components/Footer'
@@ -147,10 +148,13 @@ function MobileNavigation({
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2.5 px-3 py-1.5">
                   {avatarUrl ? (
-                    <img
+                    <Image
                       src={avatarUrl}
-                      alt=""
+                      alt="User profile picture"
+                      width={28}
+                      height={28}
                       className="h-7 w-7 rounded-full object-cover"
+                      unoptimized
                     />
                   ) : (
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-300">
@@ -293,7 +297,7 @@ function DesktopNavigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 function useAuthUser() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!supabase) {
@@ -313,7 +317,7 @@ function useAuthUser() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase])
 
   return { user, loading, supabase }
 }
@@ -366,10 +370,13 @@ function UserMenu({
     <Menu as="div" className="pointer-events-auto relative">
       <MenuButton className="flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25 min-[1400px]:px-5 min-[1400px]:py-2 min-[1400px]:text-lg">
         {avatarUrl ? (
-          <img
+          <Image
             src={avatarUrl}
-            alt=""
+            alt="User profile picture"
+            width={24}
+            height={24}
             className="h-6 w-6 rounded-full object-cover"
+            unoptimized
           />
         ) : (
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-300">
