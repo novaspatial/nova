@@ -30,4 +30,5 @@ jobs:
         run: npx next build
 
       - name: Run Vitest (Placeholder)
-        run: echo "TODO: Replace this step with your vitest command (e.g., npx vitest run) once configured."
+        run: |
+          echo "TODO: Replace this step with your vitest command (e.g., npx vitest run) once configured."

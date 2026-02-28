@@ -9,7 +9,7 @@ export function Logomark({
   invert?: boolean
   filled?: boolean
 }) {
-  let id = useId()
+  const id = useId()
 
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" {...props}>

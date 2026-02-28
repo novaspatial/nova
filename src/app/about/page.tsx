@@ -5,10 +5,10 @@ import { Suspense } from 'react'
 import { Border } from '@/components/Border'
 import { Container } from '@/components/Container'
 import { FadeIn, FadeInStagger } from '@/components/FadeIn'
-import { GridList, GridListItem } from '@/components/GridList'
+
 import { PageIntro } from '@/components/PageIntro'
 import { PageLinks } from '@/components/PageLinks'
-import { SectionIntro } from '@/components/SectionIntro'
+
 import { StatList, StatListItem } from '@/components/StatList'
 import imageAngelaFisher from '@/images/team/angela-fisher.jpg'
 import imageBenjaminRussel from '@/images/team/benjamin-russel.jpg'
@@ -154,7 +154,7 @@ export const metadata: Metadata = {
 }
 
 async function BlogArticles() {
-  let blogArticles = (await loadArticles()).slice(0, 2)
+  const blogArticles = (await loadArticles()).slice(0, 2)
 
   return (
     <PageLinks
