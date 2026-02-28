@@ -41,13 +41,13 @@ export function PromoPopup() {
     <AnimatePresence>
       {visible && !dismissed && (
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          initial={{ opacity: 0, y: '100%', scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 40, scale: 0.95 }}
+          exit={{ opacity: 0, y: '100%', scale: 0.95 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-4 left-4 right-4 z-50 lg:absolute lg:bottom-auto lg:top-0 lg:right-0 lg:left-auto lg:z-10 lg:w-[320px] xl:w-90"
+          className="fixed inset-x-0 bottom-0 z-50 lg:absolute lg:inset-auto lg:top-0 lg:right-0 lg:z-10 lg:w-[320px] xl:w-90"
         >
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/95 shadow-2xl shadow-violet-500/10 backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-t-3xl border border-white/10 border-b-0 bg-zinc-900/95 shadow-2xl shadow-violet-500/10 backdrop-blur-xl lg:rounded-2xl lg:border-b">
             <div className="h-1 w-full bg-linear-to-r from-indigo-500 via-violet-500 to-purple-500" />
 
             <button

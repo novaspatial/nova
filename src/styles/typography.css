@@ -1,18 +1,18 @@
 .typography {
-  color: var(--color-neutral-300);
+  color: var(--color-zinc-300);
   font-size: var(--text-xl);
   line-height: var(--text-xl--line-height);
 
   --shiki-color-text: var(--color-white);
-  --shiki-color-background: var(--color-neutral-950);
-  --shiki-token-constant: var(--color-neutral-300);
-  --shiki-token-string: var(--color-neutral-400);
-  --shiki-token-comment: var(--color-neutral-500);
-  --shiki-token-keyword: var(--color-neutral-400);
-  --shiki-token-parameter: var(--color-neutral-400);
-  --shiki-token-function: var(--color-neutral-300);
-  --shiki-token-string-expression: var(--color-neutral-300);
-  --shiki-token-punctuation: var(--color-neutral-400);
+  --shiki-color-background: var(--color-zinc-950);
+  --shiki-token-constant: var(--color-zinc-300);
+  --shiki-token-string: var(--color-zinc-400);
+  --shiki-token-comment: var(--color-zinc-500);
+  --shiki-token-keyword: var(--color-zinc-400);
+  --shiki-token-parameter: var(--color-zinc-400);
+  --shiki-token-function: var(--color-zinc-300);
+  --shiki-token-string-expression: var(--color-zinc-300);
+  --shiki-token-punctuation: var(--color-zinc-400);
 
   :where(.typography > *) {
     margin-top: --spacing(6);
@@ -61,7 +61,7 @@
   }
 
   :where(li)::marker {
-    color: var(--color-neutral-500);
+    color: var(--color-zinc-500);
   }
 
   :where(li > *),
@@ -105,7 +105,7 @@
   /* Code blocks */
   :where(pre) {
     display: flex;
-    background-color: var(--color-neutral-900);
+    background-color: var(--color-zinc-900);
     border-radius: var(--radius-4xl);
     overflow-x: auto;
     margin-top: --spacing(10);
