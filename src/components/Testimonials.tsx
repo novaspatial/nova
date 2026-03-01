@@ -48,7 +48,7 @@ const testimonials = [
 
 export function Testimonials() {
   return (
-    <div className="mt-8 mb-16 sm:mt-24 sm:mb-32 md:mt-32 xl:mt-40 xl:mb-40 3xl:mt-52 3xl:mb-52">
+    <div className="mt-16 mb-16 sm:mt-24 sm:mb-32 md:mt-32 xl:mt-40 xl:mb-40 3xl:mt-52 3xl:mb-52">
       <Container>
         <FadeIn>
           <div className="mx-auto max-w-2xl text-center">

@@ -25,7 +25,7 @@ export function Section({
         </div>
         <div className="mt-8 sm:mt-12 lg:mt-0 lg:w-148 lg:flex-none lg:group-even/section:order-first 3xl:w-160">
           <FadeIn>
-            <h2 className="font-display text-2xl font-medium tracking-tight text-white sm:text-4xl 3xl:text-5xl">
+            <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-4xl 3xl:text-5xl">
               {title}
             </h2>
             <div className="mt-4 text-white sm:mt-6 3xl:mt-8">{children}</div>

@@ -158,7 +158,7 @@ async function BlogArticles() {
 
   return (
     <PageLinks
-      className="mt-24 sm:mt-32 lg:mt-40"
+      className="mb-12 sm:mb-16 lg:mb-20"
       title="From the blog"
       intro="Our team of experienced designers and developers has just one thing on their mind; working on your ideas to draw a smile on the face of your users worldwide. From conducting Brand Sprints to UX Design."
       pages={blogArticles}
@@ -193,7 +193,7 @@ export default function About() {
 
       <Team />
 
-      <Suspense fallback={<div className="mt-24 sm:mt-32 lg:mt-40 text-center text-white">Loading articles...</div>}>
+      <Suspense fallback={<div className="mt-12 sm:mt-16 lg:mt-20 text-center text-white">Loading articles...</div>}>
         <BlogArticles />
       </Suspense>
     </RootLayout>

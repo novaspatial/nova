@@ -76,11 +76,11 @@ function TimelineStep({
 
         {/* Card container */}
         <div
-          className={`w-full px-3 pt-10 sm:px-6 sm:pt-14 md:pt-10 lg:w-1/2 lg:pt-0 ${
+          className={`w-full px-2 pt-10 sm:px-6 sm:pt-14 md:pt-10 lg:w-1/2 lg:pt-0 ${
             isEven ? 'lg:pr-12 xl:pr-16' : 'lg:ml-auto lg:pl-12 xl:pl-16'
           }`}
         >
-          <div className="group min-w-0 rounded-xl bg-white/3 p-4 ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/6 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:p-5 3xl:p-6">
+          <div className="group min-w-0 rounded-xl bg-white/3 p-3 ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/6 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:p-5 3xl:p-6">
           {/* Header row: title + icon */}
           <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
             <h3 className="min-w-0 truncate font-display text-sm font-semibold text-white sm:text-lg 3xl:text-xl">
@@ -124,15 +124,15 @@ function TimelineStep({
 
 export function HowItWorks() {
   return (
-    <div className="mt-8 mb-12 sm:mt-16 sm:mb-20 md:mt-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
+    <div className="mt-16 mb-12 sm:mt-16 sm:mb-20 md:mt-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
       <Container>
           {/* Header */}
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center 3xl:max-w-3xl">
-              <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
+              <h2 className="font-display text-lg font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
                 Seamless Remote Collaboration
               </h2>
-              <p className="mt-2 text-sm text-zinc-400 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
+              <p className="mt-2 text-xs text-zinc-400 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
                 Our streamlined workflow makes world-class spatial mixing
                 effortless, no matter where you are in the world.
               </p>
@@ -141,7 +141,7 @@ export function HowItWorks() {
 
           {/* Timeline */}
           <div className="relative mx-auto mt-6 max-w-5xl sm:mt-10 md:mt-12 lg:mt-12 3xl:mt-16">
-            <div className="space-y-2 sm:space-y-6 md:space-y-8 lg:space-y-12 3xl:space-y-16">
+            <div className="space-y-6 sm:space-y-6 md:space-y-8 lg:space-y-12 3xl:space-y-16">
               {steps.map((step, index) => (
                 <TimelineStep key={step.number} step={step} index={index} />
               ))}
@@ -151,7 +151,7 @@ export function HowItWorks() {
           {/* CTA Button */}
           <FadeIn>
             <div className="mt-6 flex justify-center px-2 sm:mt-10 3xl:mt-12">
-              <Button href="/contact" className="w-full sm:w-auto sm:min-w-50">
+              <Button href="/contact" className="w-auto sm:min-w-50">
                 Start Your Spatial Mix
               </Button>
             </div>
