@@ -27,7 +27,7 @@ export function HeroContent() {
         <span className="animate-hero-glow bg-gradient-to-r from-indigo-400 via-violet-500 to-purple-600 bg-[length:200%_auto] bg-clip-text text-transparent">
           NOVA Spatial Tone Lock
         </span>
-        <br /> new standard in Atmos Mixing
+        <br /> The new standard in Dolby Atmos Mixing
       </h1>
       <p className="mt-3 max-w-xs text-[11px] text-zinc-300 sm:mt-6 sm:max-w-xl sm:text-base xl:mt-8 xl:max-w-3xl xl:text-xl">
         Get world-class, remote Spatial Audio mixing from industry-leading

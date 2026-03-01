@@ -2,7 +2,7 @@ import { Section } from '@/components/Section'
 import { TagList, TagListItem } from '@/components/TagList'
 import nova from '@/images/nova.png'
 import composition from '@/images/composition.png'
-import Link from 'next/link'
+import { Button } from '@/components/Button'
 
 export function Services() {
   return (
@@ -38,14 +38,7 @@ export function Services() {
           </p>
         </div>
 
-        <h3 className="mt-6 font-display text-sm font-semibold text-white sm:mt-10 sm:text-base 3xl:mt-12 3xl:text-lg">
-          <Link
-            href="/contact"
-            className="inline-block bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent underline decoration-violet-400/0 underline-offset-4 transition-all duration-300 hover:scale-105 hover:from-indigo-200 hover:via-violet-200 hover:to-purple-200 hover:decoration-violet-400"
-          >
-            Book Your Atmos Mix !
-          </Link>
-        </h3>
+
         <TagList className="mt-2 sm:mt-3">
           <TagListItem>Dolby Atmos Certified Facility</TagListItem>
           <TagListItem>Spatial Tone Lock Translation</TagListItem>
@@ -54,6 +47,9 @@ export function Services() {
           <TagListItem>Award-Winning Engineers</TagListItem>
           <TagListItem>Secure Remote Mix Platform</TagListItem>
         </TagList>
+          <h3 className="mt-2 font-display text-sm font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
+          Claim your spot today - <Button href="/contact">Book Your Atmos Mix !</Button>
+        </h3>
       </Section>
 
       <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
@@ -69,8 +65,8 @@ export function Services() {
           </p>
         </div>
 
-        <h3 className="mt-4 sm:mt-6 3xl:mt-8 font-display text-sm sm:text-base 3xl:text-lg font-semibold text-white">
-          Experience Spatial Tone Lock - <Link href="/contact" className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent decoration-violet-400/0 underline underline-offset-4 transition-all duration-300 hover:from-indigo-200 hover:via-violet-200 hover:to-purple-200 hover:decoration-violet-400 hover:scale-105 inline-block">Start your Project Now !</Link>
+        <h3 className="mt-4 flex items-center gap-x-4 sm:mt-6 3xl:mt-8 font-display text-sm sm:text-base 3xl:text-lg font-semibold text-white">
+          Experience Spatial Tone Lock  - <Button href="/contact">Start your Project Now !</Button>
         </h3>
       </Section>
     </div>

@@ -62,7 +62,7 @@ async function ArticlesList() {
                   <Button
                     href={article.href}
                     aria-label={`Read more: ${article.title}`}
-                    className="!bg-violet-500/20! mt-8 text-white!"
+                    className="mt-8 bg-none! bg-zinc-800/90! text-zinc-200! shadow-none! ring-1 ring-white/10 hover:bg-zinc-700/90! hover:text-white! hover:shadow-none! hover:scale-100! hover:ring-white/25"
                   >
                     Read more
                   </Button>
