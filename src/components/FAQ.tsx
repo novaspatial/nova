@@ -63,8 +63,8 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <div className="mt-16 mb-24 sm:mt-28 sm:mb-40 xl:mt-40 xl:mb-28 3xl:mt-56 3xl:mb-36">
-      <Container className="mt-4 sm:mt-10">
+    <div className="mt-8 mb-12 sm:mt-16 sm:mb-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
+      <Container className="mt-2 sm:mt-6">
         <FadeIn>
           <div className="mx-auto text-center xl:max-w-4xl 3xl:max-w-5xl">
             <h2>
@@ -80,7 +80,7 @@ export function FAQ() {
               reach out to our team.
             </p>
           </div>
-          <dl className="mx-auto mt-6 max-w-xl divide-y divide-white/10 sm:mt-16 sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl">
+          <dl className="mx-auto mt-6 max-w-xl divide-y divide-white/10 sm:mt-12 sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl">
             {faqs.map((faq) => (
               <Disclosure
                 key={faq.question}

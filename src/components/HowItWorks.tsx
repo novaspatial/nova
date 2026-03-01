@@ -76,7 +76,7 @@ function TimelineStep({
 
         {/* Card container */}
         <div
-          className={`w-full px-3 pt-14 sm:px-6 sm:pt-20 md:pt-16 lg:w-1/2 lg:pt-0 ${
+          className={`w-full px-3 pt-10 sm:px-6 sm:pt-14 md:pt-10 lg:w-1/2 lg:pt-0 ${
             isEven ? 'lg:pr-12 xl:pr-16' : 'lg:ml-auto lg:pl-12 xl:pl-16'
           }`}
         >
@@ -124,7 +124,7 @@ function TimelineStep({
 
 export function HowItWorks() {
   return (
-    <div className="mt-8 mb-16 sm:mt-20 sm:mb-32 md:mt-24 xl:mt-32 xl:mb-24 3xl:mt-44 3xl:mb-32">
+    <div className="mt-8 mb-12 sm:mt-16 sm:mb-20 md:mt-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
       <Container>
         <FadeInStagger faster>
           {/* Header */}
@@ -141,8 +141,8 @@ export function HowItWorks() {
           </FadeIn>
 
           {/* Timeline */}
-          <div className="relative mx-auto mt-8 max-w-5xl sm:mt-14 md:mt-16 lg:mt-16 3xl:mt-20">
-            <div className="space-y-4 sm:space-y-10 md:space-y-12 lg:space-y-16 3xl:space-y-20">
+          <div className="relative mx-auto mt-6 max-w-5xl sm:mt-10 md:mt-12 lg:mt-12 3xl:mt-16">
+            <div className="space-y-2 sm:space-y-6 md:space-y-8 lg:space-y-12 3xl:space-y-16">
               {steps.map((step, index) => (
                 <TimelineStep key={step.number} step={step} index={index} />
               ))}
@@ -151,7 +151,7 @@ export function HowItWorks() {
 
           {/* CTA Button */}
           <FadeIn>
-            <div className="mt-8 flex justify-center px-2 sm:mt-14 3xl:mt-16">
+            <div className="mt-6 flex justify-center px-2 sm:mt-10 3xl:mt-12">
               <Button href="/contact" className="w-full sm:w-auto sm:min-w-50">
                 Start Your Spatial Mix
               </Button>
