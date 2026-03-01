@@ -63,7 +63,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <div className="mt-16 mb-8 sm:mt-24 sm:mb-12 xl:mt-32 xl:mb-12 3xl:mt-40 3xl:mb-16">
+    <div className="mt-24 mb-8 sm:mt-24 sm:mb-12 xl:mt-32 xl:mb-12 3xl:mt-40 3xl:mb-16">
       <Container className="mt-0 sm:mt-2">
         <FadeIn>
           <div className="mx-auto text-center xl:max-w-4xl 3xl:max-w-5xl">

@@ -30,7 +30,7 @@ export function TagListItem({
   return (
     <li
       className={clsx(
-        'rounded-full bg-zinc-900/90 px-1.5 py-px text-[8px] text-white ring-1 ring-white/10 backdrop-blur-sm sm:px-4 sm:py-1.5 sm:text-base xl:px-2.5 xl:py-0.5 xl:text-xs 3xl:px-3 3xl:py-1 3xl:text-sm',
+        'rounded-full bg-zinc-900/90 px-1 py-px text-[7px] text-white ring-1 ring-white/10 backdrop-blur-sm sm:px-4 sm:py-1.5 sm:text-base xl:px-2.5 xl:py-0.5 xl:text-xs 3xl:px-3 3xl:py-1 3xl:text-sm',
         className,
       )}
     >
