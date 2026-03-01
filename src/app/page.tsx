@@ -1,6 +1,5 @@
-import { Build } from '@/components/Build'
 import { Container } from '@/components/Container'
-import { Discover } from '@/components/Discover'
+import { Services } from '@/components/Services'
 import { FadeIn } from '@/components/FadeIn'
 import { FAQ } from '@/components/FAQ'
 import { HeroContent } from '@/components/HeroContent'
@@ -9,7 +8,7 @@ import { PromoPopup } from '@/components/PromoPopup'
 import { EmailCapturePopup } from '@/components/EmailCapturePopup'
 import { RootLayout } from '@/components/RootLayout'
 import { Testimonials } from '@/components/Testimonials'
-import { WorkClients } from '@/components/WorkClients'
+import { Clients } from '@/components/Clients'
 import { type Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -28,11 +27,10 @@ export default function Home() {
         <EmailCapturePopup />
       </Container>
       <div className="mt-28 mb-24 sm:mt-52 sm:mb-40 xl:mt-40 xl:mb-52 3xl:mt-52 3xl:mb-68">
-        <WorkClients />
+        <Clients />
       </div>
       <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
-        <Discover />
-        <Build />
+        <Services />
       </div>
       <Testimonials />
       <HowItWorks />

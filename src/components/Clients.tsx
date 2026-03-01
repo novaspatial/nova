@@ -10,7 +10,7 @@ import logoPhobiaLight from '@/images/clients/phobia/logo-light.svg'
 import logoUnsealLight from '@/images/clients/unseal/logo-light.svg'
 import Image from 'next/image'
 
-const workClients = [
+const clients = [
   ['Phobia', logoPhobiaLight],
   ['Family Fund', logoFamilyFundLight],
   ['Unseal', logoUnsealLight],
@@ -21,7 +21,7 @@ const workClients = [
   ['North Adventures', logoNorthAdventuresLight],
 ]
 
-export function WorkClients() {
+export function Clients() {
   return (
     <Container className="mt-24 sm:mt-32 lg:mt-40">
       <FadeIn>
@@ -42,7 +42,7 @@ export function WorkClients() {
                 className="flex shrink-0 animate-marquee items-center gap-x-14 group-hover:pause"
                 aria-hidden={copy === 1 ? true : undefined}
               >
-                {workClients.map(([client, logo]) => (
+                {clients.map(([client, logo]) => (
                   <div
                     key={client}
                     className="relative h-7 w-36 shrink-0 sm:h-9 sm:w-44 xl:h-10 xl:w-48 3xl:h-16 3xl:w-64"
