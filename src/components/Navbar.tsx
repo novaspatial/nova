@@ -292,7 +292,7 @@ function UserMenu({
     return (
       <Link
         href="/login"
-        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25 min-[1400px]:px-5 min-[1400px]:py-2 min-[1400px]:text-lg"
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-1.5 text-base font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/10 hover:text-white hover:ring-white/20 hover:shadow-md hover:shadow-violet-500/20 hover:scale-105 min-[1400px]:px-5 min-[1400px]:py-2 min-[1400px]:text-lg"
       >
         <svg
           viewBox="0 0 20 20"
