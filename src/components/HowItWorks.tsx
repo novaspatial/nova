@@ -126,7 +126,6 @@ export function HowItWorks() {
   return (
     <div className="mt-8 mb-12 sm:mt-16 sm:mb-20 md:mt-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
       <Container>
-        <FadeInStagger faster>
           {/* Header */}
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center 3xl:max-w-3xl">
@@ -159,7 +158,10 @@ export function HowItWorks() {
           </FadeIn>
 
           {/* Trust badges */}
-          <div className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-center gap-3 sm:mt-8 sm:gap-6 3xl:mt-10 3xl:gap-8">
+          <FadeInStagger
+            faster
+            className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-center gap-3 sm:mt-8 sm:gap-6 3xl:mt-10 3xl:gap-8"
+          >
             {trustBadges.map(({ icon: Icon, label }) => (
               <FadeIn key={label}>
                 <div className="group flex cursor-default items-center gap-1.5 transition-all duration-300 hover:scale-105 3xl:gap-2">
@@ -170,8 +172,7 @@ export function HowItWorks() {
                 </div>
               </FadeIn>
             ))}
-          </div>
-        </FadeInStagger>
+          </FadeInStagger>
       </Container>
     </div>
   )
