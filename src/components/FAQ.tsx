@@ -85,7 +85,7 @@ export function FAQ() {
               <FadeIn key={faq.question}>
                 <Disclosure
                   as="div"
-                  className="py-2 first:pt-0 last:pb-0 sm:py-3 3xl:py-4"
+                  className="py-4 first:pt-0 last:pb-0 sm:py-6 3xl:py-8"
                 >
                 <dt>
                   <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
