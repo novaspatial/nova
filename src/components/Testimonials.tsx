@@ -66,7 +66,7 @@ export function Testimonials() {
                   key={testimonial.author.name}
                   className="pt-6 sm:inline-block sm:w-full sm:pt-8 sm:px-4"
                 >
-                  <figure className="min-w-0 rounded-2xl bg-white/5 p-4 text-sm leading-relaxed ring-1 ring-white/10 sm:p-6 lg:p-8">
+                  <figure className="min-w-0 rounded-2xl bg-white/5 p-4 text-sm leading-relaxed ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-1 hover:bg-white/8 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:p-6 lg:p-8">
                     <blockquote className="text-zinc-300">
                       <p className="text-sm sm:text-base">&ldquo;{testimonial.body}&rdquo;</p>
                     </blockquote>
@@ -96,7 +96,7 @@ export function Testimonials() {
                 key={label}
                 className="group flex cursor-pointer flex-col items-center gap-1.5 sm:gap-3 3xl:gap-4"
               >
-                <div className="flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:shadow-lg group-hover:shadow-white/5 group-hover:ring-white/25 sm:size-16 3xl:size-20">
+                <div className="flex size-12 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:shadow-lg group-hover:shadow-violet-500/20 group-hover:ring-white/20 sm:size-16 3xl:size-20">
                   <Icon className="size-6 text-white transition-transform duration-300 group-hover:scale-110 sm:size-8 3xl:size-10" />
                 </div>
                 <span className="text-center text-xs font-medium text-zinc-300 transition-colors duration-300 group-hover:text-white sm:text-sm 3xl:text-base">

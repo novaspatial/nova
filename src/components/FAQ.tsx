@@ -82,18 +82,17 @@ export function FAQ() {
           </div>
           <FadeInStagger className="mx-auto mt-12 max-w-lg divide-y divide-white/10 sm:mt-16 sm:max-w-xl xl:max-w-2xl 3xl:max-w-3xl xl:mt-20 3xl:mt-24">
             {faqs.map((faq) => (
-              <FadeIn key={faq.question}>
+              <FadeIn key={faq.question} className="py-3 first:pt-0 last:pb-0 sm:py-5 3xl:py-6">
                 <div>
                   <Disclosure
                     as="div"
-                    className="py-4 first:pt-0 last:pb-0 sm:py-6 3xl:py-8"
                   >
                     <dt>
                       <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
                         <span className="text-[10px]/4 font-semibold transition-colors duration-200 group-hover:text-zinc-300 sm:text-base/7 3xl:text-lg/8">
                           {faq.question}
                         </span>
-                        <span className="ml-3 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-800/90 text-white ring-1 ring-white/10 transition-all duration-200 group-hover:scale-110 group-hover:bg-zinc-700/90 group-hover:ring-white/25 sm:ml-6 sm:h-7 sm:w-7 3xl:h-9 3xl:w-9">
+                        <span className="ml-3 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/5 text-white ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:ring-white/20 group-hover:shadow-md group-hover:shadow-violet-500/20 sm:ml-6 sm:h-7 sm:w-7 3xl:h-9 3xl:w-9">
                           <PlusSmallIcon
                             aria-hidden="true"
                             className="size-2.5 group-data-open:hidden sm:size-4 3xl:size-5"
