@@ -6,7 +6,7 @@ import Link from 'next/link'
 
 export function Services() {
   return (
-    <>
+    <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
       <Section
         title="World-Class Dolby Atmos Certified Mixing Facility"
         image={{ src: nova }}
@@ -73,6 +73,6 @@ export function Services() {
           Experience Spatial Tone Lock - <Link href="/contact" className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent decoration-violet-400/0 underline underline-offset-4 transition-all duration-300 hover:from-indigo-200 hover:via-violet-200 hover:to-purple-200 hover:decoration-violet-400 hover:scale-105 inline-block">Start your Project Now !</Link>
         </h3>
       </Section>
-    </>
+    </div>
   )
 }
