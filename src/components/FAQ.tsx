@@ -63,8 +63,8 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <div className="mt-8 mb-12 sm:mt-16 sm:mb-20 xl:mt-24 xl:mb-20 3xl:mt-32 3xl:mb-24">
-      <Container className="mt-2 sm:mt-6">
+    <div className="mt-16 mb-8 sm:mt-24 sm:mb-12 xl:mt-32 xl:mb-12 3xl:mt-40 3xl:mb-16">
+      <Container className="mt-0 sm:mt-2">
         <FadeIn>
           <div className="mx-auto text-center xl:max-w-4xl 3xl:max-w-5xl">
             <h2>
@@ -85,7 +85,7 @@ export function FAQ() {
               <Disclosure
                 key={faq.question}
                 as="div"
-                className="py-2.5 first:pt-0 last:pb-0 sm:py-6 3xl:py-8"
+                className="py-2 first:pt-0 last:pb-0 sm:py-3 3xl:py-4"
               >
                 <dt>
                   <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
