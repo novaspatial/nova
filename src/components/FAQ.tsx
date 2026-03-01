@@ -80,7 +80,7 @@ export function FAQ() {
               reach out to our team.
             </p>
           </div>
-          <FadeInStagger className="mx-auto mt-12 max-w-xl divide-y divide-white/10 sm:mt-16 xl:mt-20 sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl 3xl:mt-24">
+          <FadeInStagger className="mx-auto mt-12 max-w-lg divide-y divide-white/10 sm:mt-16 sm:max-w-xl xl:max-w-2xl 3xl:max-w-3xl xl:mt-20 3xl:mt-24">
             {faqs.map((faq) => (
               <FadeIn key={faq.question}>
                 <Disclosure
