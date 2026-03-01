@@ -26,12 +26,8 @@ export default function Home() {
         <PromoPopup />
         <EmailCapturePopup />
       </Container>
-      <div className="mt-28 mb-24 sm:mt-52 sm:mb-40 xl:mt-40 xl:mb-52 3xl:mt-52 3xl:mb-68">
-        <Clients />
-      </div>
-      <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
-        <Services />
-      </div>
+      <Clients />
+      <Services />
       <Testimonials />
       <HowItWorks />
       <FAQ />
