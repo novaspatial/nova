@@ -1,8 +1,9 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { checkEmail } from '../app/actions/checkEmail'
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -21,9 +22,14 @@ function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 export function PromoPopup() {
   const [visible, setVisible] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [email, setEmail] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
-    if (sessionStorage.getItem('promo-dismissed')) {
+    if (localStorage.getItem('promo-dismissed')) {
       return
     }
 
@@ -34,7 +40,29 @@ export function PromoPopup() {
   function handleDismiss() {
     setDismissed(true)
     setTimeout(() => setVisible(false), 300)
-    sessionStorage.setItem('promo-dismissed', '1')
+    localStorage.setItem('promo-dismissed', '1')
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email) return
+
+    setLoading(true)
+    setErrorMsg('')
+
+    const { exists } = await checkEmail(email)
+
+    if (exists) {
+      setLoading(false)
+      setErrorMsg('This email is already registered.')
+      return
+    }
+
+    setSubmitted(true)
+    setTimeout(() => {
+      router.push(`/login?mode=signup&email=${encodeURIComponent(email)}&promo=50off`)
+      handleDismiss()
+    }, 1500)
   }
 
   return (
@@ -84,27 +112,37 @@ export function PromoPopup() {
                 your first Atmos mix session.
               </p>
 
-              <div className="mt-5 flex justify-center">
-                <Link
-                  href="/login"
-                  onClick={handleDismiss}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700"
-                >
-                  Create your account
-                  <svg viewBox="0 0 16 6" className="w-4" aria-hidden="true">
-                    <path
-                      fill="currentColor"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M16 3 10 .5v2H0v1h10v2L16 3Z"
+              {submitted ? (
+                <div className="mt-5 rounded-xl bg-white/5 p-4 border border-white/10 text-center">
+                  <p className="text-sm font-medium text-white">Thanks! Check your email.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="mt-5">
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
                     />
-                  </svg>
-                </Link>
-              </div>
-
-              <p className="mt-3 text-center text-[11px] text-zinc-500">
-                Discount applied automatically at checkout.
-              </p>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                    >
+                      {loading ? 'Checking...' : 'Claim 50% Off'}
+                    </button>
+                  </div>
+                  {errorMsg && (
+                    <p className="mt-2 text-center text-xs text-red-400">
+                      {errorMsg}
+                    </p>
+                  )}
+                </form>
+              )}
             </div>
           </div>
         </motion.div>
