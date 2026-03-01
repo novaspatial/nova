@@ -111,7 +111,7 @@ export function Footer() {
             <Logo className="h-5 sm:h-8 3xl:h-10" fillOnHover />
           </Link>
           <p className="text-[10px] text-white/70 sm:text-sm 3xl:text-base">
-            © Studio Agency Inc. {new Date().getFullYear()}
+            © {new Date().getFullYear()} NOVA Spatial / Collide Entertainment Inc.
           </p>
         </div>
       </FadeIn>
