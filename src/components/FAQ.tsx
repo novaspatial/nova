@@ -8,7 +8,7 @@ import {
 import { MinusSmallIcon, PlusSmallIcon } from '@heroicons/react/24/outline'
 
 import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
+import { FadeIn, FadeInStagger } from '@/components/FadeIn'
 
 const faqs = [
   {
@@ -80,13 +80,13 @@ export function FAQ() {
               reach out to our team.
             </p>
           </div>
-          <dl className="mx-auto mt-6 max-w-xl divide-y divide-white/10 sm:mt-12 sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl">
+          <FadeInStagger className="mx-auto mt-6 max-w-xl divide-y divide-white/10 sm:mt-12 sm:max-w-2xl xl:max-w-3xl 3xl:max-w-4xl">
             {faqs.map((faq) => (
-              <Disclosure
-                key={faq.question}
-                as="div"
-                className="py-2 first:pt-0 last:pb-0 sm:py-3 3xl:py-4"
-              >
+              <FadeIn key={faq.question}>
+                <Disclosure
+                  as="div"
+                  className="py-2 first:pt-0 last:pb-0 sm:py-3 3xl:py-4"
+                >
                 <dt>
                   <DisclosureButton className="group flex w-full items-start justify-between text-left text-white">
                     <span className="text-[10px]/4 font-semibold transition-colors duration-200 group-hover:text-zinc-300 sm:text-base/7 3xl:text-lg/8">
@@ -113,8 +113,9 @@ export function FAQ() {
                   </p>
                 </DisclosurePanel>
               </Disclosure>
+              </FadeIn>
             ))}
-          </dl>
+          </FadeInStagger>
         </FadeIn>
       </Container>
     </div>
