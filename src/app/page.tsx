@@ -6,6 +6,7 @@ import { FAQ } from '@/components/FAQ'
 import { HeroContent } from '@/components/HeroContent'
 import { HowItWorks } from '@/components/HowItWorks'
 import { PromoPopup } from '@/components/PromoPopup'
+import { EmailCapturePopup } from '@/components/EmailCapturePopup'
 import { RootLayout } from '@/components/RootLayout'
 import { Testimonials } from '@/components/Testimonials'
 import { WorkClients } from '@/components/WorkClients'
@@ -24,6 +25,7 @@ export default function Home() {
           <HeroContent />
         </FadeIn>
         <PromoPopup />
+        <EmailCapturePopup />
       </Container>
       <div className="mt-28 mb-24 sm:mt-52 sm:mb-40 xl:mt-40 xl:mb-52 3xl:mt-52 3xl:mb-68">
         <WorkClients />

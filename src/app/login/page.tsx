@@ -6,21 +6,34 @@ import { GridPattern } from '@/components/GridPattern'
 import { Logo } from '@/components/Logo'
 import { createClient } from '@/lib/supabase/supabaseClient'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 
 type AuthMode = 'login' | 'signup'
 
+function LoginForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const supabase = createClient()
 
-export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>('login')
-  const [email, setEmail] = useState('')
+  const defaultMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
+  const defaultEmail = searchParams.get('email') || ''
+  const hasPromo = searchParams.get('promo') === '50off'
+
+  const [mode, setMode] = useState<AuthMode>(defaultMode)
+  const [email, setEmail] = useState(defaultEmail)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
+
+  // Update state if URL parameters change after initial render
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setMode('signup')
+    const urlEmail = searchParams.get('email')
+    if (urlEmail) setEmail(urlEmail)
+  }, [searchParams])
+
 
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault()
@@ -46,6 +59,9 @@ export default function LoginPage() {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: {
+            promo_code: hasPromo ? '50off' : null,
+          }
         },
       })
       if (error) {
@@ -92,6 +108,12 @@ export default function LoginPage() {
                     ? 'Sign in to your account'
                     : 'Get started with NovaSpatial'}
                 </p>
+
+                {hasPromo && mode === 'signup' && (
+                  <div className="mx-auto mt-6 flex max-w-fit items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300">
+                    ✨ 50% Off Promo Applied
+                  </div>
+                )}
 
                 {/* TODO: Enable Google and Apple social login once provider credentials are configured */}
 
@@ -198,5 +220,13 @@ export default function LoginPage() {
         <Footer />
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
