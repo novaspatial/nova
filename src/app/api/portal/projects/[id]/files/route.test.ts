@@ -147,6 +147,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
     // Verify the storage path follows {owner_id}/{project_id}/{filename}
     expect(signedUploadMock).toHaveBeenCalledWith(
       'owner-99/proj-42/bass.wav',
+      { upsert: false }
     )
   })
 })
