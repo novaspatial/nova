@@ -1,5 +1,5 @@
-import { Container } from '@/components/Container'
-import { RootLayout } from '@/components/RootLayout'
+import { Container } from '@/components/layout/Container'
+import { RootLayout } from '@/components/layout/RootLayout'
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from './ProfileForm'

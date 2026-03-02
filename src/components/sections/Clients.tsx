@@ -1,5 +1,5 @@
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
 import logoBrightPathLight from '@/images/clients/bright-path/logo-light.svg'
 import logoFamilyFundLight from '@/images/clients/family-fund/logo-light.svg'
 import logoGreenLifeLight from '@/images/clients/green-life/logo-light.svg'

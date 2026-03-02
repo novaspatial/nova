@@ -1,8 +1,8 @@
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
-import { MDXComponents } from '@/components/MDXComponents'
-import { PageLinks } from '@/components/PageLinks'
-import { RootLayout } from '@/components/RootLayout'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { MDXComponents } from '@/components/ui/MDXComponents'
+import { PageLinks } from '@/components/ui/PageLinks'
+import { RootLayout } from '@/components/layout/RootLayout'
 import { formatDate } from '@/lib/formatDate'
 import { type Article, type MDXEntry, loadArticles } from '@/lib/mdx'
 

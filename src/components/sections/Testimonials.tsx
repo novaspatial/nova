@@ -1,6 +1,6 @@
 
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
 import Image from 'next/image'
 import imageBlakeReid from '@/images/team/blake-reid.jpg'
 import imageChelseaHagon from '@/images/team/chelsea-hagon.jpg'

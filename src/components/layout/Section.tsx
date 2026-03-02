@@ -1,6 +1,6 @@
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
-import { StylizedImage } from '@/components/StylizedImage'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { StylizedImage } from '@/components/ui/StylizedImage'
 
 export function Section({
   title,

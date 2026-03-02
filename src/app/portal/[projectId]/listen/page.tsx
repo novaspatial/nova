@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
-import { FadeIn } from '@/components/FadeIn'
+import { FadeIn } from '@/components/ui/FadeIn'
 import { ListenPlayer } from './ListenPlayer'
 
 export default async function ListenPage({

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
-import { FadeIn } from '@/components/FadeIn'
-import { DeliverableList } from './DeliverableList'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { DeliverableList } from '@/components/portal/DeliverableList'
 import type { Deliverable, ProjectStatus } from '@/types/portal'
 
 export default async function DeliverPage({

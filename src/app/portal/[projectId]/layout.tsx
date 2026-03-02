@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
 import { StepNavigation } from '@/components/portal/StepNavigation'
-import { FadeIn } from '@/components/FadeIn'
+import { FadeIn } from '@/components/ui/FadeIn'
 import type { ProjectStatus } from '@/types/portal'
 
 export default async function ProjectDetailLayout({

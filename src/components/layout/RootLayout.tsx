@@ -1,14 +1,14 @@
 'use client'
 
-import { Container } from '@/components/Container'
-import { Footer } from '@/components/Footer'
-import { GridPattern } from '@/components/GridPattern'
-import { Navbar } from '@/components/Navbar'
+
+import { Footer } from '@/components/layout/Footer'
+import { GridPattern } from '@/components/ui/GridPattern'
+import { Navbar } from '@/components/layout/Navbar'
 import dynamic from 'next/dynamic'
 
 const VideoBackground = dynamic(
   () =>
-    import('@/components/VideoBackground').then((mod) => ({
+    import('@/components/ui/VideoBackground').then((mod) => ({
       default: mod.VideoBackground,
     })),
   {

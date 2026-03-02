@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Container } from '@/components/Container'
-import { Button } from '@/components/Button'
+import { Container } from '@/components/layout/Container'
+import { Button } from '@/components/ui/Button'
 
 export default function Error({
   error,

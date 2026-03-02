@@ -7,8 +7,8 @@ import {
 } from '@headlessui/react'
 import { MinusSmallIcon, PlusSmallIcon } from '@heroicons/react/24/outline'
 
-import { Container } from '@/components/Container'
-import { FadeIn, FadeInStagger } from '@/components/FadeIn'
+import { Container } from '@/components/layout/Container'
+import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
 
 const faqs = [
   {

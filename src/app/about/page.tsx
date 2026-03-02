@@ -2,14 +2,14 @@ import { type Metadata } from 'next'
 import Image from 'next/image'
 import { Suspense } from 'react'
 
-import { Border } from '@/components/Border'
-import { Container } from '@/components/Container'
-import { FadeIn, FadeInStagger } from '@/components/FadeIn'
+import { Border } from '@/components/ui/Border'
+import { Container } from '@/components/layout/Container'
+import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
 
-import { PageIntro } from '@/components/PageIntro'
-import { PageLinks } from '@/components/PageLinks'
+import { PageIntro } from '@/components/ui/PageIntro'
+import { PageLinks } from '@/components/ui/PageLinks'
 
-import { StatList, StatListItem } from '@/components/StatList'
+import { StatList, StatListItem } from '@/components/ui/StatList'
 import imageAngelaFisher from '@/images/team/angela-fisher.jpg'
 import imageBenjaminRussel from '@/images/team/benjamin-russel.jpg'
 import imageBlakeReid from '@/images/team/blake-reid.jpg'
@@ -23,7 +23,7 @@ import imageLeslieAlexander from '@/images/team/leslie-alexander.jpg'
 import imageMichaelFoster from '@/images/team/michael-foster.jpg'
 import imageWhitneyFrancis from '@/images/team/whitney-francis.jpg'
 import { loadArticles } from '@/lib/mdx'
-import { RootLayout } from '@/components/RootLayout'
+import { RootLayout } from '@/components/layout/RootLayout'
 
 const team = [
   {

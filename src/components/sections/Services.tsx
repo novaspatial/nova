@@ -1,8 +1,8 @@
-import { Section } from '@/components/Section'
-import { TagList, TagListItem } from '@/components/TagList'
+import { Section } from '@/components/layout/Section'
+import { TagList, TagListItem } from '@/components/ui/TagList'
 import nova from '@/images/nova.png'
 import composition from '@/images/composition.png'
-import { Button } from '@/components/Button'
+import { Button } from '@/components/ui/Button'
 
 export function Services() {
   return (

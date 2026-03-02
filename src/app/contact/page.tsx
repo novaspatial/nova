@@ -2,13 +2,13 @@ import { type Metadata } from 'next'
 import Link from 'next/link'
 import { useId } from 'react'
 
-import { Border } from '@/components/Border'
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
-import { Offices } from '@/components/Offices'
-import { PageIntro } from '@/components/PageIntro'
-import { RootLayout } from '@/components/RootLayout'
-import { SocialMedia } from '@/components/SocialMedia'
+import { Border } from '@/components/ui/Border'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { Offices } from '@/components/sections/Offices'
+import { PageIntro } from '@/components/ui/PageIntro'
+import { RootLayout } from '@/components/layout/RootLayout'
+import { SocialMedia } from '@/components/ui/SocialMedia'
 
 function TextInput({
   label,

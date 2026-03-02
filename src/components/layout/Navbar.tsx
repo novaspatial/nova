@@ -16,8 +16,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-import { Container } from '@/components/Container'
-import { Logo, Logomark } from '@/components/Logo'
+import { Container } from '@/components/layout/Container'
+import { Logo, Logomark } from '@/components/ui/Logo'
 import { useAuthUser } from '@/hooks/useAuthUser'
 
 const navLinks = [
