@@ -37,6 +37,7 @@ export default async function ListenPage({
     .from('project_files')
     .select('id, file_name, mime_type, storage_path')
     .eq('project_id', projectId)
+    .eq('file_type', 'mix')
     .eq('upload_status', 'uploaded')
     .order('created_at', { ascending: true })
 
