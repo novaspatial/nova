@@ -26,6 +26,14 @@ export default async function ProjectDetailLayout({
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isStudio = profile?.role === 'studio'
+
   const { data: project } = await supabase
     .from('projects')
     .select('id, title, status')
@@ -46,6 +54,7 @@ export default async function ProjectDetailLayout({
           <StepNavigation
             projectId={project.id}
             status={project.status as ProjectStatus}
+            isStudio={isStudio}
           />
         </div>
       </FadeIn>
