@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
-import { FadeIn } from '@/components/FadeIn'
-import { UploadManager } from './UploadManager'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { UploadManager } from '@/components/portal/UploadManager'
 import type { ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
 
 export default async function UploadPage({

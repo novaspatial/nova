@@ -1,9 +1,9 @@
 'use client'
 
-import { FadeIn } from '@/components/FadeIn'
-import { Footer } from '@/components/Footer'
-import { GridPattern } from '@/components/GridPattern'
-import { Logo } from '@/components/Logo'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { Footer } from '@/components/layout/Footer'
+import { GridPattern } from '@/components/ui/GridPattern'
+import { Logo } from '@/components/ui/Logo'
 import { createClient } from '@/lib/supabase/supabaseClient'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'

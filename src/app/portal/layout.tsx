@@ -1,5 +1,5 @@
-import { Container } from '@/components/Container'
-import { RootLayout } from '@/components/RootLayout'
+import { Container } from '@/components/layout/Container'
+import { RootLayout } from '@/components/layout/RootLayout'
 import { AudioProvider } from '@/components/audio/AudioProvider'
 import { AudioPlayer } from '@/components/audio/AudioPlayer'
 import { createClient } from '@/lib/supabase/supabaseServer'

@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import Image, { type ImageProps } from 'next/image'
 
-import { Border } from '@/components/Border'
+import { Border } from '@/components/ui/Border'
 
 type ImagePropsWithOptionalAlt = Omit<ImageProps, 'alt'> & { alt?: string }
 

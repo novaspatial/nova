@@ -1,10 +1,10 @@
 import clsx from 'clsx'
 import Link from 'next/link'
 
-import { Border } from '@/components/Border'
-import { Container } from '@/components/Container'
-import { FadeIn, FadeInStagger } from '@/components/FadeIn'
-import { SectionIntro } from '@/components/SectionIntro'
+import { Border } from '@/components/ui/Border'
+import { Container } from '@/components/layout/Container'
+import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { SectionIntro } from '@/components/ui/SectionIntro'
 import { formatDate } from '@/lib/formatDate'
 
 function ArrowIcon(props: React.ComponentPropsWithoutRef<'svg'>) {

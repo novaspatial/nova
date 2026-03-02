@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { checkEmail } from '../app/actions/checkEmail'
+import { checkEmail } from '../../app/actions/checkEmail'
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (

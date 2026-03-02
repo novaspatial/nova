@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Container } from '@/components/Container'
-import { FadeIn, FadeInStagger } from '@/components/FadeIn'
-import { Button } from '@/components/Button'
+import { Container } from '@/components/layout/Container'
+import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { Button } from '@/components/ui/Button'
 import {
   ArrowUpTrayIcon,
   MusicalNoteIcon,
