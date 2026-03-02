@@ -1,6 +1,6 @@
-import { Container } from '@/components/Container'
-import { FadeIn } from '@/components/FadeIn'
-import { Button } from '@/components/Button'
+import { Container } from '@/components/layout/Container'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { Button } from '@/components/ui/Button'
 
 export default function NotFound() {
   return (

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
-import { FadeIn } from '@/components/FadeIn'
-import { ReviewTimeline } from './ReviewTimeline'
+import { FadeIn } from '@/components/ui/FadeIn'
+import { ReviewTimeline } from '@/components/portal/ReviewTimeline'
 import type { ProjectComment } from '@/types/portal'
 
 export default async function ReviewPage({

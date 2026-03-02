@@ -1,10 +1,10 @@
 import clsx from 'clsx'
 
-import { Blockquote } from '@/components/Blockquote'
-import { Border } from '@/components/Border'
-import { GrayscaleTransitionImage } from '@/components/GrayscaleTransitionImage'
-import { StatList, StatListItem } from '@/components/StatList'
-import { TagList, TagListItem } from '@/components/TagList'
+import { Blockquote } from '@/components/ui/Blockquote'
+import { Border } from '@/components/ui/Border'
+import { GrayscaleTransitionImage } from '@/components/ui/GrayscaleTransitionImage'
+import { StatList, StatListItem } from '@/components/ui/StatList'
+import { TagList, TagListItem } from '@/components/ui/TagList'
 
 export const MDXComponents = {
   Blockquote({

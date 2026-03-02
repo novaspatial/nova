@@ -1,4 +1,4 @@
-import { FadeIn } from '@/components/FadeIn'
+import { FadeIn } from '@/components/ui/FadeIn'
 import { NewProjectForm } from './NewProjectForm'
 
 export const metadata = {

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect } from 'next/navigation'
-import { FadeIn, FadeInStagger } from '@/components/FadeIn'
-import { Button } from '@/components/Button'
+import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { Button } from '@/components/ui/Button'
 import { ProjectCard } from '@/components/portal/ProjectCard'
 import type { Project } from '@/types/portal'
 
