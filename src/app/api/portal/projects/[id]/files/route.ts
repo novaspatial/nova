@@ -21,7 +21,7 @@ export async function POST(
   // Verify project access
   const { data: project } = await supabase
     .from('projects')
-    .select('id, owner_id')
+    .select('id, owner_id, status')
     .eq('id', projectId)
     .single()
 
@@ -39,7 +39,29 @@ export async function POST(
     )
   }
 
-  const storagePath = `${project.owner_id}/${projectId}/${fileName}`
+  // Studio role check for mix uploads
+  if (fileType === 'mix') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'studio') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (!['processing', 'mixing', 'review', 'revision'].includes(project.status)) {
+      return NextResponse.json(
+        { error: 'Cannot upload mixes in current project status' },
+        { status: 400 },
+      )
+    }
+  }
+
+  const storagePath = fileType === 'mix'
+    ? `${project.owner_id}/${projectId}/mixes/${fileName}`
+    : `${project.owner_id}/${projectId}/${fileName}`
 
   // 1. Insert file record
   const { data: file, error: insertError } = await supabase
@@ -66,9 +88,10 @@ export async function POST(
   }
 
   // 2. Create signed upload URL for Supabase Storage
+  // Use upsert for mix files so studio can re-upload updated mixes
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('project-uploads')
-    .createSignedUploadUrl(storagePath)
+    .createSignedUploadUrl(storagePath, { upsert: fileType === 'mix' })
 
   if (uploadError || !uploadData) {
     console.error('[API /files POST] Storage Signed URL Error:', uploadError)
