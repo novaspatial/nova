@@ -22,7 +22,7 @@ import { useAuthUser } from '@/hooks/useAuthUser'
 
 const navLinks = [
   { href: '/about', label: 'About Us', highlight: false },
-  { href: '/contact', label: 'Start Your Project!', highlight: true },
+  { href: '/portal', label: 'Start Your Project!', highlight: true },
   { href: '/blog', label: 'Blog', highlight: false },
 ]
 
