@@ -1,0 +1,201 @@
+'use client'
+
+import clsx from 'clsx'
+import { useRef } from 'react'
+import {
+  mergeProps,
+  useFocusRing,
+  useSlider,
+  useSliderThumb,
+  VisuallyHidden,
+} from 'react-aria'
+import { useSliderState } from 'react-stately'
+
+function parseTime(seconds: number): [number, number, number] {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds - hours * 3600) / 60)
+  seconds = seconds - hours * 3600 - minutes * 60
+  return [hours, minutes, seconds]
+}
+
+function formatTime(
+  seconds: [number, number, number],
+  totalSeconds: [number, number, number] = seconds,
+): string {
+  const totalWithoutLeadingZeroes = totalSeconds.slice(
+    totalSeconds.findIndex((x) => x !== 0),
+  )
+  return seconds
+    .slice(seconds.length - totalWithoutLeadingZeroes.length)
+    .map((x) => x.toString().padStart(2, '0'))
+    .join(':')
+}
+
+function formatHumanTime(seconds: number): string {
+  const [h, m, s] = parseTime(seconds)
+  return `${h} hour${h === 1 ? '' : 's'}, ${m} minute${
+    m === 1 ? '' : 's'
+  }, ${s} second${s === 1 ? '' : 's'}`
+}
+
+function Thumb({
+  state,
+  trackRef,
+  focusProps,
+  isFocusVisible,
+  index,
+  onChangeStart,
+}: {
+  state: ReturnType<typeof useSliderState>
+  trackRef: React.RefObject<HTMLDivElement | null>
+  focusProps: ReturnType<typeof useFocusRing>['focusProps']
+  isFocusVisible: boolean
+  index: number
+  onChangeStart?: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { thumbProps, inputProps } = useSliderThumb(
+    { index, trackRef, inputRef },
+    state,
+  )
+
+  return (
+    <div
+      className="absolute top-1/2 -translate-x-1/2"
+      style={{
+        left: `${state.getThumbPercent(index) * 100}%`,
+      }}
+    >
+      <div
+        {...thumbProps}
+        onMouseDown={(...args) => {
+          thumbProps.onMouseDown?.(...args)
+          onChangeStart?.()
+        }}
+        onPointerDown={(...args) => {
+          thumbProps.onPointerDown?.(...args)
+          onChangeStart?.()
+        }}
+        className={clsx(
+          'h-4 rounded-full',
+          isFocusVisible || state.isThumbDragging(index)
+            ? 'w-1.5 bg-violet-300'
+            : 'w-1 bg-violet-400',
+        )}
+      >
+        <VisuallyHidden>
+          <input ref={inputRef} {...mergeProps(inputProps, focusProps)} />
+        </VisuallyHidden>
+      </div>
+    </div>
+  )
+}
+
+type SliderProps = {
+  label: string
+  maxValue: number
+  step: number
+  value: number[]
+  onChange: (value: number[]) => void
+  onChangeEnd: (value: number[]) => void
+  onChangeStart?: () => void
+  numberFormatter: Intl.NumberFormat | { format: (value: number) => string }
+}
+
+export function Slider(props: SliderProps) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const state = useSliderState({
+    ...props,
+    numberFormatter: props.numberFormatter as Intl.NumberFormat,
+  })
+  const { groupProps, trackProps, labelProps, outputProps } = useSlider(
+    props,
+    state,
+    trackRef,
+  )
+  const { focusProps, isFocusVisible } = useFocusRing()
+
+  const currentTime = parseTime(state.getThumbValue(0))
+  const totalTime = parseTime(state.getThumbMaxValue(0))
+
+  return (
+    <div
+      {...groupProps}
+      className="absolute inset-x-0 bottom-full flex flex-auto touch-none items-center gap-6 md:relative"
+    >
+      {props.label && (
+        <label className="sr-only" {...labelProps}>
+          {props.label}
+        </label>
+      )}
+      <div
+        {...trackProps}
+        onMouseDown={(...args) => {
+          trackProps.onMouseDown?.(...args)
+          props.onChangeStart?.()
+        }}
+        onPointerDown={(...args) => {
+          trackProps.onPointerDown?.(...args)
+          props.onChangeStart?.()
+        }}
+        ref={trackRef}
+        className="relative w-full bg-white/10 md:rounded-full"
+      >
+        <div
+          className={clsx(
+            'h-2 md:rounded-l-xl md:rounded-r-md',
+            isFocusVisible || state.isThumbDragging(0)
+              ? 'bg-violet-400'
+              : 'bg-violet-500',
+          )}
+          style={{
+            width:
+              state.getThumbValue(0) === 0
+                ? 0
+                : `calc(${state.getThumbPercent(0) * 100}% - ${
+                    isFocusVisible || state.isThumbDragging(0)
+                      ? '0.3125rem'
+                      : '0.25rem'
+                  })`,
+          }}
+        />
+        <Thumb
+          index={0}
+          state={state}
+          trackRef={trackRef}
+          onChangeStart={props.onChangeStart}
+          focusProps={focusProps}
+          isFocusVisible={isFocusVisible}
+        />
+      </div>
+      <div className="hidden items-center gap-2 md:flex">
+        <output
+          {...outputProps}
+          aria-live="off"
+          className={clsx(
+            'hidden rounded-md px-1 py-0.5 font-mono text-sm/6 md:block',
+            state.getThumbMaxValue(0) === 0 && 'opacity-0',
+            isFocusVisible || state.isThumbDragging(0)
+              ? 'bg-white/10 text-white'
+              : 'text-zinc-400',
+          )}
+        >
+          {formatTime(currentTime, totalTime)}
+        </output>
+        <span className="text-sm/6 text-zinc-600" aria-hidden="true">
+          /
+        </span>
+        <span
+          className={clsx(
+            'hidden rounded-md px-1 py-0.5 font-mono text-sm/6 text-zinc-500 md:block',
+            state.getThumbMaxValue(0) === 0 && 'opacity-0',
+          )}
+        >
+          {formatTime(totalTime)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export { formatHumanTime }
