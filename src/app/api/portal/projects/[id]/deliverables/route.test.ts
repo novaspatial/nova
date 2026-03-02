@@ -87,13 +87,16 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
       data: { role: 'studio' },
       error: null,
     })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-1' },
+      error: null,
+    })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
-      fromMocks: { profiles: profileChain },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
-    // Missing storagePath and format
     const req = createMockRequest({
       fileName: 'master.wav',
       fileSize: 50000,
@@ -103,13 +106,17 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
 
     const body = await res.json()
     expect(body.error).toBe(
-      'fileName, fileSize, storagePath, and format are required',
+      'fileName, fileSize, and format are required',
     )
   })
 
   test('creates deliverable for studio user', async () => {
     const profileChain = createChainMock({
       data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-1' },
       error: null,
     })
     const deliverablesChain = createChainMock({
@@ -121,11 +128,21 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
       },
       error: null,
     })
+    const createSignedUrlMock = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://example.com/upload' },
+      error: null,
+    })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: {
         profiles: profileChain,
+        projects: projectsChain,
         deliverables: deliverablesChain,
+      },
+      storageMocks: {
+        'project-deliverables': {
+          createSignedUploadUrl: createSignedUrlMock,
+        },
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -133,15 +150,13 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
     const req = createMockRequest({
       fileName: 'master.wav',
       fileSize: 50000,
-      storagePath: 'proj-1/master.wav',
       format: 'adm_bwf',
     })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(200)
 
     const body = await res.json()
-    expect(body.file_name).toBe('master.wav')
-    expect(body.format).toBe('adm_bwf')
-    expect(body.approved_by).toBe('studio-1')
+    expect(body.deliverableId).toBe('d-new')
+    expect(body.uploadUrl).toBe('https://example.com/upload')
   })
 })
