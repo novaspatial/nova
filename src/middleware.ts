@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-const protectedRoutes = ['/profile']
+const protectedRoutes = ['/profile', '/portal']
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
