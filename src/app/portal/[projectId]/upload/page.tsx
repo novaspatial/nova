@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/supabaseServer'
 import { redirect, notFound } from 'next/navigation'
 import { FadeIn } from '@/components/FadeIn'
 import { UploadManager } from './UploadManager'
-import type { ProjectFile, ProjectStatus } from '@/types/portal'
+import type { ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
 
 export default async function UploadPage({
   params,
@@ -24,6 +24,14 @@ export default async function UploadPage({
     redirect('/login')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (profile?.role as UserRole) || 'client'
+
   const { data: project } = await supabase
     .from('projects')
     .select('id, status')
@@ -40,24 +48,32 @@ export default async function UploadPage({
     .eq('project_id', projectId)
     .order('created_at', { ascending: true })
 
-  const isReadOnly = (project.status as ProjectStatus) !== 'uploading'
+  const status = project.status as ProjectStatus
+  const isClientReadOnly = status !== 'uploading'
+  const isStudio = role === 'studio'
+  const studioCanUploadMix = isStudio && ['processing', 'mixing', 'review', 'revision'].includes(status)
 
   return (
     <FadeIn>
       <div className="space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-white sm:text-xl">
-            Secure Upload
+            {isStudio ? 'Project Files' : 'Secure Upload'}
           </h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Upload your multitrack stems and stereo master reference.
+            {isStudio
+              ? 'View client uploads and upload your spatial mixes.'
+              : 'Upload your multitrack stems and stereo master reference.'}
           </p>
         </div>
 
         <UploadManager
           projectId={projectId}
           existingFiles={(files as ProjectFile[]) || []}
-          isReadOnly={isReadOnly}
+          isReadOnly={isClientReadOnly}
+          isStudio={isStudio}
+          studioCanUploadMix={studioCanUploadMix}
+          projectStatus={status}
         />
       </div>
     </FadeIn>
