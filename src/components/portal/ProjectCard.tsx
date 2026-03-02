@@ -1,15 +1,22 @@
 'use client'
 
 import Link from 'next/link'
+import { UserCircleIcon } from '@heroicons/react/24/outline'
 import type { Project } from '@/types/portal'
 import { StatusBadge } from './StatusBadge'
 
-export function ProjectCard({ project }: { project: Project }) {
+type ProjectWithOwner = Project & {
+  owner?: { display_name: string | null; email: string | null } | null
+}
+
+export function ProjectCard({ project }: { project: ProjectWithOwner }) {
   const date = new Date(project.created_at).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   })
+
+  const owner = project.owner
 
   return (
     <Link href={`/portal/${project.id}`}>
@@ -23,6 +30,19 @@ export function ProjectCard({ project }: { project: Project }) {
           </div>
           <StatusBadge status={project.status} />
         </div>
+        {owner && (
+          <div className="mt-3 flex items-center gap-2">
+            <UserCircleIcon className="size-4 shrink-0 text-zinc-500" />
+            <div className="min-w-0 text-xs text-zinc-400">
+              <span className="text-zinc-300">
+                {owner.display_name || 'Unnamed'}
+              </span>
+              {owner.email && (
+                <span className="ml-1.5 text-zinc-500">{owner.email}</span>
+              )}
+            </div>
+          </div>
+        )}
         {project.notes && (
           <p className="mt-3 line-clamp-2 text-sm text-zinc-400">
             {project.notes}

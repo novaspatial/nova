@@ -48,15 +48,28 @@ const unlockedSteps: Record<ProjectStatus, StepKey[]> = {
   delivered: ['upload', 'listen', 'review', 'deliver'],
 }
 
+// Studio can access listen/review during processing/mixing to preview their uploads
+const studioUnlockedSteps: Record<ProjectStatus, StepKey[]> = {
+  uploading: ['upload'],
+  processing: ['upload', 'listen', 'review'],
+  mixing: ['upload', 'listen', 'review'],
+  review: ['upload', 'listen', 'review', 'deliver'],
+  revision: ['upload', 'listen', 'review', 'deliver'],
+  approved: ['upload', 'listen', 'review', 'deliver'],
+  delivered: ['upload', 'listen', 'review', 'deliver'],
+}
+
 export function StepNavigation({
   projectId,
   status,
+  isStudio = false,
 }: {
   projectId: string
   status: ProjectStatus
+  isStudio?: boolean
 }) {
   const pathname = usePathname()
-  const allowed = unlockedSteps[status]
+  const allowed = isStudio ? studioUnlockedSteps[status] : unlockedSteps[status]
 
   return (
     <nav className="flex gap-1 rounded-2xl border border-white/10 bg-white/2 p-1.5 backdrop-blur-sm sm:gap-2 sm:p-2">

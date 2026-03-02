@@ -28,16 +28,16 @@ export default async function PortalDashboard() {
 
   const isStudio = profile?.role === 'studio'
 
-  let query = supabase
-    .from('projects')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (!isStudio) {
-    query = query.eq('owner_id', user.id)
-  }
-
-  const { data: projects } = await query
+  const { data: projects } = await (isStudio
+    ? supabase
+        .from('projects')
+        .select('*, owner:profiles!projects_owner_id_fkey(display_name, email)')
+        .order('created_at', { ascending: false })
+    : supabase
+        .from('projects')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false }))
 
   return (
     <div className="mx-auto max-w-4xl">
