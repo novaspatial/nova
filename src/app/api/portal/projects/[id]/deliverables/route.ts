@@ -59,17 +59,30 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { fileName, fileSize, storagePath, format } = body
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id, owner_id')
+    .eq('id', projectId)
+    .single()
 
-  if (!fileName || !fileSize || !storagePath || !format) {
+  if (!project) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  }
+
+  const body = await request.json()
+  const { fileName, fileSize, format } = body
+
+  if (!fileName || !fileSize || !format) {
     return NextResponse.json(
-      { error: 'fileName, fileSize, storagePath, and format are required' },
+      { error: 'fileName, fileSize, and format are required' },
       { status: 400 },
     )
   }
 
-  const { data: deliverable, error } = await supabase
+  const storagePath = `${project.owner_id}/${projectId}/${fileName}`
+
+  // 1. Insert deliverable record
+  const { data: deliverable, error: insertError } = await supabase
     .from('deliverables')
     .insert({
       project_id: projectId,
@@ -83,12 +96,28 @@ export async function POST(
     .select()
     .single()
 
-  if (error || !deliverable) {
+  if (insertError || !deliverable) {
     return NextResponse.json(
-      { error: error?.message || 'Failed to create deliverable' },
+      { error: insertError?.message || 'Failed to create deliverable' },
       { status: 500 },
     )
   }
 
-  return NextResponse.json(deliverable)
+  // 2. Create signed upload URL for Supabase Storage
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('project-deliverables')
+    .createSignedUploadUrl(storagePath, { upsert: true })
+
+  if (uploadError || !uploadData) {
+    console.error('[API /deliverables POST] Storage Signed URL Error:', uploadError)
+    return NextResponse.json(
+      { error: uploadError?.message || 'Failed to create upload URL' },
+      { status: 500 },
+    )
+  }
+
+  return NextResponse.json({
+    deliverableId: deliverable.id,
+    uploadUrl: uploadData.signedUrl,
+  })
 }

@@ -7,7 +7,7 @@ export type ProjectStatus =
   | 'approved'
   | 'delivered'
 
-export type FileType = 'stem' | 'master_ref' | 'deliverable'
+export type FileType = 'stem' | 'master_ref' | 'mix' | 'deliverable'
 
 export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'failed'
 
