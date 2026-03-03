@@ -52,21 +52,24 @@ export function Testimonials() {
       <Container>
         <FadeIn>
           <div className="mx-auto max-w-2xl text-center">
-            <span className="mb-3 block font-display text-xs font-semibold text-white sm:mb-6 sm:text-base 3xl:mb-8 3xl:text-lg">
-              Client Success
-            </span>
             <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
               Over 20 Years of Mixing Excellence
             </h2>
           </div>
-          <div className="mx-auto mt-8 flow-root max-w-2xl sm:mt-12 md:mt-16 lg:mx-0 lg:max-w-none">
-            <div className="-mt-6 space-y-6 sm:-mt-8 sm:-mx-4 sm:space-y-0 sm:columns-2 sm:text-[0] lg:columns-3">
-              {testimonials.map((testimonial) => (
+          <div className="mx-auto mt-8 max-w-2xl sm:mt-12 md:mt-16 lg:mx-0 lg:max-w-none">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map((testimonial, index) => (
                 <div
                   key={testimonial.author.name}
-                  className="pt-6 sm:inline-block sm:w-full sm:pt-8 sm:px-4"
+                  className={`flex ${
+                    index === 2 ? 'sm:col-span-2 sm:justify-center lg:col-span-1 lg:justify-start' : ''
+                  }`}
                 >
-                  <figure className="min-w-0 rounded-2xl bg-white/5 p-4 text-sm leading-relaxed ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-1 hover:bg-white/8 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:p-6 lg:p-8">
+                  <figure
+                    className={`flex flex-col justify-between rounded-2xl bg-white/5 p-4 text-sm leading-relaxed ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-1 hover:bg-white/8 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:p-6 lg:p-8 ${
+                      index === 2 ? 'w-full sm:w-[calc(50%-12px)] lg:w-full' : 'w-full'
+                    }`}
+                  >
                     <blockquote className="text-zinc-300">
                       <p className="text-sm sm:text-base">&ldquo;{testimonial.body}&rdquo;</p>
                     </blockquote>
