@@ -19,7 +19,7 @@ export function EmailCapturePopup() {
       return
     }
 
-    const timer = setTimeout(() => setVisible(true), 1500)
+    const timer = setTimeout(() => setVisible(true), 5000)
     return () => clearTimeout(timer)
   }, [])
 
@@ -27,6 +27,12 @@ export function EmailCapturePopup() {
     setDismissed(true)
     setTimeout(() => setVisible(false), 300)
     localStorage.setItem('email-promo-dismissed', '1')
+  }
+
+  function handleReject() {
+    handleDismiss()
+    localStorage.setItem('email-promo-rejected', '1')
+    window.dispatchEvent(new Event('show-promo-popup'))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,6 +51,8 @@ export function EmailCapturePopup() {
     }
 
     setSubmitted(true)
+    localStorage.setItem('email-promo-submitted', '1')
+    window.dispatchEvent(new Event('hide-promo-popup'))
     setTimeout(() => {
       router.push(`/login?mode=signup&email=${encodeURIComponent(email)}&promo=50off`)
       handleDismiss()
@@ -82,10 +90,10 @@ export function EmailCapturePopup() {
               </div>
 
               <h3 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Wait! Get 50% Off
+              Get 50% Off
               </h3>
               <p className="mt-4 text-base leading-relaxed text-zinc-400 border-b border-white/5 pb-6">
-                Enter your email address to unlock an exclusive 50% discount on your first Atmos mix session. Don&apos;t miss out!
+              Unlock an exclusive 50% discount on your first Atmos mix.
               </p>
 
               {submitted ? (
@@ -122,7 +130,7 @@ export function EmailCapturePopup() {
 
                   <button
                     type="button"
-                    onClick={handleDismiss}
+                    onClick={handleReject}
                     className="mt-6 text-sm text-zinc-500 underline decoration-zinc-500/30 underline-offset-4 transition hover:text-zinc-300"
                   >
                     No thanks, I prefer paying full price
