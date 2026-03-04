@@ -48,11 +48,11 @@ export function Services() {
           <TagListItem>Secure Remote Mix Platform</TagListItem>
         </TagList>
           <h3 className="mt-2 font-display text-xs font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
-          Claim your spot today - <Button href="/contact">Book Your Atmos Mix !</Button>
+          Claim your spot today - <Button href="/contact" className="!py-0.5 sm:!py-1">Book Your Atmos Mix !</Button>
         </h3>
       </Section>
 
-      <Section title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
+      <Section id="spatial-tone-lock" title="Spatial Tone Lock" image={{ src: composition, shape: 1 }}>
         <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-zinc-300">
           <p>
             Part of what makes Atmos Spatial Audio so incredible is the added dynamic range and spread that results from going from stereo to fully immersive. But without the right technical knowledge and tools, Spatial Audio mixes often sound flat and dull and lack the energy of the Stereo Master. That is why we developed Spatial Tone Lock - a specialized workflow that combines our engineers&apos; highly trained ears with proprietary audio plugins and reference tools to guarantee your spatial mix hits just as hard as the original.
@@ -66,7 +66,7 @@ export function Services() {
         </div>
 
         <h3 className="mt-4 flex items-center gap-x-2 sm:gap-x-4 sm:mt-6 3xl:mt-8 font-display text-xs sm:text-base 3xl:text-lg font-semibold text-white">
-          Experience Spatial Tone Lock  - <Button href="/contact">Start your Project Now !</Button>
+          Experience Spatial Tone Lock  - <Button href="/contact" className="!py-0.5 sm:!py-1">Start your Project Now !</Button>
         </h3>
       </Section>
     </div>

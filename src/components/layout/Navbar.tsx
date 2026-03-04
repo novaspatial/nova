@@ -21,8 +21,10 @@ import { Logo, Logomark } from '@/components/ui/Logo'
 import { useAuthUser } from '@/hooks/useAuthUser'
 
 const navLinks = [
-  { href: '/about', label: 'About Us', highlight: false },
+  { href: '/#faq', label: 'FAQ', highlight: false },
+  { href: '/#spatial-tone-lock', label: 'Spatial Tone Lock', highlight: false },
   { href: '/portal', label: 'Start Your Project!', highlight: true },
+  { href: '/about', label: 'About Us', highlight: false },
   { href: '/blog', label: 'Blog', highlight: false },
 ]
 

@@ -68,11 +68,10 @@ function NewsletterForm() {
   return (
     <form className="max-w-sm 3xl:max-w-md">
       <h2 className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
-        Sign up for our newsletter
+        Sign up
       </h2>
       <p className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base">
-        Subscribe to get the latest design news, articles, resources and
-        inspiration.
+        Subscribe to get a 50% discount on your first Atmos mix.
       </p>
       <div className="relative mt-3 sm:mt-6">
         <input

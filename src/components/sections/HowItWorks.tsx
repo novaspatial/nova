@@ -10,9 +10,6 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
   ChevronDownIcon,
-  ClockIcon,
-  CreditCardIcon,
-  UserGroupIcon,
 } from '@heroicons/react/24/outline'
 
 const steps = [
@@ -46,11 +43,7 @@ const steps = [
   },
 ]
 
-const trustBadges = [
-  { icon: ClockIcon, label: 'Full-length preview' },
-  { icon: CreditCardIcon, label: 'No credit card required' },
-  { icon: UserGroupIcon, label: 'You keep all rights' },
-]
+
 
 function TimelineStep({
   step,
@@ -157,22 +150,6 @@ export function HowItWorks() {
             </div>
           </FadeIn>
 
-          {/* Trust badges */}
-          <FadeInStagger
-            faster
-            className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-center gap-3 sm:mt-8 sm:gap-6 3xl:mt-10 3xl:gap-8"
-          >
-            {trustBadges.map(({ icon: Icon, label }) => (
-              <FadeIn key={label}>
-                <div className="group flex cursor-default items-center gap-1.5 transition-all duration-300 hover:scale-105 3xl:gap-2">
-                  <Icon className="size-4 text-zinc-500 transition-colors duration-300 group-hover:text-violet-400 sm:size-4 3xl:size-5" />
-                  <span className="text-xs text-zinc-500 transition-colors duration-300 group-hover:text-zinc-300 sm:text-xs 3xl:text-sm">
-                    {label}
-                  </span>
-                </div>
-              </FadeIn>
-            ))}
-          </FadeInStagger>
       </Container>
     </div>
   )
