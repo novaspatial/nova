@@ -6,13 +6,14 @@ export function Section({
   title,
   image,
   children,
+  ...props
 }: {
   title: string
   image: React.ComponentPropsWithoutRef<typeof StylizedImage>
   children: React.ReactNode
-}) {
+} & React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <Container className="group/section">
+    <Container {...props} className="group/section">
       <div className="lg:flex lg:items-center lg:justify-end lg:gap-x-8 lg:group-even/section:justify-start xl:gap-x-20 3xl:gap-x-24">
         <div className="flex justify-center">
           <FadeIn className="w-72 flex-none sm:w-135 lg:w-200 3xl:w-224">

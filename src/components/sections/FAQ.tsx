@@ -63,14 +63,11 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <div className="mt-24 mb-8 sm:mt-24 sm:mb-12 xl:mt-32 xl:mb-12 3xl:mt-40 3xl:mb-16">
+    <div id="faq" className="mt-24 mb-8 sm:mt-24 sm:mb-12 xl:mt-32 xl:mb-12 3xl:mt-40 3xl:mb-16">
       <Container className="mt-0 sm:mt-2">
         <FadeIn>
           <div className="mx-auto text-center xl:max-w-4xl 3xl:max-w-5xl">
             <h2>
-              <span className="mb-4 block font-display text-xs font-semibold text-white sm:mb-6 sm:text-base 3xl:mb-8 3xl:text-lg">
-                FAQ
-              </span>
               <span className="block font-display text-2xl font-medium tracking-tight text-balance text-white sm:text-4xl lg:text-5xl 3xl:text-6xl">
                 Frequently asked questions
               </span>
@@ -82,7 +79,7 @@ export function FAQ() {
           </div>
           <FadeInStagger className="mx-auto mt-12 max-w-lg divide-y divide-white/10 sm:mt-16 sm:max-w-xl xl:max-w-2xl 3xl:max-w-3xl xl:mt-20 3xl:mt-24">
             {faqs.map((faq) => (
-              <FadeIn key={faq.question} className="py-3 first:pt-0 last:pb-0 sm:py-5 3xl:py-6">
+              <FadeIn key={faq.question} className="py-2 first:pt-0 last:pb-0 sm:py-3 3xl:py-4">
                 <div>
                   <Disclosure
                     as="div"
