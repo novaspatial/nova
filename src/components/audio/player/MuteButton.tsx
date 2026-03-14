@@ -80,7 +80,7 @@ export function MuteButton({ player }: { player: AudioPlayerAPI }) {
         <div className="absolute -inset-4 md:hidden" />
         <VolumeIcon
           volume={player.volume}
-          className="size-6 fill-zinc-400 stroke-zinc-400 group-hover:fill-white group-hover:stroke-white"
+          className="size-8 fill-zinc-400 stroke-zinc-400 group-hover:fill-white group-hover:stroke-white"
         />
       </button>
 

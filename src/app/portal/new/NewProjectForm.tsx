@@ -62,7 +62,9 @@ export function NewProjectForm() {
 
         const { id: projectId } = await projectRes.json()
 
-        // 2. Upload each file
+        // 2. Upload each file (continue on per-file errors, collect failures)
+        let failureCount = 0
+
         for (const item of files) {
           setFiles((prev) =>
             prev.map((f) =>
@@ -70,69 +72,97 @@ export function NewProjectForm() {
             ),
           )
 
-          // Register file
-          const registerRes = await fetch(
-            `/api/portal/projects/${projectId}/files`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fileName: item.file.name,
-                fileSize: item.file.size,
-                mimeType: item.file.type || 'audio/wav',
-                fileType: 'stem',
-              }),
-            },
-          )
-
-          if (!registerRes.ok) throw new Error('Failed to register file')
-          const { fileId, uploadUrl } = await registerRes.json()
-
-          // Upload to storage
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest()
-            xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const progress = Math.round((e.loaded / e.total) * 100)
-                setFiles((prev) =>
-                  prev.map((f) =>
-                    f.id === item.id ? { ...f, progress } : f,
-                  ),
-                )
-              }
-            }
-            xhr.onload = () =>
-              xhr.status >= 200 && xhr.status < 300
-                ? resolve()
-                : reject(new Error(`Upload failed: ${xhr.status}`))
-            xhr.onerror = () => reject(new Error('Upload failed'))
-            xhr.open('PUT', uploadUrl)
-            xhr.setRequestHeader(
-              'Content-Type',
-              item.file.type || 'audio/wav',
+          try {
+            // Register file
+            const registerRes = await fetch(
+              `/api/portal/projects/${projectId}/files`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  fileName: item.file.name,
+                  fileSize: item.file.size,
+                  mimeType: item.file.type || 'audio/wav',
+                  fileType: 'stem',
+                }),
+              },
             )
-            xhr.send(item.file)
-          })
 
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id
-                ? { ...f, status: 'uploaded' as const, progress: 100 }
-                : f,
-            ),
-          )
+            if (!registerRes.ok) {
+              const data = await registerRes.json().catch(() => ({}))
+              throw new Error(data.error || 'Failed to register file')
+            }
+            const { fileId, uploadUrl } = await registerRes.json()
 
-          // Confirm & sync
-          await fetch(
-            `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
-            { method: 'POST' },
-          )
+            // Upload to storage
+            await new Promise<void>((resolve, reject) => {
+              const xhr = new XMLHttpRequest()
+              xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                  const progress = Math.round((e.loaded / e.total) * 100)
+                  setFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === item.id ? { ...f, progress } : f,
+                    ),
+                  )
+                }
+              }
+              xhr.onload = () =>
+                xhr.status >= 200 && xhr.status < 300
+                  ? resolve()
+                  : reject(new Error(`Upload failed with status ${xhr.status}`))
+              xhr.onerror = () => reject(new Error('Network error during upload'))
+              xhr.open('PUT', uploadUrl)
+              xhr.setRequestHeader(
+                'Content-Type',
+                item.file.type || 'audio/wav',
+              )
+              xhr.send(item.file)
+            })
 
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id ? { ...f, status: 'synced' as const } : f,
-            ),
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id
+                  ? { ...f, status: 'uploaded' as const, progress: 100 }
+                  : f,
+              ),
+            )
+
+            // Confirm & sync
+            const confirmRes = await fetch(
+              `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
+              { method: 'POST' },
+            )
+
+            if (!confirmRes.ok) {
+              throw new Error('Failed to confirm file upload')
+            }
+
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id ? { ...f, status: 'synced' as const } : f,
+              ),
+            )
+          } catch (fileErr) {
+            failureCount++
+            const message =
+              fileErr instanceof Error ? fileErr.message : 'Upload failed'
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id
+                  ? { ...f, status: 'failed' as const, error: message, progress: 0 }
+                  : f,
+              ),
+            )
+          }
+        }
+
+        if (failureCount > 0) {
+          setError(
+            `${failureCount} file${failureCount > 1 ? 's' : ''} failed to upload. Check the list above and try again.`,
           )
+          setSubmitting(false)
+          return
         }
 
         // Force a fresh document navigation after the initial upload flow so
