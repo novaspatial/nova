@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import type { Deliverable, DeliverableFormat, ProjectStatus } from '@/types/portal'
@@ -9,6 +10,7 @@ import {
   ArrowDownTrayIcon,
   CheckBadgeIcon,
   DocumentArrowDownIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 
 function formatFileSize(bytes: number): string {
@@ -34,11 +36,18 @@ const formatOptions: { value: DeliverableFormat; label: string }[] = [
 function DeliverableCard({
   deliverable,
   projectId,
+  isStudio,
+  isDelivered,
+  onDeleted,
 }: {
   deliverable: Deliverable
   projectId: string
+  isStudio: boolean
+  isDelivered: boolean
+  onDeleted?: (id: string) => void
 }) {
   const [downloading, setDownloading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const handleDownload = useCallback(async () => {
     setDownloading(true)
@@ -55,6 +64,22 @@ function DeliverableCard({
       setDownloading(false)
     }
   }, [projectId, deliverable.id])
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true)
+    try {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/deliverables/${deliverable.id}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) throw new Error('Failed to delete deliverable')
+      onDeleted?.(deliverable.id)
+    } catch {
+      // Could add error toast
+    } finally {
+      setDeleting(false)
+    }
+  }, [projectId, deliverable.id, onDeleted])
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm sm:p-5">
@@ -80,25 +105,80 @@ function DeliverableCard({
           )}
         </div>
       </div>
+      {isStudio ? (
+        <button
+          onClick={() => void handleDelete()}
+          disabled={deleting || isDelivered}
+          title={isDelivered ? 'Cannot delete after delivery' : 'Delete deliverable'}
+          className="group flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-500 transition hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-20 disabled:hover:border-white/10 disabled:hover:bg-white/5 disabled:hover:text-zinc-500"
+        >
+          <TrashIcon className="size-4 transition-transform group-hover:scale-110" />
+        </button>
+      ) : (
+        <button
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+        >
+          <ArrowDownTrayIcon className="size-4" />
+          <span className="hidden sm:inline">
+            {downloading ? 'Loading...' : 'Download'}
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-zinc-900/95 px-4 py-3.5 shadow-xl shadow-black/40 backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-200">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 ring-1 ring-amber-500/30">
+        <ExclamationTriangleIcon className="size-4 text-amber-400" />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-white">Format required</p>
+        <p className="mt-0.5 text-xs text-zinc-400">{message}</p>
+      </div>
       <button
-        onClick={handleDownload}
-        disabled={downloading}
-        className="flex shrink-0 items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+        type="button"
+        onClick={onDismiss}
+        className="ml-1 rounded-lg p-1 text-zinc-500 transition hover:bg-white/5 hover:text-zinc-300"
       >
-        <ArrowDownTrayIcon className="size-4" />
-        <span className="hidden sm:inline">
-          {downloading ? 'Loading...' : 'Download'}
-        </span>
+        <XMarkIcon className="size-4" />
       </button>
     </div>
   )
 }
 
-function StudioDeliverableUploader({ projectId }: { projectId: string }) {
+function StudioDeliverableUploader({
+  projectId,
+  format,
+  onFormatChange,
+  formatHighlight,
+  flashFormatHighlight,
+}: {
+  projectId: string
+  format: DeliverableFormat | null
+  onFormatChange: (f: DeliverableFormat) => void
+  formatHighlight: boolean
+  flashFormatHighlight: () => void
+}) {
   const router = useRouter()
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [uploading, setUploading] = useState(false)
-  const [format, setFormat] = useState<DeliverableFormat>('adm_bwf')
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastMessage(msg)
+    toastTimer.current = setTimeout(() => setToastMessage(null), 4000)
+  }, [])
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+  }, [])
 
   const handleFilesAdded = useCallback((newFiles: File[]) => {
     const items: FileUploadItem[] = newFiles.map((file) => ({
@@ -116,6 +196,10 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
 
   const handleUploadAll = useCallback(async () => {
     if (files.length === 0) return
+    if (!format) {
+      showToast('Please select a deliverable format before uploading.')
+      return
+    }
     setUploading(true)
     const syncedFileIds: string[] = []
 
@@ -129,7 +213,6 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
       )
 
       try {
-        // 1. Register deliverable and get signed upload URL
         const registerRes = await fetch(
           `/api/portal/projects/${projectId}/deliverables`,
           {
@@ -150,7 +233,6 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
 
         const { uploadUrl } = await registerRes.json()
 
-        // 2. Upload file to storage
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.upload.onprogress = (e) => {
@@ -206,26 +288,45 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
 
     setUploading(false)
     router.refresh()
-  }, [files, projectId, format, router])
+  }, [files, projectId, format, router, showToast])
+
+  useEffect(() => {
+    if (uploading) return
+    if (!files.some((f) => f.status === 'pending')) return
+    if (!format) {
+      flashFormatHighlight()
+      return
+    }
+    void handleUploadAll()
+  }, [files, uploading, format, handleUploadAll, flashFormatHighlight])
 
   return (
+    <>
+    {toastMessage && (
+      <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+    )}
     <div className="space-y-4">
       <div>
         <label className="mb-2 block text-xs font-medium text-zinc-400">
           Deliverable Format
         </label>
-        <select
-          value={format}
-          onChange={(e) => setFormat(e.target.value as DeliverableFormat)}
-          disabled={uploading}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
-        >
+        <div className={`inline-flex rounded-xl border bg-white/5 p-1 backdrop-blur-sm transition-colors duration-300 ${formatHighlight ? 'border-rose-500/50' : 'border-white/10'}`}>
           {formatOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <button
+              key={opt.value}
+              type="button"
+              disabled={uploading}
+              onClick={() => onFormatChange(opt.value)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                format === opt.value
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
               {opt.label}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
       <FileUploader
@@ -234,24 +335,14 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
         onRemove={handleRemove}
         disabled={uploading}
       />
-
-      {files.some((f) => f.status === 'pending') && (
-        <button
-          type="button"
-          onClick={handleUploadAll}
-          disabled={uploading}
-          className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
-        >
-          {uploading ? 'Uploading...' : 'Upload Deliverables'}
-        </button>
-      )}
     </div>
+    </>
   )
 }
 
 export function DeliverableList({
   projectId,
-  deliverables,
+  deliverables: initialDeliverables,
   isStudio,
   isApproved,
   projectStatus,
@@ -263,14 +354,28 @@ export function DeliverableList({
   projectStatus: ProjectStatus
 }) {
   const router = useRouter()
+  const [deliverables, setDeliverables] = useState(initialDeliverables)
   const [approving, setApproving] = useState(false)
-  const [delivering, setDelivering] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
-  const [activeDialog, setActiveDialog] = useState<'approved' | 'delivered' | null>(null)
+  const [activeDialog, setActiveDialog] = useState<'approved' | null>(null)
+  const [format, setFormat] = useState<DeliverableFormat | null>(null)
+  const [formatHighlight, setFormatHighlight] = useState(false)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flashFormatHighlight = useCallback(() => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    setFormatHighlight(true)
+    highlightTimer.current = setTimeout(() => setFormatHighlight(false), 1500)
+  }, [])
+
+  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
+
+  const handleDeleted = useCallback((id: string) => {
+    setDeliverables((prev) => prev.filter((d) => d.id !== id))
+  }, [])
 
   const handleSetStatus = useCallback(async (status: string) => {
-    const setter = status === 'approved' ? setApproving : setDelivering
-    setter(true)
+    setApproving(true)
     setStatusError(null)
     try {
       const res = await fetch(`/api/portal/projects/${projectId}`, {
@@ -292,9 +397,15 @@ export function DeliverableList({
           : `Failed to set status to ${status}`,
       )
     } finally {
-      setter(false)
+      setApproving(false)
     }
   }, [projectId, router])
+
+  useEffect(() => {
+    if (isStudio && projectStatus === 'approved' && deliverables.length > 0) {
+      void handleSetStatus('delivered')
+    }
+  }, [isStudio, projectStatus, deliverables.length, handleSetStatus])
 
   if (!isApproved && !isStudio) {
     return (
@@ -313,70 +424,6 @@ export function DeliverableList({
 
   return (
     <div className="space-y-4">
-      {/* Studio approval banner */}
-      {isStudio && !isApproved && (
-        <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-amber-300">
-                Ready to approve?
-              </p>
-              <p className="mt-0.5 text-xs text-amber-300/60">
-                Approving will make deliverables available to the client.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusError(null)
-                setActiveDialog('approved')
-              }}
-              disabled={approving}
-              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-            >
-              {approving ? 'Approving...' : 'Mark Approved'}
-            </button>
-          </div>
-          {statusError && (
-            <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-              {statusError}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Studio finalize delivery banner */}
-      {isStudio && projectStatus === 'approved' && deliverables.length > 0 && (
-        <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-emerald-300">
-                Finalize delivery?
-              </p>
-              <p className="mt-0.5 text-xs text-emerald-300/60">
-                Mark this project as delivered to complete the workflow.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusError(null)
-                setActiveDialog('delivered')
-              }}
-              disabled={delivering}
-              className="shrink-0 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
-            >
-              {delivering ? 'Delivering...' : 'Mark Delivered'}
-            </button>
-          </div>
-          {statusError && (
-            <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-              {statusError}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Deliverables list */}
       {deliverables.length > 0 && (
         <div className="space-y-3">
@@ -385,6 +432,9 @@ export function DeliverableList({
               key={d.id}
               deliverable={d}
               projectId={projectId}
+              isStudio={isStudio}
+              isDelivered={projectStatus === 'delivered'}
+              onDeleted={handleDeleted}
             />
           ))}
         </div>
@@ -401,7 +451,17 @@ export function DeliverableList({
               Upload final master files for the client to download.
             </p>
           </div>
-          <StudioDeliverableUploader projectId={projectId} />
+          <StudioDeliverableUploader
+            projectId={projectId}
+            format={format}
+            onFormatChange={(f) => {
+              setFormat(f)
+              if (highlightTimer.current) clearTimeout(highlightTimer.current)
+              setFormatHighlight(false)
+            }}
+            formatHighlight={formatHighlight}
+            flashFormatHighlight={flashFormatHighlight}
+          />
         </div>
       )}
 
@@ -411,6 +471,42 @@ export function DeliverableList({
           <p className="text-sm text-zinc-400">
             No deliverables available yet.
           </p>
+        </div>
+      )}
+
+      {/* Studio approval banner */}
+      {isStudio && !isApproved && (
+        <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-emerald-300">
+                Ready to approve?
+              </p>
+              <p className="mt-0.5 text-xs text-emerald-300/60">
+                Approving will make deliverables available to the client.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!format) {
+                  flashFormatHighlight()
+                  return
+                }
+                setStatusError(null)
+                setActiveDialog('approved')
+              }}
+              disabled={approving || deliverables.length === 0}
+              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {approving ? 'Approving...' : 'Mark Approved'}
+            </button>
+          </div>
+          {statusError && (
+            <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {statusError}
+            </p>
+          )}
         </div>
       )}
 
@@ -435,26 +531,6 @@ export function DeliverableList({
         onConfirm={() => void handleSetStatus('approved')}
       />
 
-      <PortalConfirmDialog
-        isOpen={activeDialog === 'delivered'}
-        tone="violet"
-        eyebrow="Workflow completion"
-        title="Mark this project as delivered?"
-        description="This finalizes the project workflow and signals that the approved deliverables have been handed off."
-        noteTitle="Use this once delivery is complete."
-        noteBody="The project will move into its delivered state immediately after confirmation."
-        confirmLabel="Mark Delivered"
-        busyLabel="Delivering..."
-        cancelLabel="Not Yet"
-        isBusy={delivering}
-        errorMessage={statusError}
-        onClose={() => {
-          if (!delivering) {
-            setActiveDialog(null)
-          }
-        }}
-        onConfirm={() => void handleSetStatus('delivered')}
-      />
     </div>
   )
 }

@@ -11,6 +11,7 @@ import {
   ArrowPathIcon,
   DocumentIcon,
   MusicalNoteIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 
 function formatFileSize(bytes: number): string {
@@ -172,7 +173,39 @@ function useFileUpload(
   return { newFiles, uploading, handleFilesAdded, handleRemove, handleUploadAll }
 }
 
-function FileList({ files, label }: { files: ProjectFile[]; label: string }) {
+function FileList({
+  files,
+  label,
+  projectId,
+  allowDownload = false,
+}: {
+  files: ProjectFile[]
+  label: string
+  projectId?: string
+  allowDownload?: boolean
+}) {
+  const [downloading, setDownloading] = useState<string | null>(null)
+
+  async function handleDownload(file: ProjectFile) {
+    if (!projectId) return
+    setDownloading(file.id)
+    try {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/files/${file.id}/download`,
+      )
+      if (!res.ok) throw new Error('Failed to get download URL')
+      const { url } = await res.json()
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.file_name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   if (files.length === 0) return null
   return (
     <div className="space-y-2">
@@ -193,7 +226,23 @@ function FileList({ files, label }: { files: ProjectFile[]; label: string }) {
               {formatFileSize(file.file_size)} &middot; {file.file_type}
             </p>
           </div>
-          {statusIcon[file.upload_status]}
+          {allowDownload && file.upload_status === 'uploaded' ? (
+            <button
+              type="button"
+              onClick={() => void handleDownload(file)}
+              disabled={downloading === file.id}
+              className="ml-auto shrink-0 rounded-lg border border-white/10 bg-white/5 p-1.5 text-zinc-400 transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300 disabled:opacity-50"
+              title={`Download ${file.file_name}`}
+            >
+              {downloading === file.id ? (
+                <ArrowPathIcon className="size-4 animate-spin" />
+              ) : (
+                <ArrowDownTrayIcon className="size-4" />
+              )}
+            </button>
+          ) : (
+            statusIcon[file.upload_status]
+          )}
         </div>
       ))}
     </div>
@@ -293,7 +342,12 @@ export function UploadManager({
     <div className="space-y-8">
       {/* Client stems section */}
       <div className="space-y-4">
-        <FileList files={stemFiles} label="Client Stems & References" />
+        <FileList
+          files={stemFiles}
+          label="Client Stems & References"
+          projectId={projectId}
+          allowDownload={isStudio}
+        />
 
         {!isReadOnly && !isStudio && (
           <>
@@ -395,10 +449,9 @@ export function UploadManager({
       <PortalConfirmDialog
         isOpen={activeDialog === 'finishUpload'}
         tone="success"
-        eyebrow="Client handoff"
-        title="Submit files and lock uploads?"
-        description="You will hand this project off to the studio and the upload step will become read-only for the client."
-        noteTitle="No more client uploads after this."
+        eyebrow="Handoff"
+        title="Submit files?"
+        description="You will hand this project off to the studio."
         noteBody="Make sure every stem and reference you want included is already uploaded before continuing."
         confirmLabel="Submit Files & Finish"
         busyLabel="Submitting..."
