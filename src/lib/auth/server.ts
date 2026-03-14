@@ -90,22 +90,47 @@ export async function requirePageProfile() {
   return { ...auth, profile }
 }
 
+type ProjectVisibilityFields = {
+  client_deleted_at?: string | null
+  studio_deleted_at?: string | null
+}
+
+function isProjectVisibleToRole(
+  project: ProjectVisibilityFields,
+  viewerRole: UserRole | null | undefined,
+) {
+  if (viewerRole === 'studio') {
+    return !project.studio_deleted_at
+  }
+
+  return !project.client_deleted_at
+}
+
 export async function getProjectOrNotFound<T extends object>(
   supabase: ServerSupabaseClient,
   projectId: string,
   select: string,
+  viewerRole?: UserRole | null,
 ) {
+  const expandedSelect = select.includes('*')
+    ? select
+    : `${select}, client_deleted_at, studio_deleted_at`
+
   const { data } = await supabase
     .from('projects')
-    .select(select)
+    .select(expandedSelect)
     .eq('id', projectId)
     .single()
 
-  if (!data) {
+  if (!data || !isProjectVisibleToRole(data as ProjectVisibilityFields, viewerRole)) {
     notFound()
   }
 
-  return data as T
+  const project = { ...((data as unknown) as T & ProjectVisibilityFields) }
+  delete project.client_deleted_at
+  delete project.studio_deleted_at
+
+  return project as T
 }
 
 export async function requireApiUser() {
@@ -148,16 +173,25 @@ export async function getProjectOrApiNotFound<T extends object>(
   supabase: ServerSupabaseClient,
   projectId: string,
   select: string,
+  viewerRole?: UserRole | null,
 ) {
+  const expandedSelect = select.includes('*')
+    ? select
+    : `${select}, client_deleted_at, studio_deleted_at`
+
   const { data } = await supabase
     .from('projects')
-    .select(select)
+    .select(expandedSelect)
     .eq('id', projectId)
     .single()
 
-  if (!data) {
+  if (!data || !isProjectVisibleToRole(data as ProjectVisibilityFields, viewerRole)) {
     return { response: notFoundResponse('Project not found') } as ApiFailure
   }
 
-  return { project: data as T }
+  const project = { ...((data as unknown) as T & ProjectVisibilityFields) }
+  delete project.client_deleted_at
+  delete project.studio_deleted_at
+
+  return { project: project as T }
 }

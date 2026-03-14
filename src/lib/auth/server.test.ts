@@ -18,8 +18,8 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  redirect: (...args: unknown[]) => mockRedirect(...args),
-  notFound: (...args: unknown[]) => mockNotFound(...args),
+  redirect: (path: string) => mockRedirect(path),
+  notFound: () => mockNotFound(),
 }))
 
 import {
@@ -162,6 +162,32 @@ describe('auth server helpers', () => {
     }
   })
 
+  test('getProjectOrApiNotFound hides projects removed by the client', async () => {
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-hidden',
+        client_deleted_at: '2026-03-14T00:00:00.000Z',
+        studio_deleted_at: null,
+      },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+
+    const result = await getProjectOrApiNotFound<{ id: string }>(
+      supabase as never,
+      'proj-hidden',
+      'id',
+      'client',
+    )
+
+    expect('response' in result).toBe(true)
+    if ('response' in result) {
+      expect(result.response.status).toBe(404)
+    }
+  })
+
   test('requirePageUser redirects to login when auth is missing', async () => {
     mockCreateClient.mockResolvedValue(null)
 
@@ -202,4 +228,28 @@ describe('auth server helpers', () => {
     ).rejects.toThrow('NOT_FOUND')
     expect(mockNotFound).toHaveBeenCalledTimes(1)
   })
+
+  test('getProjectOrNotFound hides projects removed by the studio', async () => {
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-hidden',
+        client_deleted_at: null,
+        studio_deleted_at: '2026-03-14T00:00:00.000Z',
+      },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+
+    await expect(
+      getProjectOrNotFound<{ id: string }>(
+        supabase as never,
+        'proj-hidden',
+        'id',
+        'studio',
+      ),
+    ).rejects.toThrow('NOT_FOUND')
+  })
+
 })
