@@ -89,6 +89,28 @@ describe('GET /api/portal/projects', () => {
     )
     expect(ownerFilter).toBeUndefined()
   })
+
+  test('returns 500 when project lookup fails', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: null,
+      error: { message: 'Database error' },
+    })
+
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const res = await GET()
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({ error: 'Database error' })
+  })
 })
 
 describe('POST /api/portal/projects', () => {
@@ -148,5 +170,48 @@ describe('POST /api/portal/projects', () => {
     const body = await res.json()
     expect(body.id).toBe('proj-new')
     expect(body.title).toBe('Test Project')
+  })
+
+  test('trims title and falls back to default format and null notes', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-new', title: 'Trimmed Title', status: 'uploading' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      title: '  Trimmed Title  ',
+    })
+
+    const res = await POST(req as NextRequest)
+
+    expect(res.status).toBe(200)
+    expect(projectsChain.insert).toHaveBeenCalledWith({
+      owner_id: 'user-1',
+      title: 'Trimmed Title',
+      format: 'atmos',
+      notes: null,
+      status: 'uploading',
+    })
+  })
+
+  test('returns 500 when insert fails', async () => {
+    const projectsChain = createChainMock({
+      data: null,
+      error: { message: 'Insert failed' },
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ title: 'New Project' })
+    const res = await POST(req as NextRequest)
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({ error: 'Insert failed' })
   })
 })

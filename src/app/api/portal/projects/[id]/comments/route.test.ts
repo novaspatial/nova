@@ -53,6 +53,23 @@ describe('GET /api/portal/projects/[id]/comments', () => {
       ascending: true,
     })
   })
+
+  test('returns 500 when comment lookup fails', async () => {
+    const commentsChain = createChainMock({
+      data: null,
+      error: { message: 'Database error' },
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { project_comments: commentsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'GET' })
+    const res = await GET(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({ error: 'Database error' })
+  })
 })
 
 describe('POST /api/portal/projects/[id]/comments', () => {
@@ -141,6 +158,45 @@ describe('POST /api/portal/projects/[id]/comments', () => {
     expect(resBody.timestamp_ms).toBe(42000)
   })
 
+  test('trims body and forwards parentId when creating threaded comments', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    const commentsChain = createChainMock({
+      data: {
+        id: 'c-reply',
+        body: 'Thanks for the note',
+        timestamp_ms: 15000,
+        parent_id: 'comment-1',
+      },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_comments: commentsChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      body: '  Thanks for the note  ',
+      timestampMs: 15000,
+      parentId: 'comment-1',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(commentsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: 'Thanks for the note',
+        parent_id: 'comment-1',
+        timestamp_ms: 15000,
+      }),
+    )
+  })
+
   test('creates comment without timestamp', async () => {
     const projectsChain = createChainMock({
       data: { id: 'proj-1' },
@@ -168,5 +224,29 @@ describe('POST /api/portal/projects/[id]/comments', () => {
         timestamp_ms: null,
       }),
     )
+  })
+
+  test('returns 500 when comment insert fails', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    const commentsChain = createChainMock({
+      data: null,
+      error: { message: 'Insert failed' },
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_comments: commentsChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ body: 'Needs revision' })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({ error: 'Insert failed' })
   })
 })

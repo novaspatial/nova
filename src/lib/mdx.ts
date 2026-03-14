@@ -1,6 +1,13 @@
 import { type ImageProps } from 'next/image'
 import glob from 'fast-glob'
 
+async function importMdxModule(path: string) {
+  return import(
+    /* webpackInclude: /page\.mdx$/ */
+    `../app/${path}`
+  )
+}
+
 async function loadEntries<T extends { date: string }>(
   directory: string,
   metaName: string,
@@ -9,7 +16,7 @@ async function loadEntries<T extends { date: string }>(
     await Promise.all(
       (await glob('**/page.mdx', { cwd: `src/app/${directory}` })).map(
         async (filename) => {
-          const metadata = (await import(`../app/${directory}/${filename}`))[
+          const metadata = (await importMdxModule(`${directory}/${filename}`))[
             metaName
           ] as T
           return {

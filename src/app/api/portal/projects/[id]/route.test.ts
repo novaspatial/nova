@@ -85,6 +85,48 @@ describe('GET /api/portal/projects/[id]', () => {
     expect(body.comments).toHaveLength(1)
     expect(body.deliverables).toHaveLength(0)
   })
+
+  test('falls back to empty arrays when related queries fail', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', title: 'Test', status: 'review' },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: null,
+      error: { message: 'Files lookup failed' },
+    })
+    const commentsChain = createChainMock({
+      data: [],
+      error: null,
+    })
+    const deliverablesChain = createChainMock({
+      data: [],
+      error: null,
+    })
+
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_files: filesChain,
+        project_comments: commentsChain,
+        deliverables: deliverablesChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'GET' })
+    const res = await GET(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      id: 'proj-1',
+      title: 'Test',
+      status: 'review',
+      files: [],
+      comments: [],
+      deliverables: [],
+    })
+  })
 })
 
 describe('PATCH /api/portal/projects/[id]', () => {
@@ -148,6 +190,28 @@ describe('PATCH /api/portal/projects/[id]', () => {
 
     const body = await res.json()
     expect(body.status).toBe('approved')
+  })
+
+  test('returns 500 when project update fails', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: null,
+      error: { message: 'Update failed' },
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ status: 'approved' })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({ error: 'Update failed' })
   })
 
   test('accepts all valid status values', async () => {
