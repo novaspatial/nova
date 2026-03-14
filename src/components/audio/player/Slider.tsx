@@ -173,7 +173,7 @@ export function Slider(props: SliderProps) {
           {...outputProps}
           aria-live="off"
           className={clsx(
-            'hidden rounded-md px-1 py-0.5 font-mono text-sm/6 md:block',
+            'hidden rounded-md px-1 py-0.5 font-mono text-base/6 md:block',
             state.getThumbMaxValue(0) === 0 && 'opacity-0',
             isFocusVisible || state.isThumbDragging(0)
               ? 'bg-white/10 text-white'
@@ -182,12 +182,12 @@ export function Slider(props: SliderProps) {
         >
           {formatTime(currentTime, totalTime)}
         </output>
-        <span className="text-sm/6 text-zinc-600" aria-hidden="true">
+        <span className="text-base/6 text-zinc-600" aria-hidden="true">
           /
         </span>
         <span
           className={clsx(
-            'hidden rounded-md px-1 py-0.5 font-mono text-sm/6 text-zinc-500 md:block',
+            'hidden rounded-md px-1 py-0.5 font-mono text-base/6 text-zinc-500 md:block',
             state.getThumbMaxValue(0) === 0 && 'opacity-0',
           )}
         >

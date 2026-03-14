@@ -75,9 +75,9 @@ export function AudioPlayer() {
               type="button"
               onClick={() => player.clear()}
               aria-label="Close audio player"
-              className="inline-flex size-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/5 hover:text-white"
+              className="inline-flex size-11 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/5 hover:text-white"
             >
-              <XMarkIcon className="size-5" />
+              <XMarkIcon className="size-7" />
             </button>
           </div>
         </div>

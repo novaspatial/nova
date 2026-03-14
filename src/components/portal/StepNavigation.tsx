@@ -48,11 +48,10 @@ const unlockedSteps: Record<ProjectStatus, StepKey[]> = {
   delivered: ['upload', 'listen', 'review', 'deliver'],
 }
 
-// Studio can access listen/review during processing/mixing to preview their uploads
 const studioUnlockedSteps: Record<ProjectStatus, StepKey[]> = {
   uploading: ['upload'],
-  processing: ['upload', 'listen', 'review'],
-  mixing: ['upload', 'listen', 'review'],
+  processing: ['upload'],
+  mixing: ['upload'],
   review: ['upload', 'listen', 'review', 'deliver'],
   revision: ['upload', 'listen', 'review', 'deliver'],
   approved: ['upload', 'listen', 'review', 'deliver'],

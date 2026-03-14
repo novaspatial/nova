@@ -143,12 +143,7 @@ export function PortalConfirmDialog({
             <div className={`h-1 w-full ${styles.rail}`} />
             <div className="p-6 sm:p-7">
               <div className="flex items-start gap-4">
-                <div
-                  className={`flex size-14 shrink-0 items-center justify-center rounded-2xl ${styles.iconWrap}`}
-                >
-                  <ExclamationTriangleIcon className={`size-7 ${styles.icon}`} />
-                </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   {eyebrow && (
                     <p
                       className={`text-xs font-semibold uppercase tracking-[0.22em] ${styles.eyebrow}`}
@@ -167,6 +162,11 @@ export function PortalConfirmDialog({
                       {description}
                     </div>
                   )}
+                </div>
+                <div
+                  className={`flex size-14 shrink-0 items-center justify-center rounded-2xl ${styles.iconWrap}`}
+                >
+                  <ExclamationTriangleIcon className={`size-7 ${styles.icon}`} />
                 </div>
               </div>
 
