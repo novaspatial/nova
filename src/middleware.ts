@@ -3,14 +3,30 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-
-const protectedRoutes = ['/profile', '/portal']
+const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  const authCookieNames = request.cookies
+    .getAll()
+    .map(({ name }) => name)
+    .filter((name) => supabaseAuthCookiePattern.test(name))
 
   if (!supabaseUrl || !supabaseKey) {
     return supabaseResponse
+  }
+
+  // If there is no Supabase auth cookie at all, avoid creating the auth client.
+  // This keeps protected-route requests quiet for clearly unauthenticated visitors.
+  if (authCookieNames.length === 0) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.search = ''
+    url.searchParams.set(
+      'next',
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    )
+    return NextResponse.redirect(url)
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -32,31 +48,39 @@ export async function middleware(request: NextRequest) {
 
   // getClaims() validates the JWT signature against the project's public keys,
   // making it safe to trust in server-side code (unlike getSession()).
-  const { data } = await supabase.auth.getClaims()
-  const user = data?.claims
-
-  const pathname = request.nextUrl.pathname
-  const isProtected = protectedRoutes.some((route) =>
-    pathname.startsWith(route),
-  )
-
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  // Wrapped in try/catch because it may attempt a token refresh network call
+  // that can fail when Supabase is unreachable (e.g. paused project, offline).
+  let user: object | null = null
+  let authCheckFailed = false
+  try {
+    const { data } = await supabase.auth.getClaims()
+    user = data?.claims ?? null
+  } catch {
+    authCheckFailed = true
+    // Treat failed auth check as unauthenticated — protected routes will redirect to login
   }
 
-  if (pathname === '/login' && user) {
+  if (!user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+    url.pathname = '/login'
+    url.search = ''
+    url.searchParams.set(
+      'next',
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    )
+    const response = NextResponse.redirect(url)
+
+    // Clear stale auth cookies so failed refresh attempts do not keep repeating.
+    if (authCheckFailed) {
+      authCookieNames.forEach((name) => response.cookies.delete(name))
+    }
+
+    return response
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4)$).*)',
-  ],
+  matcher: ['/portal/:path*', '/profile/:path*'],
 }

@@ -10,12 +10,18 @@ interface Profile {
   role: UserRole
 }
 
-export function useProfile() {
-  const { user, loading: authLoading, supabase } = useAuthUser()
+export function useProfile(enabled = true) {
+  const { user, loading: authLoading, supabase } = useAuthUser(enabled)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
 
   useEffect(() => {
+    if (!enabled) {
+      setProfile(null)
+      setLoading(false)
+      return
+    }
+
     if (authLoading) return
 
     if (!user || !supabase) {
@@ -33,7 +39,7 @@ export function useProfile() {
         setProfile(data as Profile | null)
         setLoading(false)
       })
-  }, [user, authLoading, supabase])
+  }, [enabled, user, authLoading, supabase])
 
   return {
     user,

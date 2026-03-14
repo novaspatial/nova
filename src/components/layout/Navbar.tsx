@@ -15,10 +15,12 @@ import clsx from 'clsx'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { Container } from '@/components/layout/Container'
 import { Logo, Logomark } from '@/components/ui/Logo'
 import { useAuthUser } from '@/hooks/useAuthUser'
+import { createClient } from '@/lib/supabase/supabaseClient'
 
 const navLinks = [
   { href: '/#faq', label: 'FAQ', highlight: false },
@@ -27,6 +29,21 @@ const navLinks = [
   { href: '/about', label: 'About Us', highlight: false },
   { href: '/blog', label: 'Blog', highlight: false },
 ]
+
+type NavLink = (typeof navLinks)[number]
+type NavbarAuthUser = Pick<User, 'id' | 'email' | 'user_metadata'>
+const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
+
+function hasSupabaseSessionCookie() {
+  if (typeof document === 'undefined') {
+    return false
+  }
+
+  return document.cookie
+    .split(';')
+    .map((cookie) => cookie.trim().split('=')[0])
+    .some((name) => supabaseAuthCookiePattern.test(name))
+}
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -74,12 +91,14 @@ function MobileNavItem({
 }
 
 function MobileNavigation({
+  links,
   user,
   loading,
   onSignOut,
   ...props
 }: React.ComponentPropsWithoutRef<typeof Popover> & {
-  user: User | null
+  links: NavLink[]
+  user: NavbarAuthUser | null
   loading: boolean
   onSignOut: () => void
 }) {
@@ -117,7 +136,7 @@ function MobileNavigation({
         </div>
         <nav className="mt-4">
           <ul className="-my-2 divide-y divide-zinc-100/5 text-sm text-zinc-300">
-            {navLinks.map(({ href, label }) => (
+            {links.map(({ href, label }) => (
               <MobileNavItem key={href} href={href}>
                 {label}
               </MobileNavItem>
@@ -254,7 +273,12 @@ function NavItem({
   )
 }
 
-function DesktopNavigation(props: React.ComponentPropsWithoutRef<'nav'>) {
+function DesktopNavigation({
+  links,
+  ...props
+}: React.ComponentPropsWithoutRef<'nav'> & {
+  links: NavLink[]
+}) {
   return (
     <nav {...props}>
       <div className="relative rounded-full p-px shadow-lg shadow-violet-500/10">
@@ -266,7 +290,7 @@ function DesktopNavigation(props: React.ComponentPropsWithoutRef<'nav'>) {
           }}
         />
         <ul className="relative flex rounded-full bg-zinc-800/90 px-4 text-base font-medium text-zinc-200 backdrop-blur-sm 3xl:px-6 3xl:text-lg">
-          {navLinks.map(({ href, label, highlight }) => (
+          {links.map(({ href, label, highlight }) => (
             <NavItem key={href} href={href} highlight={highlight}>
               {label}
             </NavItem>
@@ -282,7 +306,7 @@ function UserMenu({
   loading,
   onSignOut,
 }: {
-  user: User | null
+  user: NavbarAuthUser | null
   loading: boolean
   onSignOut: () => void
 }) {
@@ -398,12 +422,79 @@ function UserMenu({
   )
 }
 
-export function Navbar() {
-  const { user, loading, supabase } = useAuthUser()
+export function Navbar({ authAware = false }: { authAware?: boolean }) {
+  const pathname = usePathname()
+  const { user: authUser, loading: authLoading, supabase } = useAuthUser(authAware)
   const router = useRouter()
+  const [hasSessionHint, setHasSessionHint] = useState(false)
+  const [publicUser, setPublicUser] = useState<NavbarAuthUser | null>(null)
+  const [publicLoading, setPublicLoading] = useState(false)
+  const user = authAware ? authUser : publicUser
+  const loading = authAware ? authLoading : publicLoading
+  const isAuthenticated = Boolean(user) || hasSessionHint
+
+  useEffect(() => {
+    setHasSessionHint(hasSupabaseSessionCookie())
+  }, [pathname, authUser])
+
+  useEffect(() => {
+    if (authAware) {
+      setPublicUser(null)
+      setPublicLoading(false)
+      return
+    }
+
+    if (!hasSessionHint) {
+      setPublicUser(null)
+      setPublicLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setPublicLoading(true)
+
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null
+        }
+
+        const result = (await response.json()) as {
+          user?: NavbarAuthUser
+        }
+
+        return result.user ?? null
+      })
+      .catch(() => null)
+      .then((nextUser) => {
+        if (cancelled) {
+          return
+        }
+
+        setPublicUser(nextUser)
+        setPublicLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [authAware, hasSessionHint, pathname])
+
+  const resolvedNavLinks = navLinks.map((link) =>
+    link.highlight
+      ? {
+          ...link,
+          href: isAuthenticated ? '/portal' : '/login',
+          label: isAuthenticated ? 'My Projects' : link.label,
+        }
+      : link,
+  )
 
   async function handleSignOut() {
-    await supabase?.auth.signOut()
+    const authClient = supabase ?? createClient()
+    await authClient?.auth.signOut()
+    setPublicUser(null)
+    setHasSessionHint(false)
     router.push('/')
     router.refresh()
   }
@@ -423,7 +514,10 @@ export function Navbar() {
             </Link>
           </div>
           <div className="hidden md:flex md:justify-center">
-            <DesktopNavigation className="pointer-events-auto" />
+            <DesktopNavigation
+              className="pointer-events-auto"
+              links={resolvedNavLinks}
+            />
           </div>
           <div className="flex flex-1 justify-end">
              <div className="hidden md:block">
@@ -435,6 +529,7 @@ export function Navbar() {
             </div>
             <MobileNavigation
               className="pointer-events-auto md:hidden"
+              links={resolvedNavLinks}
               user={user}
               loading={loading}
               onSignOut={handleSignOut}
