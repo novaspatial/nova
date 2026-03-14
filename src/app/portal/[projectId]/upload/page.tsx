@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { UploadManager } from '@/components/portal/UploadManager'
 import {
@@ -11,6 +12,7 @@ export default async function UploadPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
+  noStore()
   const { projectId } = await params
   const { supabase, profile } = await requirePageProfile()
 
@@ -19,7 +21,7 @@ export default async function UploadPage({
   const project = await getProjectOrNotFound<{
     id: string
     status: ProjectStatus
-  }>(supabase, projectId, 'id, status')
+  }>(supabase, projectId, 'id, status', role)
 
   const { data: files } = await supabase
     .from('project_files')
@@ -47,6 +49,7 @@ export default async function UploadPage({
         </div>
 
         <UploadManager
+          key={`${status}-${files?.length ?? 0}`}
           projectId={projectId}
           existingFiles={(files as ProjectFile[]) || []}
           isReadOnly={isClientReadOnly}

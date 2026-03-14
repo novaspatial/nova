@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { DeliverableList } from '@/components/portal/DeliverableList'
 import {
@@ -11,12 +12,13 @@ export default async function DeliverPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
+  noStore()
   const { projectId } = await params
   const { supabase, profile } = await requirePageProfile()
   const project = await getProjectOrNotFound<{
     id: string
     status: ProjectStatus
-  }>(supabase, projectId, 'id, status')
+  }>(supabase, projectId, 'id, status', profile?.role)
 
   const { data: deliverables } = await supabase
     .from('deliverables')
@@ -42,6 +44,7 @@ export default async function DeliverPage({
         </div>
 
         <DeliverableList
+          key={`${project.status}-${deliverables?.length ?? 0}`}
           projectId={projectId}
           deliverables={(deliverables as Deliverable[]) || []}
           isStudio={isStudio}

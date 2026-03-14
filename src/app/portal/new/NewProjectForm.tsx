@@ -1,14 +1,12 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50'
 
 export function NewProjectForm() {
-  const router = useRouter()
   const [title, setTitle] = useState('')
   const [format, setFormat] = useState<'atmos' | 'binaural' | 'both'>('atmos')
   const [notes, setNotes] = useState('')
@@ -137,14 +135,15 @@ export function NewProjectForm() {
           )
         }
 
-        // 3. Navigate to the new project
-        router.push(`/portal/${projectId}`)
+        // Force a fresh document navigation after the initial upload flow so
+        // the new project page renders with the latest server data immediately.
+        window.location.assign(`/portal/${projectId}/upload`)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong')
         setSubmitting(false)
       }
     },
-    [title, format, notes, files, router],
+    [title, format, notes, files],
   )
 
   return (
