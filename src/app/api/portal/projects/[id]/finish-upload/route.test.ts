@@ -65,7 +65,7 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
 
     const body = await res.json()
     expect(body.success).toBe(true)
-    expect(projectsChain.update).toHaveBeenCalledWith({ status: 'processing' })
+    expect(projectsChain.update).toHaveBeenCalledWith({ status: 'mixing' })
     expect(projectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
     expect(projectsChain.eq).toHaveBeenCalledWith('owner_id', 'user-1')
   })

@@ -119,9 +119,7 @@ describe('POST /api/portal/projects', () => {
   })
 
   test('returns 401 when not authenticated', async () => {
-    mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ user: null }),
-    )
+    mockCreateClient.mockResolvedValue(createSupabaseMock({ user: null }))
 
     const req = createMockRequest({ title: 'New Project' })
     const res = await POST(req as NextRequest)

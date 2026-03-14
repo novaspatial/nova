@@ -4,7 +4,9 @@ type ChainableMock = {
   select: ReturnType<typeof vi.fn>
   insert: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
+  delete: ReturnType<typeof vi.fn>
   eq: ReturnType<typeof vi.fn>
+  is: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
   single: ReturnType<typeof vi.fn>
 }
@@ -23,7 +25,9 @@ export function createChainMock(
     select: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
     eq: vi.fn(),
+    is: vi.fn(),
     order: vi.fn(),
     single: vi.fn(),
   }
@@ -54,6 +58,7 @@ export function createSupabaseMock({
       createSignedUploadUrl?: ReturnType<typeof vi.fn>
       createSignedUrl?: ReturnType<typeof vi.fn>
       download?: ReturnType<typeof vi.fn>
+      remove?: ReturnType<typeof vi.fn>
     }
   >,
 }: {
@@ -65,6 +70,7 @@ export function createSupabaseMock({
       createSignedUploadUrl?: ReturnType<typeof vi.fn>
       createSignedUrl?: ReturnType<typeof vi.fn>
       download?: ReturnType<typeof vi.fn>
+      remove?: ReturnType<typeof vi.fn>
     }
   >
 } = {}) {
@@ -93,6 +99,10 @@ export function createSupabaseMock({
             }),
             download: vi.fn().mockResolvedValue({
               data: new Blob(['audio']),
+              error: null,
+            }),
+            remove: vi.fn().mockResolvedValue({
+              data: null,
               error: null,
             }),
           }
