@@ -12,10 +12,10 @@ export async function POST(
   }
   const { supabase, user } = auth
 
-  // Update project status to 'processing'
+  // Hand the project off to the studio and begin mixing immediately.
   const { error } = await supabase
     .from('projects')
-    .update({ status: 'processing' })
+    .update({ status: 'mixing' })
     .eq('id', projectId)
     .eq('owner_id', user.id)
 

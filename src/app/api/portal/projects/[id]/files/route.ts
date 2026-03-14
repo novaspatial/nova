@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   getAuthProfile,
   getProjectOrApiNotFound,
-  requireApiUser,
+  requireApiProfile,
 } from '@/lib/auth/server'
 
 export async function POST(
@@ -10,17 +10,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const auth = await requireApiUser()
+  const auth = await requireApiProfile()
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user } = auth
+  const { supabase, user, profile } = auth
 
   const projectResult = await getProjectOrApiNotFound<{
     id: string
     owner_id: string
     status: string
-  }>(supabase, projectId, 'id, owner_id, status')
+  }>(supabase, projectId, 'id, owner_id, status', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
   }
