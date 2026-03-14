@@ -1,7 +1,9 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { ReviewTimeline } from '@/components/portal/ReviewTimeline'
+import {
+  getProjectOrNotFound,
+  requirePageUser,
+} from '@/lib/auth/server'
 import type { ProjectComment } from '@/types/portal'
 
 export default async function ReviewPage({
@@ -10,29 +12,12 @@ export default async function ReviewPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
+  const { supabase, user } = await requirePageUser()
+  await getProjectOrNotFound<{ id: string; status: string }>(
+    supabase,
+    projectId,
+    'id, status',
+  )
 
   const { data: comments } = await supabase
     .from('project_comments')

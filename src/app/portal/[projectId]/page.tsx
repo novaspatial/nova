@@ -1,5 +1,8 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
+import {
+  getProjectOrNotFound,
+  requirePageUser,
+} from '@/lib/auth/server'
 import type { ProjectStatus } from '@/types/portal'
 
 const statusToStep: Record<ProjectStatus, string> = {
@@ -18,21 +21,12 @@ export default async function ProjectPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
+  const { supabase } = await requirePageUser()
+  const project = await getProjectOrNotFound<{ status: ProjectStatus }>(
+    supabase,
+    projectId,
+    'status',
+  )
 
   const step = statusToStep[project.status as ProjectStatus] || 'upload'
   redirect(`/portal/${projectId}/${step}`)

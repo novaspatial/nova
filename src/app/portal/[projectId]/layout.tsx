@@ -1,7 +1,9 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
 import { StepNavigation } from '@/components/portal/StepNavigation'
 import { FadeIn } from '@/components/ui/FadeIn'
+import {
+  getProjectOrNotFound,
+  requirePageProfile,
+} from '@/lib/auth/server'
 import type { ProjectStatus } from '@/types/portal'
 
 export default async function ProjectDetailLayout({
@@ -12,37 +14,15 @@ export default async function ProjectDetailLayout({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const { supabase, profile } = await requirePageProfile()
 
   const isStudio = profile?.role === 'studio'
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, title, status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
+  const project = await getProjectOrNotFound<{
+    id: string
+    title: string
+    status: ProjectStatus
+  }>(supabase, projectId, 'id, title, status')
 
   return (
     <div className="mx-auto max-w-4xl">
