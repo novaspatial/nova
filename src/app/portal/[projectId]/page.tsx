@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import {
   getProjectOrNotFound,
-  requirePageUser,
+  requirePageProfile,
 } from '@/lib/auth/server'
 import type { ProjectStatus } from '@/types/portal'
 
@@ -21,11 +21,12 @@ export default async function ProjectPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const { supabase } = await requirePageUser()
+  const { supabase, profile } = await requirePageProfile()
   const project = await getProjectOrNotFound<{ status: ProjectStatus }>(
     supabase,
     projectId,
     'status',
+    profile?.role,
   )
 
   const step = statusToStep[project.status as ProjectStatus] || 'upload'

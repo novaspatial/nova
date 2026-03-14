@@ -13,11 +13,13 @@ export default async function PortalDashboard() {
     ? supabase
         .from('projects')
         .select('*, owner:profiles!projects_owner_id_fkey(display_name, email)')
+        .is('studio_deleted_at', null)
         .order('created_at', { ascending: false })
     : supabase
         .from('projects')
         .select('*')
         .eq('owner_id', user.id)
+        .is('client_deleted_at', null)
         .order('created_at', { ascending: false }))
 
   return (
@@ -48,7 +50,10 @@ export default async function PortalDashboard() {
             <div className="grid gap-4 sm:grid-cols-2">
               {(projects as Project[]).map((project) => (
                 <FadeIn key={project.id}>
-                  <ProjectCard project={project} />
+                  <ProjectCard
+                    project={project}
+                    canDelete={isStudio || project.owner_id === user.id}
+                  />
                 </FadeIn>
               ))}
             </div>

@@ -1,7 +1,8 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
 import {
   getProjectOrNotFound,
-  requirePageUser,
+  requirePageProfile,
 } from '@/lib/auth/server'
 import { ListenPlayer } from './ListenPlayer'
 
@@ -10,13 +11,14 @@ export default async function ListenPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
+  noStore()
   const { projectId } = await params
-  const { supabase } = await requirePageUser()
+  const { supabase, profile } = await requirePageProfile()
   const project = await getProjectOrNotFound<{
     id: string
     title: string
     format: string
-  }>(supabase, projectId, 'id, title, format')
+  }>(supabase, projectId, 'id, title, format', profile?.role)
 
   const { data: files } = await supabase
     .from('project_files')
@@ -49,6 +51,7 @@ export default async function ListenPage({
         </div>
 
         <ListenPlayer
+          key={audioFiles.map((file) => `${file.id}:${file.signedUrl ?? 'missing'}`).join('|')}
           projectId={project.id}
           format={project.format}
           audioFiles={audioFiles}

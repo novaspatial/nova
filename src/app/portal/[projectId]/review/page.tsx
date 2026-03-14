@@ -1,8 +1,9 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { ReviewTimeline } from '@/components/portal/ReviewTimeline'
 import {
   getProjectOrNotFound,
-  requirePageUser,
+  requirePageProfile,
 } from '@/lib/auth/server'
 import type { ProjectComment } from '@/types/portal'
 
@@ -11,12 +12,14 @@ export default async function ReviewPage({
 }: {
   params: Promise<{ projectId: string }>
 }) {
+  noStore()
   const { projectId } = await params
-  const { supabase, user } = await requirePageUser()
+  const { supabase, profile } = await requirePageProfile()
   await getProjectOrNotFound<{ id: string; status: string }>(
     supabase,
     projectId,
     'id, status',
+    profile?.role,
   )
 
   const { data: comments } = await supabase
@@ -43,9 +46,9 @@ export default async function ReviewPage({
         </div>
 
         <ReviewTimeline
+          key={(comments as ProjectComment[])?.map((comment) => comment.id).join('|') || 'empty'}
           projectId={projectId}
           initialComments={(comments as ProjectComment[]) || []}
-          userId={user.id}
         />
       </div>
     </FadeIn>

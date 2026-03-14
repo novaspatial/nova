@@ -16,9 +16,9 @@ export default async function PortalLayout({
   await requirePageUser()
 
   return (
-    <ProtectedRootLayout>
+    <ProtectedRootLayout hideFooter>
       <AudioProvider>
-        <Container className="mt-36 sm:mt-44 lg:mt-48 pb-20 sm:pb-32">
+        <Container className="mt-56 sm:mt-64 lg:mt-72 pb-20 sm:pb-32">
           {children}
         </Container>
         <AudioPlayer />
