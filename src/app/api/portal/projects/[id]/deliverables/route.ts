@@ -1,22 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import {
+  getProjectOrApiNotFound,
+  requireApiStudioUser,
+  requireApiUser,
+} from '@/lib/auth/server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const { supabase } = auth
 
   const { data: deliverables, error } = await supabase
     .from('deliverables')
@@ -36,38 +34,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiStudioUser()
+  if ('response' in auth) {
+    return auth.response
   }
+  const { supabase, user } = auth
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const projectResult = await getProjectOrApiNotFound<{
+    id: string
+    owner_id: string
+  }>(supabase, projectId, 'id, owner_id')
+  if ('response' in projectResult) {
+    return projectResult.response
   }
-
-  // Check studio role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'studio') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, owner_id')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
+  const { project } = projectResult
 
   const body = await request.json()
   const { fileName, fileSize, format } = body

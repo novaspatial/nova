@@ -1,7 +1,9 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { DeliverableList } from '@/components/portal/DeliverableList'
+import {
+  getProjectOrNotFound,
+  requirePageProfile,
+} from '@/lib/auth/server'
 import type { Deliverable, ProjectStatus } from '@/types/portal'
 
 export default async function DeliverPage({
@@ -10,35 +12,11 @@ export default async function DeliverPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const { supabase, profile } = await requirePageProfile()
+  const project = await getProjectOrNotFound<{
+    id: string
+    status: ProjectStatus
+  }>(supabase, projectId, 'id, status')
 
   const { data: deliverables } = await supabase
     .from('deliverables')

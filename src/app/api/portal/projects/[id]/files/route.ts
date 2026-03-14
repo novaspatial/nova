@@ -1,33 +1,30 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import {
+  getAuthProfile,
+  getProjectOrApiNotFound,
+  requireApiUser,
+} from '@/lib/auth/server'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
+  const { supabase, user } = auth
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const projectResult = await getProjectOrApiNotFound<{
+    id: string
+    owner_id: string
+    status: string
+  }>(supabase, projectId, 'id, owner_id, status')
+  if ('response' in projectResult) {
+    return projectResult.response
   }
-
-  // Verify project access
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, owner_id, status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
+  const { project } = projectResult
 
   const body = await request.json()
   const { fileName, fileSize, mimeType, fileType } = body
@@ -41,12 +38,7 @@ export async function POST(
 
   // Studio role check for mix uploads
   if (fileType === 'mix') {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
+    const profile = await getAuthProfile(supabase, user.id)
     if (profile?.role !== 'studio') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -59,7 +51,8 @@ export async function POST(
     }
   }
 
-  const storagePath = fileType === 'mix'
+  const storagePath =
+    fileType === 'mix'
     ? `${project.owner_id}/${projectId}/mixes/${fileName}`
     : `${project.owner_id}/${projectId}/${fileName}`
 

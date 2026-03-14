@@ -1,6 +1,8 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
 import { FadeIn } from '@/components/ui/FadeIn'
+import {
+  getProjectOrNotFound,
+  requirePageUser,
+} from '@/lib/auth/server'
 import { ListenPlayer } from './ListenPlayer'
 
 export default async function ListenPage({
@@ -9,29 +11,12 @@ export default async function ListenPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, title, format')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
+  const { supabase } = await requirePageUser()
+  const project = await getProjectOrNotFound<{
+    id: string
+    title: string
+    format: string
+  }>(supabase, projectId, 'id, title, format')
 
   const { data: files } = await supabase
     .from('project_files')

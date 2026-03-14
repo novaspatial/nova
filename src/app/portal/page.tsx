@@ -1,30 +1,11 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect } from 'next/navigation'
 import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
 import { ProjectCard } from '@/components/portal/ProjectCard'
+import { requirePageProfile } from '@/lib/auth/server'
 import type { Project } from '@/types/portal'
 
 export default async function PortalDashboard() {
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const { supabase, user, profile } = await requirePageProfile()
 
   const isStudio = profile?.role === 'studio'
 

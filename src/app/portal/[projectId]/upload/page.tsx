@@ -1,7 +1,9 @@
-import { createClient } from '@/lib/supabase/supabaseServer'
-import { redirect, notFound } from 'next/navigation'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { UploadManager } from '@/components/portal/UploadManager'
+import {
+  getProjectOrNotFound,
+  requirePageProfile,
+} from '@/lib/auth/server'
 import type { ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
 
 export default async function UploadPage({
@@ -10,37 +12,14 @@ export default async function UploadPage({
   params: Promise<{ projectId: string }>
 }) {
   const { projectId } = await params
-  const supabase = await createClient()
-
-  if (!supabase) {
-    redirect('/login')
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const { supabase, profile } = await requirePageProfile()
 
   const role = (profile?.role as UserRole) || 'client'
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, status')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    notFound()
-  }
+  const project = await getProjectOrNotFound<{
+    id: string
+    status: ProjectStatus
+  }>(supabase, projectId, 'id, status')
 
   const { data: files } = await supabase
     .from('project_files')

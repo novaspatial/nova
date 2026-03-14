@@ -1,32 +1,30 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import {
+  getProjectOrApiNotFound,
+  requireApiStudioUser,
+  requireApiUser,
+} from '@/lib/auth/server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
+  const { supabase } = auth
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const projectResult = await getProjectOrApiNotFound<Record<string, unknown>>(
+    supabase,
+    id,
+    '*',
+  )
+  if ('response' in projectResult) {
+    return projectResult.response
   }
-
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error || !project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-  }
+  const { project } = projectResult
 
   // Fetch related data
   const [filesResult, commentsResult, deliverablesResult] = await Promise.all([
@@ -62,28 +60,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiStudioUser()
+  if ('response' in auth) {
+    return auth.response
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Check studio role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'studio') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { supabase } = auth
 
   const body = await request.json()
   const { status } = body

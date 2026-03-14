@@ -1,24 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import {
+  requireApiProfile,
+  requireApiUser,
+} from '@/lib/auth/server'
 
 export async function GET() {
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiProfile()
+  if ('response' in auth) {
+    return auth.response
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const { supabase, user, profile } = auth
 
   let query = supabase
     .from('projects')
@@ -39,17 +31,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const { supabase, user } = auth
 
   const body = await request.json()
   const { title, format, notes } = body

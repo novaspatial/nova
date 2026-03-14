@@ -1,22 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import {
+  getProjectOrApiNotFound,
+  requireApiUser,
+} from '@/lib/auth/server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const { supabase } = auth
 
   const { data: comments, error } = await supabase
     .from('project_comments')
@@ -38,27 +35,19 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
+  const { supabase, user } = auth
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Verify project access
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .single()
-
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  const projectResult = await getProjectOrApiNotFound<{ id: string }>(
+    supabase,
+    projectId,
+    'id',
+  )
+  if ('response' in projectResult) {
+    return projectResult.response
   }
 
   const reqBody = await request.json()

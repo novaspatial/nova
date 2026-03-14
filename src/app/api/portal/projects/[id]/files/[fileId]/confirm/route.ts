@@ -1,22 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/supabaseServer'
+import { requireApiUser } from '@/lib/auth/server'
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; fileId: string }> },
 ) {
   const { id: projectId, fileId } = await params
-  const supabase = await createClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireApiUser()
+  if ('response' in auth) {
+    return auth.response
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const { supabase } = auth
 
   const { data: file } = await supabase
     .from('project_files')
