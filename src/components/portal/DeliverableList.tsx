@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
+import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import type { Deliverable, DeliverableFormat, ProjectStatus } from '@/types/portal'
 import {
   ArrowDownTrayIcon,
@@ -116,6 +117,7 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
   const handleUploadAll = useCallback(async () => {
     if (files.length === 0) return
     setUploading(true)
+    const syncedFileIds: string[] = []
 
     for (const item of files) {
       if (item.status !== 'pending') continue
@@ -182,6 +184,7 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
               : f,
           ),
         )
+        syncedFileIds.push(item.id)
       } catch (err) {
         setFiles((prev) =>
           prev.map((f) =>
@@ -195,6 +198,10 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
           ),
         )
       }
+    }
+
+    if (syncedFileIds.length > 0) {
+      setFiles((prev) => prev.filter((f) => !syncedFileIds.includes(f.id)))
     }
 
     setUploading(false)
@@ -230,6 +237,7 @@ function StudioDeliverableUploader({ projectId }: { projectId: string }) {
 
       {files.some((f) => f.status === 'pending') && (
         <button
+          type="button"
           onClick={handleUploadAll}
           disabled={uploading}
           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
@@ -254,26 +262,39 @@ export function DeliverableList({
   isApproved: boolean
   projectStatus: ProjectStatus
 }) {
+  const router = useRouter()
   const [approving, setApproving] = useState(false)
   const [delivering, setDelivering] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [activeDialog, setActiveDialog] = useState<'approved' | 'delivered' | null>(null)
 
   const handleSetStatus = useCallback(async (status: string) => {
     const setter = status === 'approved' ? setApproving : setDelivering
     setter(true)
+    setStatusError(null)
     try {
       const res = await fetch(`/api/portal/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) throw new Error(`Failed to set status to ${status}`)
-      window.location.reload()
-    } catch {
-      // Could add error toast
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Failed to set status to ${status}`)
+      }
+
+      setActiveDialog(null)
+      router.refresh()
+    } catch (error) {
+      setStatusError(
+        error instanceof Error
+          ? error.message
+          : `Failed to set status to ${status}`,
+      )
     } finally {
       setter(false)
     }
-  }, [projectId])
+  }, [projectId, router])
 
   if (!isApproved && !isStudio) {
     return (
@@ -294,47 +315,65 @@ export function DeliverableList({
     <div className="space-y-4">
       {/* Studio approval banner */}
       {isStudio && !isApproved && (
-        <div className="flex items-center justify-between rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5">
-          <div>
-            <p className="text-sm font-medium text-amber-300">
-              Ready to approve?
-            </p>
-            <p className="mt-0.5 text-xs text-amber-300/60">
-              Approving will make deliverables available to the client.
-            </p>
+        <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-amber-300">
+                Ready to approve?
+              </p>
+              <p className="mt-0.5 text-xs text-amber-300/60">
+                Approving will make deliverables available to the client.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusError(null)
+                setActiveDialog('approved')
+              }}
+              disabled={approving}
+              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {approving ? 'Approving...' : 'Mark Approved'}
+            </button>
           </div>
-          <button
-            onClick={() => handleSetStatus('approved')}
-            disabled={approving}
-            className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {approving ? 'Approving...' : 'Mark Approved'}
-          </button>
+          {statusError && (
+            <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {statusError}
+            </p>
+          )}
         </div>
       )}
 
       {/* Studio finalize delivery banner */}
       {isStudio && projectStatus === 'approved' && deliverables.length > 0 && (
-        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
-          <div>
-            <p className="text-sm font-medium text-emerald-300">
-              Finalize delivery?
-            </p>
-            <p className="mt-0.5 text-xs text-emerald-300/60">
-              Mark this project as delivered to complete the workflow.
-            </p>
+        <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-emerald-300">
+                Finalize delivery?
+              </p>
+              <p className="mt-0.5 text-xs text-emerald-300/60">
+                Mark this project as delivered to complete the workflow.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusError(null)
+                setActiveDialog('delivered')
+              }}
+              disabled={delivering}
+              className="shrink-0 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            >
+              {delivering ? 'Delivering...' : 'Mark Delivered'}
+            </button>
           </div>
-          <button
-            onClick={() => {
-              if (confirm('Mark this project as delivered? This finalizes the project.')) {
-                handleSetStatus('delivered')
-              }
-            }}
-            disabled={delivering}
-            className="shrink-0 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
-          >
-            {delivering ? 'Delivering...' : 'Mark Delivered'}
-          </button>
+          {statusError && (
+            <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {statusError}
+            </p>
+          )}
         </div>
       )}
 
@@ -374,6 +413,48 @@ export function DeliverableList({
           </p>
         </div>
       )}
+
+      <PortalConfirmDialog
+        isOpen={activeDialog === 'approved'}
+        tone="success"
+        eyebrow="Client release"
+        title="Approve these deliverables?"
+        description="The client will be able to access the deliver page and start downloading the approved masters right away."
+        noteTitle="Approval opens delivery access."
+        noteBody="Confirm this once the files are final and ready for the client to receive."
+        confirmLabel="Mark Approved"
+        busyLabel="Approving..."
+        cancelLabel="Review Again"
+        isBusy={approving}
+        errorMessage={statusError}
+        onClose={() => {
+          if (!approving) {
+            setActiveDialog(null)
+          }
+        }}
+        onConfirm={() => void handleSetStatus('approved')}
+      />
+
+      <PortalConfirmDialog
+        isOpen={activeDialog === 'delivered'}
+        tone="violet"
+        eyebrow="Workflow completion"
+        title="Mark this project as delivered?"
+        description="This finalizes the project workflow and signals that the approved deliverables have been handed off."
+        noteTitle="Use this once delivery is complete."
+        noteBody="The project will move into its delivered state immediately after confirmation."
+        confirmLabel="Mark Delivered"
+        busyLabel="Delivering..."
+        cancelLabel="Not Yet"
+        isBusy={delivering}
+        errorMessage={statusError}
+        onClose={() => {
+          if (!delivering) {
+            setActiveDialog(null)
+          }
+        }}
+        onConfirm={() => void handleSetStatus('delivered')}
+      />
     </div>
   )
 }
