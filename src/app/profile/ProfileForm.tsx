@@ -37,7 +37,6 @@ function Feedback({ state }: { state: FeedbackState }) {
 
 export function ProfileForm({ profile }: { profile: Profile | null }) {
   const router = useRouter()
-  const supabase = createClient()
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '')
   const [newEmail, setNewEmail] = useState(profile?.email ?? '')
@@ -49,9 +48,15 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!supabase) return
     setLoading(true)
     setFeedback(null)
+
+    const supabase = createClient()
+    if (!supabase) {
+      setFeedback({ type: 'error', message: 'Authentication is not configured.' })
+      setLoading(false)
+      return
+    }
 
     const messages: string[] = []
 
@@ -151,6 +156,7 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
   }
 
   async function handleSignOut() {
+    const supabase = createClient()
     await supabase?.auth.signOut()
     router.push('/')
     router.refresh()

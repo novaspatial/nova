@@ -4,21 +4,55 @@ import { FadeIn } from '@/components/ui/FadeIn'
 import { Footer } from '@/components/layout/Footer'
 import { GridPattern } from '@/components/ui/GridPattern'
 import { Logo } from '@/components/ui/Logo'
-import { createClient } from '@/lib/supabase/supabaseClient'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 
 type AuthMode = 'login' | 'signup'
 
+function getAuthErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('NetworkError')
+    ) {
+      return 'Unable to reach the authentication service. Please try again in a moment.'
+    }
+    return error.message
+  }
+
+  return 'Something went wrong while contacting the authentication service.'
+}
+
+async function submitAuthRequest(
+  path: '/api/auth/login' | '/api/auth/signup',
+  body: Record<string, unknown>,
+): Promise<{ error: string | null }> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const result = (await response.json()) as { error?: string }
+
+  if (!response.ok) {
+    return { error: result.error || 'Authentication failed.' }
+  }
+
+  return { error: null }
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
 
   const defaultMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
   const defaultEmail = searchParams.get('email') || ''
   const hasPromo = searchParams.get('promo') === '50off'
+  const nextPath = searchParams.get('next') || '/portal'
 
   const [mode, setMode] = useState<AuthMode>(defaultMode)
   const [email, setEmail] = useState(defaultEmail)
@@ -37,38 +71,37 @@ function LoginForm() {
 
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault()
-    if (!supabase) return
     setLoading(true)
     setError(null)
     setMessage(null)
 
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (error) {
-        setError(error.message)
+    try {
+      if (mode === 'login') {
+        const { error } = await submitAuthRequest('/api/auth/login', {
+          email,
+          password,
+        })
+        if (error) {
+          setError(error)
+        } else {
+          router.push(nextPath)
+          router.refresh()
+        }
       } else {
-        router.push('/')
-        router.refresh()
+        const { error } = await submitAuthRequest('/api/auth/signup', {
+          email,
+          password,
+          promoCode: hasPromo ? '50off' : null,
+          next: nextPath,
+        })
+        if (error) {
+          setError(error)
+        } else {
+          setMessage('Check your email for a confirmation link.')
+        }
       }
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            promo_code: hasPromo ? '50off' : null,
-          }
-        },
-      })
-      if (error) {
-        setError(error.message)
-      } else {
-        setMessage('Check your email for a confirmation link.')
-      }
+    } catch (error) {
+      setError(getAuthErrorMessage(error))
     }
 
     setLoading(false)

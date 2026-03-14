@@ -24,13 +24,15 @@ const VideoBackground = dynamic(
 function RootLayoutInner({
   children,
   videoSrc,
+  authAwareNavbar = false,
 }: {
   children: React.ReactNode
   videoSrc?: string
+  authAwareNavbar?: boolean
 }) {
   return (
     <>
-      <Navbar />
+      <Navbar authAware={authAwareNavbar} />
 
       {videoSrc && (
         <div className="bg-zinc-950">
@@ -58,9 +60,18 @@ function RootLayoutInner({
 export function RootLayout({
   children,
   videoSrc,
+  authAwareNavbar = false,
 }: {
   children: React.ReactNode
   videoSrc?: string
+  authAwareNavbar?: boolean
 }) {
-  return <RootLayoutInner videoSrc={videoSrc}>{children}</RootLayoutInner>
+  return (
+    <RootLayoutInner
+      videoSrc={videoSrc}
+      authAwareNavbar={authAwareNavbar}
+    >
+      {children}
+    </RootLayoutInner>
+  )
 }

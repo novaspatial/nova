@@ -3,30 +3,32 @@ import { useEffect, useState, useMemo } from 'react'
 
 import { createClient } from '@/lib/supabase/supabaseClient'
 
-export function useAuthUser() {
+export function useAuthUser(enabled = true) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const supabase = useMemo(() => createClient(), [])
+  const [loading, setLoading] = useState(enabled)
+  const supabase = useMemo(
+    () => (enabled ? createClient() : null),
+    [enabled],
+  )
 
   useEffect(() => {
-    if (!supabase) {
+    if (!enabled || !supabase) {
+      setUser(null)
       setLoading(false)
       return
     }
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      setLoading(false)
-    })
-
+    // onAuthStateChange fires INITIAL_SESSION immediately from the local cookie,
+    // so no separate getUser() network call is needed.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [enabled, supabase])
 
   return { user, loading, supabase }
 }
