@@ -34,6 +34,18 @@ type NavLink = (typeof navLinks)[number]
 type NavbarAuthUser = Pick<User, 'id' | 'email' | 'user_metadata'>
 const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
 
+function isNavLinkActive(pathname: string, href: string) {
+  if (href === '/portal') {
+    return pathname === '/portal' || pathname.startsWith('/portal/')
+  }
+
+  if (href.includes('#')) {
+    return pathname === href.split('#')[0]
+  }
+
+  return pathname === href
+}
+
 function hasSupabaseSessionCookie() {
   if (typeof document === 'undefined') {
     return false
@@ -249,7 +261,8 @@ function NavItem({
   children: React.ReactNode
   highlight?: boolean
 }) {
-  const isActive = usePathname() === href
+  const pathname = usePathname()
+  const isActive = isNavLinkActive(pathname, href)
 
   return (
     <li>
@@ -257,7 +270,7 @@ function NavItem({
         href={href}
         className={clsx(
           'relative block px-4 py-2.5 transition-all duration-300',
-          highlight
+          highlight && !isActive
             ? 'animate-nav-highlight font-semibold text-white hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(139,92,246,0.8)]'
             : isActive
               ? 'text-violet-400'
@@ -486,6 +499,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
           ...link,
           href: isAuthenticated ? '/portal' : '/login',
           label: isAuthenticated ? 'My Projects' : link.label,
+          highlight: !isAuthenticated,
         }
       : link,
   )
