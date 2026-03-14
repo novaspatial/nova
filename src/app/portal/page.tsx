@@ -1,6 +1,6 @@
-import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
-import { ProjectCard } from '@/components/portal/ProjectCard'
+import { ProjectList } from '@/components/portal/ProjectList'
 import { requirePageProfile } from '@/lib/auth/server'
 import type { Project } from '@/types/portal'
 
@@ -46,18 +46,11 @@ export default async function PortalDashboard() {
 
       <div className="mt-8 sm:mt-10">
         {projects && projects.length > 0 ? (
-          <FadeInStagger faster>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(projects as Project[]).map((project) => (
-                <FadeIn key={project.id}>
-                  <ProjectCard
-                    project={project}
-                    canDelete={isStudio || project.owner_id === user.id}
-                  />
-                </FadeIn>
-              ))}
-            </div>
-          </FadeInStagger>
+          <ProjectList
+            projects={projects as Project[]}
+            isStudio={isStudio}
+            userId={user.id}
+          />
         ) : (
           <FadeIn>
             <div className="rounded-2xl border border-white/10 bg-white/2 p-8 text-center shadow-2xl shadow-violet-500/5 backdrop-blur-sm sm:p-12">
