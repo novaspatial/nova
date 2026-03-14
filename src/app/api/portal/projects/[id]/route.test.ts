@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
 
-import { GET, PATCH } from './route'
+import { DELETE, GET, PATCH } from './route'
 
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -155,9 +155,17 @@ describe('PATCH /api/portal/projects/[id]', () => {
       data: { role: 'studio' },
       error: null,
     })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1' },
+      error: null,
+    })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
-      fromMocks: { profiles: profileChain },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
@@ -178,6 +186,15 @@ describe('PATCH /api/portal/projects/[id]', () => {
       data: { id: 'proj-1', status: 'approved' },
       error: null,
     })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1', status: 'approved' },
+        error: null,
+      })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: { profiles: profileChain, projects: projectsChain },
@@ -201,6 +218,15 @@ describe('PATCH /api/portal/projects/[id]', () => {
       data: null,
       error: { message: 'Update failed' },
     })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Update failed' },
+      })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: { profiles: profileChain, projects: projectsChain },
@@ -236,6 +262,15 @@ describe('PATCH /api/portal/projects/[id]', () => {
         data: { id: 'proj-1', status },
         error: null,
       })
+      projectsChain.single
+        .mockResolvedValueOnce({
+          data: { id: 'proj-1' },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: { id: 'proj-1', status },
+          error: null,
+        })
       const supabase = createSupabaseMock({
         user: { id: 'studio-1', email: 'studio@test.com' },
         fromMocks: { profiles: profileChain, projects: projectsChain },
@@ -246,5 +281,326 @@ describe('PATCH /api/portal/projects/[id]', () => {
       const res = await PATCH(req as NextRequest, makeParams('proj-1'))
       expect(res.status).toBe(200)
     }
+  })
+})
+
+describe('DELETE /api/portal/projects/[id]', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  test('returns 403 when a client tries to delete another user project', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-2' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(403)
+    await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
+  })
+
+  test('hides an owned project from the client view', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1' },
+        error: null,
+      })
+    const uploadsBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const deliverablesBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+      },
+      storageMocks: {
+        'project-uploads': uploadsBucket,
+        'project-deliverables': deliverablesBucket,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      success: true,
+      hidden: true,
+      deleted: false,
+    })
+    expect(projectsChain.update).toHaveBeenCalledTimes(1)
+    expect(projectsChain.delete).not.toHaveBeenCalled()
+    expect(uploadsBucket.remove).not.toHaveBeenCalled()
+    expect(deliverablesBucket.remove).not.toHaveBeenCalled()
+  })
+
+  test('allows studio users to hide any project from their own view', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'client-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'client-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1' },
+        error: null,
+      })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      success: true,
+      hidden: true,
+      deleted: false,
+    })
+    expect(projectsChain.update).toHaveBeenCalledTimes(1)
+    expect(projectsChain.delete).not.toHaveBeenCalled()
+  })
+
+  test('fully deletes a project when both sides have removed it', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: '2026-03-14T00:00:00.000Z',
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: '2026-03-14T00:00:00.000Z',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1' },
+        error: null,
+      })
+    const filesChain = createChainMock({
+      data: [{ storage_path: 'user-1/proj-1/stems.wav' }],
+      error: null,
+    })
+    const deliverablesChain = createChainMock({
+      data: [{ storage_path: 'user-1/proj-1/final.wav' }],
+      error: null,
+    })
+    const uploadsBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const deliverablesBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+      storageMocks: {
+        'project-uploads': uploadsBucket,
+        'project-deliverables': deliverablesBucket,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    await expect(res.json()).resolves.toEqual({
+      success: true,
+      hidden: false,
+      deleted: true,
+    })
+    expect(projectsChain.delete).toHaveBeenCalledTimes(1)
+    expect(uploadsBucket.remove).toHaveBeenCalledWith([
+      'user-1/proj-1/stems.wav',
+    ])
+    expect(deliverablesBucket.remove).toHaveBeenCalledWith([
+      'user-1/proj-1/final.wav',
+    ])
+  })
+
+  test('returns 500 when file cleanup lookup fails during final delete', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: '2026-03-14T00:00:00.000Z',
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: '2026-03-14T00:00:00.000Z',
+        },
+        error: null,
+      })
+    const filesChain = createChainMock({
+      data: null,
+      error: { message: 'Files lookup failed' },
+    })
+    const deliverablesChain = createChainMock({
+      data: [],
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({
+      error: 'Files lookup failed',
+    })
+  })
+
+  test('returns 500 when no project row is actually deleted after both sides removed it', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: '2026-03-14T00:00:00.000Z',
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: '2026-03-14T00:00:00.000Z',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: null,
+      })
+    const filesChain = createChainMock({
+      data: [],
+      error: null,
+    })
+    const deliverablesChain = createChainMock({
+      data: [],
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    await expect(res.json()).resolves.toEqual({
+      error: 'Project could not be deleted. Ensure delete policies are applied.',
+    })
   })
 })
