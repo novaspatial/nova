@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 
 import { useAudioPlayer } from '@/components/audio/AudioProvider'
 import { ForwardButton } from '@/components/audio/player/ForwardButton'
 import { MuteButton } from '@/components/audio/player/MuteButton'
-import { PlaybackRateButton } from '@/components/audio/player/PlaybackRateButton'
 import { PlayButton } from '@/components/audio/player/PlayButton'
 import { RewindButton } from '@/components/audio/player/RewindButton'
 import { Slider, formatHumanTime } from '@/components/audio/player/Slider'
@@ -31,7 +31,7 @@ export function AudioPlayer() {
       <div className="hidden md:block">
         <PlayButton player={player} />
       </div>
-      <div className="mb-[env(safe-area-inset-bottom)] flex flex-1 flex-col gap-3 overflow-hidden p-1">
+      <div className="mb-[env(safe-area-inset-bottom)] flex min-w-0 flex-1 flex-col gap-3 p-1">
         <span
           className="truncate text-center text-sm/6 font-bold text-white md:text-left"
           title={player.mixedMusicFile.title}
@@ -68,12 +68,17 @@ export function AudioPlayer() {
             }}
           />
           <div className="flex items-center gap-4">
-            <div className="flex items-center">
-              <PlaybackRateButton player={player} />
-            </div>
             <div className="hidden items-center md:flex">
               <MuteButton player={player} />
             </div>
+            <button
+              type="button"
+              onClick={() => player.clear()}
+              aria-label="Close audio player"
+              className="inline-flex size-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/5 hover:text-white"
+            >
+              <XMarkIcon className="size-5" />
+            </button>
           </div>
         </div>
       </div>

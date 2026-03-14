@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   useRef,
@@ -19,20 +20,21 @@ export type MixedMusicFile = {
 
 type AudioPlayerState = {
   playing: boolean
-  muted: boolean
+  volume: number
   duration: number
   currentTime: number
   mixedMusicFile: MixedMusicFile | null
 }
 
 type AudioPlayerAPI = AudioPlayerState & {
+  muted: boolean
   play(mixedMusicFile?: MixedMusicFile): void
   pause(): void
   toggle(mixedMusicFile?: MixedMusicFile): void
   seekBy(amount: number): void
   seek(time: number): void
   playbackRate(rate: number): void
-  toggleMute(): void
+  setVolume(volume: number): void
   isPlaying(mixedMusicFile?: MixedMusicFile): boolean
   clear(): void
 }
@@ -41,7 +43,7 @@ type Action =
   | { type: 'SET_META'; payload: MixedMusicFile | null }
   | { type: 'PLAY' }
   | { type: 'PAUSE' }
-  | { type: 'TOGGLE_MUTE' }
+  | { type: 'SET_VOLUME'; payload: number }
   | { type: 'SET_CURRENT_TIME'; payload: number }
   | { type: 'SET_DURATION'; payload: number }
 
@@ -58,13 +60,17 @@ function audioReducer(
       return { ...state, playing: true }
     case 'PAUSE':
       return { ...state, playing: false }
-    case 'TOGGLE_MUTE':
-      return { ...state, muted: !state.muted }
+    case 'SET_VOLUME':
+      return { ...state, volume: action.payload }
     case 'SET_CURRENT_TIME':
       return { ...state, currentTime: action.payload }
     case 'SET_DURATION':
       return { ...state, duration: action.payload }
   }
+}
+
+function clampVolume(volume: number): number {
+  return Math.min(1, Math.max(0, volume))
 }
 
 function getUrlPath(url: string): string {
@@ -83,7 +89,7 @@ function getUrlPath(url: string): string {
 export function AudioProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(audioReducer, {
     playing: false,
-    muted: false,
+    volume: 1,
     duration: 0,
     currentTime: 0,
     mixedMusicFile: null,
@@ -187,8 +193,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
           playerRef.current.playbackRate = rate
         }
       },
-      toggleMute() {
-        dispatch({ type: 'TOGGLE_MUTE' })
+      setVolume(volume: number) {
+        const nextVolume = clampVolume(volume)
+
+        if (playerRef.current) {
+          playerRef.current.volume = nextVolume
+        }
+
+        dispatch({ type: 'SET_VOLUME', payload: nextVolume })
       },
       isPlaying,
       clear() {
@@ -198,8 +210,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [state.playing, state.mixedMusicFile])
 
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.volume = state.volume
+    }
+  }, [state.volume])
+
   const api = useMemo(
-    () => ({ ...state, ...actions }),
+    () => ({ ...state, muted: state.volume === 0, ...actions }),
     [state, actions],
   )
 
@@ -225,7 +243,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
           })
         }}
         preload="metadata"
-        muted={state.muted}
       />
     </>
   )
