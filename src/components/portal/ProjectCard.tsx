@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
 import { TrashIcon, UserCircleIcon } from '@heroicons/react/24/outline'
@@ -21,11 +20,14 @@ function formatProjectType(format: Project['format']) {
 export function ProjectCard({
   project,
   canDelete = false,
+  onDeleted,
+  isNewProject = false,
 }: {
   project: ProjectWithOwner
   canDelete?: boolean
+  onDeleted?: () => void
+  isNewProject?: boolean
 }) {
-  const router = useRouter()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -54,7 +56,7 @@ export function ProjectCard({
       }
 
       setIsDialogOpen(false)
-      router.refresh()
+      onDeleted?.()
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to delete project',
@@ -66,8 +68,25 @@ export function ProjectCard({
 
   return (
     <>
-      <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/2 shadow-2xl shadow-violet-500/5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/5 hover:shadow-violet-500/10">
+      <div
+        className={`group relative overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/5 ${
+          isNewProject
+            ? 'border-violet-500/40 bg-violet-500/5 shadow-violet-500/15 hover:border-violet-400/60 hover:shadow-violet-500/20'
+            : 'border-white/10 bg-white/2 shadow-violet-500/5 hover:border-white/20 hover:shadow-violet-500/10'
+        }`}
+      >
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/3 via-transparent to-violet-400/3 opacity-0 transition duration-300 group-hover:opacity-100" />
+        {isNewProject && (
+          <div className="flex items-center gap-2 border-b border-violet-500/20 bg-violet-500/10 px-4 py-2">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-violet-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-violet-400" />
+            </span>
+            <span className="text-xs font-semibold tracking-wide text-violet-300 uppercase">
+              New Project!
+            </span>
+          </div>
+        )}
         {canDelete && (
           <button
             type="button"
@@ -152,15 +171,15 @@ function DeleteProjectDialog({
     <PortalConfirmDialog
       isOpen={isOpen}
       tone="danger"
-      eyebrow="Remove from your view"
+      eyebrow="Delete"
       title="Remove this project?"
       description={
         <p>
           <span className="font-medium text-zinc-200">{projectTitle}</span>
         </p>
       }
-      noteTitle="This only removes it for your side."
-      noteBody="The other side will still see the project until they remove it too."
+      noteTitle="This action is permanent."
+      noteBody="Once removed, this project will no longer appear in your portal."
       confirmLabel="Remove Project"
       busyLabel="Removing..."
       cancelLabel="Keep Project"
