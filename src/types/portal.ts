@@ -22,6 +22,8 @@ export interface Project {
   status: ProjectStatus
   format: 'atmos' | 'binaural' | 'both'
   notes: string | null
+  client_deleted_at: string | null
+  studio_deleted_at: string | null
   created_at: string
   updated_at: string
 }

@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   getProjectOrApiNotFound,
+  requireApiProfile,
   requireApiStudioUser,
-  requireApiUser,
 } from '@/lib/auth/server'
 
 export async function GET(
@@ -10,11 +10,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
-  const auth = await requireApiUser()
+  const auth = await requireApiProfile()
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase } = auth
+  const { supabase, profile } = auth
+
+  const projectResult = await getProjectOrApiNotFound<{ id: string }>(
+    supabase,
+    projectId,
+    'id',
+    profile?.role,
+  )
+  if ('response' in projectResult) {
+    return projectResult.response
+  }
 
   const { data: deliverables, error } = await supabase
     .from('deliverables')
@@ -38,12 +48,12 @@ export async function POST(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user } = auth
+  const { supabase, user, profile } = auth
 
   const projectResult = await getProjectOrApiNotFound<{
     id: string
     owner_id: string
-  }>(supabase, projectId, 'id, owner_id')
+  }>(supabase, projectId, 'id, owner_id', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
   }
