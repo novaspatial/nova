@@ -11,8 +11,8 @@ const statusConfig: Record<
     className: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
   },
   processing: {
-    label: 'Processing',
-    className: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20',
+    label: 'Mixing',
+    className: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
   },
   mixing: {
     label: 'Mixing',

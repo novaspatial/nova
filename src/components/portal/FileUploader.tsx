@@ -144,10 +144,10 @@ export function FileUploader({
         <p className="mt-3 text-sm text-zinc-300 sm:text-base">
           {isDragging
             ? 'Drop files here'
-            : 'Drag & drop files or click to browse'}
+            : 'Drag & drop files or click to browse and upload'}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          WAV, AIFF, FLAC, or other audio formats
+          Upload starts automatically for WAV, AIFF, FLAC, and other audio formats
         </p>
         <input
           ref={inputRef}

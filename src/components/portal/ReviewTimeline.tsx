@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ProjectComment } from '@/types/portal'
 import {
   ChatBubbleLeftRightIcon,
@@ -90,13 +91,26 @@ export function ReviewTimeline({
 }: {
   projectId: string
   initialComments: ProjectComment[]
-  userId: string
 }) {
+  const router = useRouter()
   const player = useAudioPlayer()
   const [comments, setComments] = useState(initialComments)
   const [body, setBody] = useState('')
   const [timestampInput, setTimestampInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    setComments((currentComments) => {
+      const optimisticComments = currentComments.filter(
+        (currentComment) =>
+          !initialComments.some(
+            (serverComment) => serverComment.id === currentComment.id,
+          ),
+      )
+
+      return [...initialComments, ...optimisticComments]
+    })
+  }, [initialComments])
 
   const handleSeek = useCallback(
     (ms: number) => {
@@ -133,13 +147,14 @@ export function ReviewTimeline({
         setComments((prev) => [...prev, newComment])
         setBody('')
         setTimestampInput('')
+        router.refresh()
       } catch {
         // Error handled silently — could add toast notification
       } finally {
         setSubmitting(false)
       }
     },
-    [body, timestampInput, projectId, submitting],
+    [body, timestampInput, projectId, router, submitting],
   )
 
   return (

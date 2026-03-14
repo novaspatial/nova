@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
+import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import type { ProjectFile, ProjectStatus } from '@/types/portal'
 import {
   CheckCircleIcon,
@@ -29,7 +30,11 @@ const statusIcon: Record<string, React.ReactNode> = {
   pending: <DocumentIcon className="size-5 text-zinc-500" />,
 }
 
-function useFileUpload(projectId: string, fileType: string) {
+function useFileUpload(
+  projectId: string,
+  fileType: string,
+  onUploadComplete?: () => void,
+) {
   const [newFiles, setNewFiles] = useState<FileUploadItem[]>([])
   const [uploading, setUploading] = useState(false)
 
@@ -48,8 +53,9 @@ function useFileUpload(projectId: string, fileType: string) {
   }, [])
 
   const handleUploadAll = useCallback(async () => {
-    if (newFiles.length === 0) return
+    if (newFiles.length === 0) return false
     setUploading(true)
+    const syncedFileIds: string[] = []
 
     for (const item of newFiles) {
       if (item.status !== 'pending') continue
@@ -127,6 +133,7 @@ function useFileUpload(projectId: string, fileType: string) {
             f.id === item.id ? { ...f, status: 'synced' as const } : f,
           ),
         )
+        syncedFileIds.push(item.id)
       } catch (err) {
         setNewFiles((prev) =>
           prev.map((f) =>
@@ -142,8 +149,25 @@ function useFileUpload(projectId: string, fileType: string) {
       }
     }
 
+    if (syncedFileIds.length > 0) {
+      setNewFiles((prev) => prev.filter((f) => !syncedFileIds.includes(f.id)))
+    }
+
     setUploading(false)
-  }, [newFiles, projectId, fileType])
+
+    if (syncedFileIds.length > 0) {
+      onUploadComplete?.()
+    }
+
+    return syncedFileIds.length > 0
+  }, [newFiles, projectId, fileType, onUploadComplete])
+
+  useEffect(() => {
+    if (uploading) return
+    if (!newFiles.some((file) => file.status === 'pending')) return
+
+    void handleUploadAll()
+  }, [newFiles, uploading, handleUploadAll])
 
   return { newFiles, uploading, handleFilesAdded, handleRemove, handleUploadAll }
 }
@@ -193,30 +217,75 @@ export function UploadManager({
 }) {
   const router = useRouter()
   const [settingStatus, setSettingStatus] = useState(false)
+  const [finishingUpload, setFinishingUpload] = useState(false)
+  const [clientActionError, setClientActionError] = useState<string | null>(null)
+  const [studioActionError, setStudioActionError] = useState<string | null>(null)
+  const [activeDialog, setActiveDialog] = useState<'finishUpload' | 'sendForReview' | null>(null)
 
-  const clientUpload = useFileUpload(projectId, 'stem')
-  const mixUpload = useFileUpload(projectId, 'mix')
+  const refreshProject = useCallback(() => {
+    router.refresh()
+  }, [router])
+
+  const clientUpload = useFileUpload(projectId, 'stem', refreshProject)
+  const mixUpload = useFileUpload(projectId, 'mix', refreshProject)
 
   const stemFiles = existingFiles.filter((f) => f.file_type === 'stem' || f.file_type === 'master_ref')
   const mixFiles = existingFiles.filter((f) => f.file_type === 'mix')
 
-  const handleSetStatus = async (status: string) => {
+  const handleSetStatus = async (
+    status: string,
+    onError: (message: string | null) => void,
+  ) => {
     setSettingStatus(true)
+    onError(null)
     try {
       const res = await fetch(`/api/portal/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-      if (res.ok) {
-        router.refresh()
-      } else {
-        alert('Failed to update project status.')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update project status.')
       }
-    } catch {
-      alert('Network error while updating status.')
+
+      setActiveDialog(null)
+      router.refresh()
+      return true
+    } catch (error) {
+      onError(
+        error instanceof Error
+          ? error.message
+          : 'Network error while updating status.',
+      )
+      return false
     } finally {
       setSettingStatus(false)
+    }
+  }
+
+  const handleFinishUpload = async () => {
+    setFinishingUpload(true)
+    setClientActionError(null)
+
+    try {
+      const res = await fetch(`/api/portal/projects/${projectId}/finish-upload`, {
+        method: 'POST',
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to submit project. Please try again.')
+      }
+
+      setActiveDialog(null)
+      router.refresh()
+    } catch (error) {
+      setClientActionError(
+        error instanceof Error ? error.message : 'Network error while submitting.',
+      )
+    } finally {
+      setFinishingUpload(false)
     }
   }
 
@@ -234,16 +303,6 @@ export function UploadManager({
               onRemove={clientUpload.handleRemove}
               disabled={clientUpload.uploading}
             />
-
-            {clientUpload.newFiles.some((f) => f.status === 'pending') && (
-              <button
-                onClick={clientUpload.handleUploadAll}
-                disabled={clientUpload.uploading}
-                className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
-              >
-                {clientUpload.uploading ? 'Uploading...' : 'Upload All Files'}
-              </button>
-            )}
           </>
         )}
 
@@ -253,26 +312,20 @@ export function UploadManager({
 
         {/* Client finish upload */}
         {!isReadOnly && !isStudio && stemFiles.length > 0 && clientUpload.newFiles.length === 0 && (
-          <div className="border-t border-white/10 pt-4">
+          <div className="flex flex-col items-center border-t border-white/10 pt-4 text-center">
             <p className="mb-4 text-sm text-zinc-400">
               Once all your stems and references are uploaded, lock the project to begin the mixing process.
             </p>
+            {clientActionError && (
+              <p className="mb-4 w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                {clientActionError}
+              </p>
+            )}
             <button
-              onClick={async () => {
-                if (confirm('Are you ready to submit your files? You will not be able to upload more files after this.')) {
-                  try {
-                    const res = await fetch(`/api/portal/projects/${projectId}/finish-upload`, {
-                      method: 'POST',
-                    })
-                    if (res.ok) {
-                      window.location.reload()
-                    } else {
-                      alert('Failed to submit project. Please try again.')
-                    }
-                  } catch {
-                    alert('Network error while submitting.')
-                  }
-                }
+              type="button"
+              onClick={() => {
+                setClientActionError(null)
+                setActiveDialog('finishUpload')
               }}
               className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 sm:w-auto sm:px-8"
             >
@@ -305,41 +358,25 @@ export function UploadManager({
                 disabled={mixUpload.uploading}
               />
 
-              {mixUpload.newFiles.some((f) => f.status === 'pending') && (
-                <button
-                  onClick={mixUpload.handleUploadAll}
-                  disabled={mixUpload.uploading}
-                  className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
-                >
-                  {mixUpload.uploading ? 'Uploading Mixes...' : 'Upload Mixes'}
-                </button>
-              )}
-
               {/* Status transition buttons */}
-              {mixFiles.length > 0 && mixUpload.newFiles.length === 0 && (
-                <div className="flex flex-wrap gap-3 border-t border-white/10 pt-4">
-                  {projectStatus === 'processing' && (
-                    <button
-                      onClick={() => handleSetStatus('mixing')}
-                      disabled={settingStatus}
-                      className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
-                    >
-                      Mark as Mixing
-                    </button>
+              {mixFiles.length > 0 && mixUpload.newFiles.length === 0 && ['processing', 'mixing', 'revision'].includes(projectStatus) && (
+                <div className="flex flex-wrap justify-center gap-3 pt-4">
+                  {studioActionError && (
+                    <p className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                      {studioActionError}
+                    </p>
                   )}
-                  {['processing', 'mixing', 'revision'].includes(projectStatus) && (
-                    <button
-                      onClick={() => {
-                        if (confirm('Send mixes to the client for review?')) {
-                          handleSetStatus('review')
-                        }
-                      }}
-                      disabled={settingStatus}
-                      className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                    >
-                      Send for Review
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStudioActionError(null)
+                      setActiveDialog('sendForReview')
+                    }}
+                    disabled={settingStatus}
+                    className="rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    Send for Review
+                  </button>
                 </div>
               )}
             </>
@@ -354,6 +391,48 @@ export function UploadManager({
           )}
         </div>
       )}
+
+      <PortalConfirmDialog
+        isOpen={activeDialog === 'finishUpload'}
+        tone="success"
+        eyebrow="Client handoff"
+        title="Submit files and lock uploads?"
+        description="You will hand this project off to the studio and the upload step will become read-only for the client."
+        noteTitle="No more client uploads after this."
+        noteBody="Make sure every stem and reference you want included is already uploaded before continuing."
+        confirmLabel="Submit Files & Finish"
+        busyLabel="Submitting..."
+        cancelLabel="Keep Uploading"
+        isBusy={finishingUpload}
+        errorMessage={clientActionError}
+        onClose={() => {
+          if (!finishingUpload) {
+            setActiveDialog(null)
+          }
+        }}
+        onConfirm={() => void handleFinishUpload()}
+      />
+
+      <PortalConfirmDialog
+        isOpen={activeDialog === 'sendForReview'}
+        tone="violet"
+        eyebrow="Client review"
+        title="Send mixes to the client?"
+        description="This will move the project into review so the client can listen and leave timestamped feedback."
+        noteTitle="Review becomes available right away."
+        noteBody="Only send for review once the latest mix files are uploaded and ready for client feedback."
+        confirmLabel="Send for Review"
+        busyLabel="Sending..."
+        cancelLabel="Not Yet"
+        isBusy={settingStatus}
+        errorMessage={studioActionError}
+        onClose={() => {
+          if (!settingStatus) {
+            setActiveDialog(null)
+          }
+        }}
+        onConfirm={() => void handleSetStatus('review', setStudioActionError)}
+      />
     </div>
   )
 }
