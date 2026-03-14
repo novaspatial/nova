@@ -25,10 +25,12 @@ function RootLayoutInner({
   children,
   videoSrc,
   authAwareNavbar = false,
+  hideFooter = false,
 }: {
   children: React.ReactNode
   videoSrc?: string
   authAwareNavbar?: boolean
+  hideFooter?: boolean
 }) {
   return (
     <>
@@ -50,7 +52,7 @@ function RootLayoutInner({
 
           <main className="w-full flex-auto">{children}</main>
 
-          <Footer />
+          {!hideFooter && <Footer />}
         </div>
       </div>
     </>
@@ -61,15 +63,18 @@ export function RootLayout({
   children,
   videoSrc,
   authAwareNavbar = false,
+  hideFooter = false,
 }: {
   children: React.ReactNode
   videoSrc?: string
   authAwareNavbar?: boolean
+  hideFooter?: boolean
 }) {
   return (
     <RootLayoutInner
       videoSrc={videoSrc}
       authAwareNavbar={authAwareNavbar}
+      hideFooter={hideFooter}
     >
       {children}
     </RootLayoutInner>
