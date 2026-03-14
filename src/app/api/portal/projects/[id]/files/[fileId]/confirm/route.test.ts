@@ -55,5 +55,7 @@ describe('POST /api/portal/projects/[id]/files/[fileId]/confirm', () => {
 
     const body = await res.json()
     expect(body.status).toBe('uploaded')
+    expect(filesChain.update).toHaveBeenCalledWith({ upload_status: 'uploaded' })
+    expect(filesChain.eq).toHaveBeenCalledWith('project_id', 'proj-1')
   })
 })

@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import {
   createSupabaseMock,
   createChainMock,
@@ -7,6 +7,9 @@ import {
 import type { NextRequest } from 'next/server'
 
 const mockCreateClient = vi.fn()
+const mockConsoleError = vi
+  .spyOn(console, 'error')
+  .mockImplementation(() => undefined)
 vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
@@ -46,6 +49,7 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
 
     const body = await res.json()
     expect(body.error).toBe('Failed to update project status')
+    expect(mockConsoleError).toHaveBeenCalled()
   })
 
   test('returns 200 on successful update', async () => {
@@ -61,5 +65,8 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
 
     const body = await res.json()
     expect(body.success).toBe(true)
+    expect(projectsChain.update).toHaveBeenCalledWith({ status: 'processing' })
+    expect(projectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
+    expect(projectsChain.eq).toHaveBeenCalledWith('owner_id', 'user-1')
   })
 })

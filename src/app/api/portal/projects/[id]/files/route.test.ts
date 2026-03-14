@@ -150,4 +150,111 @@ describe('POST /api/portal/projects/[id]/files', () => {
       { upsert: false }
     )
   })
+
+  test('returns 403 when a client tries to upload a mix file', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-1', status: 'mixing' },
+      error: null,
+    })
+    const profilesChain = createChainMock({
+      data: {
+        id: 'user-1',
+        email: 'client@test.com',
+        display_name: 'Client',
+        avatar_url: null,
+        role: 'client',
+      },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: { id: 'file-1' },
+      error: null,
+    })
+    const signedUploadMock = vi.fn()
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        profiles: profilesChain,
+        project_files: filesChain,
+      },
+      storageMocks: {
+        'project-uploads': {
+          createSignedUploadUrl: signedUploadMock,
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      fileName: 'mix.wav',
+      fileSize: 2048,
+      mimeType: 'audio/wav',
+      fileType: 'mix',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(403)
+    expect(filesChain.insert).not.toHaveBeenCalled()
+    expect(signedUploadMock).not.toHaveBeenCalled()
+  })
+
+  test('uses mix upload path and enables upsert for studio mix uploads', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-1', status: 'review' },
+      error: null,
+    })
+    const profilesChain = createChainMock({
+      data: {
+        id: 'studio-1',
+        email: 'studio@test.com',
+        display_name: 'Studio',
+        avatar_url: null,
+        role: 'studio',
+      },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: { id: 'file-mix-1', file_name: 'mix.wav' },
+      error: null,
+    })
+    const signedUploadMock = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://example.com/mix-upload' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: {
+        projects: projectsChain,
+        profiles: profilesChain,
+        project_files: filesChain,
+      },
+      storageMocks: {
+        'project-uploads': {
+          createSignedUploadUrl: signedUploadMock,
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      fileName: 'mix.wav',
+      fileSize: 4096,
+      mimeType: 'audio/wav',
+      fileType: 'mix',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(filesChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storage_path: 'owner-1/proj-1/mixes/mix.wav',
+        file_type: 'mix',
+        uploaded_by: 'studio-1',
+      }),
+    )
+    expect(signedUploadMock).toHaveBeenCalledWith(
+      'owner-1/proj-1/mixes/mix.wav',
+      { upsert: true },
+    )
+  })
 })
