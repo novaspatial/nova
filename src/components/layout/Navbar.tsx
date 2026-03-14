@@ -34,13 +34,14 @@ type NavLink = (typeof navLinks)[number]
 type NavbarAuthUser = Pick<User, 'id' | 'email' | 'user_metadata'>
 const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
 
-function isNavLinkActive(pathname: string, href: string) {
+ function isNavLinkActive(pathname: string, href: string, activeHash?: string) {
   if (href === '/portal') {
     return pathname === '/portal' || pathname.startsWith('/portal/')
   }
 
   if (href.includes('#')) {
-    return pathname === href.split('#')[0]
+    const hashId = href.split('#')[1]
+    return hashId === activeHash
   }
 
   return pathname === href
@@ -256,13 +257,15 @@ function NavItem({
   href,
   children,
   highlight = false,
+  activeHash = '',
 }: {
   href: string
   children: React.ReactNode
   highlight?: boolean
+  activeHash?: string
 }) {
   const pathname = usePathname()
-  const isActive = isNavLinkActive(pathname, href)
+  const isActive = isNavLinkActive(pathname, href, activeHash)
 
   return (
     <li>
@@ -274,7 +277,7 @@ function NavItem({
             ? 'animate-nav-highlight font-semibold text-white hover:scale-110 hover:drop-shadow-[0_0_18px_rgba(139,92,246,0.8)]'
             : isActive
               ? 'text-violet-400'
-              : 'hover:text-violet-400',
+              : 'text-zinc-200 hover:text-violet-400',
         )}
       >
         {children}
@@ -288,9 +291,11 @@ function NavItem({
 
 function DesktopNavigation({
   links,
+  activeHash,
   ...props
 }: React.ComponentPropsWithoutRef<'nav'> & {
   links: NavLink[]
+  activeHash: string
 }) {
   return (
     <nav {...props}>
@@ -304,7 +309,7 @@ function DesktopNavigation({
         />
         <ul className="relative flex rounded-full bg-zinc-800/90 px-4 text-base font-medium text-zinc-200 backdrop-blur-sm 3xl:px-6 3xl:text-lg">
           {links.map(({ href, label, highlight }) => (
-            <NavItem key={href} href={href} highlight={highlight}>
+            <NavItem key={href} href={href} highlight={highlight} activeHash={activeHash}>
               {label}
             </NavItem>
           ))}
@@ -442,6 +447,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
   const [hasSessionHint, setHasSessionHint] = useState(false)
   const [publicUser, setPublicUser] = useState<NavbarAuthUser | null>(null)
   const [publicLoading, setPublicLoading] = useState(false)
+  const [activeHash, setActiveHash] = useState('')
   const user = authAware ? authUser : publicUser
   const loading = authAware ? authLoading : publicLoading
   const isAuthenticated = Boolean(user) || hasSessionHint
@@ -449,6 +455,45 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
   useEffect(() => {
     setHasSessionHint(hasSupabaseSessionCookie())
   }, [pathname, authUser])
+
+  useEffect(() => {
+    const hashLinks = navLinks.filter((link) => link.href.includes('#'))
+    const sectionIds = hashLinks.map((link) => link.href.split('#')[1])
+
+    if (sectionIds.length === 0) return
+
+    const intersectingMap = new Map<string, number>()
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            intersectingMap.set(entry.target.id, entry.intersectionRatio)
+          } else {
+            intersectingMap.delete(entry.target.id)
+          }
+        })
+
+        let maxRatio = 0
+        let best = ''
+        intersectingMap.forEach((ratio, id) => {
+          if (ratio > maxRatio) {
+            maxRatio = ratio
+            best = id
+          }
+        })
+        setActiveHash(best)
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1.0] },
+    )
+
+    sectionIds.forEach((id) => {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [pathname])
 
   useEffect(() => {
     if (authAware) {
@@ -531,6 +576,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
             <DesktopNavigation
               className="pointer-events-auto"
               links={resolvedNavLinks}
+              activeHash={activeHash}
             />
           </div>
           <div className="flex flex-1 justify-end">

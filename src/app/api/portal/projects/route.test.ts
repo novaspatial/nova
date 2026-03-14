@@ -58,6 +58,7 @@ describe('GET /api/portal/projects', () => {
 
     // Client query should filter by owner_id
     expect(projectsChain.eq).toHaveBeenCalledWith('owner_id', 'user-1')
+    expect(projectsChain.is).toHaveBeenCalledWith('client_deleted_at', null)
   })
 
   test('returns all projects for studio role', async () => {
@@ -88,6 +89,7 @@ describe('GET /api/portal/projects', () => {
       (call: unknown[]) => call[0] === 'owner_id',
     )
     expect(ownerFilter).toBeUndefined()
+    expect(projectsChain.is).toHaveBeenCalledWith('studio_deleted_at', null)
   })
 
   test('returns 500 when project lookup fails', async () => {
