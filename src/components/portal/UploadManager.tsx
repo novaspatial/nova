@@ -12,6 +12,7 @@ import {
   DocumentIcon,
   MusicalNoteIcon,
   ArrowDownTrayIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 
 function formatFileSize(bytes: number): string {
@@ -178,13 +179,16 @@ function FileList({
   label,
   projectId,
   allowDownload = false,
+  onDeleted,
 }: {
   files: ProjectFile[]
   label: string
   projectId?: string
   allowDownload?: boolean
+  onDeleted?: (id: string) => void
 }) {
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   async function handleDownload(file: ProjectFile) {
     if (!projectId) return
@@ -203,6 +207,23 @@ function FileList({
       a.remove()
     } finally {
       setDownloading(null)
+    }
+  }
+
+  async function handleDelete(file: ProjectFile) {
+    if (!projectId) return
+    setDeleting(file.id)
+    try {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/files/${file.id}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) throw new Error('Failed to delete file')
+      onDeleted?.(file.id)
+    } catch {
+      // Could add error toast
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -226,23 +247,40 @@ function FileList({
               {formatFileSize(file.file_size)} &middot; {file.file_type}
             </p>
           </div>
-          {allowDownload && file.upload_status === 'uploaded' ? (
-            <button
-              type="button"
-              onClick={() => void handleDownload(file)}
-              disabled={downloading === file.id}
-              className="ml-auto shrink-0 rounded-lg border border-white/10 bg-white/5 p-1.5 text-zinc-400 transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300 disabled:opacity-50"
-              title={`Download ${file.file_name}`}
-            >
-              {downloading === file.id ? (
-                <ArrowPathIcon className="size-4 animate-spin" />
-              ) : (
-                <ArrowDownTrayIcon className="size-4" />
-              )}
-            </button>
-          ) : (
-            statusIcon[file.upload_status]
-          )}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {allowDownload && file.upload_status === 'uploaded' && (
+              <button
+                type="button"
+                onClick={() => void handleDownload(file)}
+                disabled={downloading === file.id}
+                className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-zinc-400 transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300 disabled:opacity-50"
+                title={`Download ${file.file_name}`}
+              >
+                {downloading === file.id ? (
+                  <ArrowPathIcon className="size-4 animate-spin" />
+                ) : (
+                  <ArrowDownTrayIcon className="size-4" />
+                )}
+              </button>
+            )}
+            {onDeleted ? (
+              <button
+                type="button"
+                onClick={() => void handleDelete(file)}
+                disabled={deleting === file.id}
+                title={`Delete ${file.file_name}`}
+                className="group rounded-lg border border-white/10 bg-white/5 p-1.5 text-zinc-500 transition hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-20"
+              >
+                {deleting === file.id ? (
+                  <ArrowPathIcon className="size-4 animate-spin" />
+                ) : (
+                  <TrashIcon className="size-4 transition-transform group-hover:scale-110" />
+                )}
+              </button>
+            ) : (
+              !allowDownload && statusIcon[file.upload_status]
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -251,7 +289,7 @@ function FileList({
 
 export function UploadManager({
   projectId,
-  existingFiles,
+  existingFiles: initialFiles,
   isReadOnly,
   isStudio = false,
   studioCanUploadMix = false,
@@ -265,11 +303,16 @@ export function UploadManager({
   projectStatus: ProjectStatus
 }) {
   const router = useRouter()
+  const [files, setFiles] = useState(initialFiles)
   const [settingStatus, setSettingStatus] = useState(false)
   const [finishingUpload, setFinishingUpload] = useState(false)
   const [clientActionError, setClientActionError] = useState<string | null>(null)
   const [studioActionError, setStudioActionError] = useState<string | null>(null)
   const [activeDialog, setActiveDialog] = useState<'finishUpload' | 'sendForReview' | null>(null)
+
+  const handleDeleted = useCallback((id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id))
+  }, [])
 
   const refreshProject = useCallback(() => {
     router.refresh()
@@ -278,8 +321,8 @@ export function UploadManager({
   const clientUpload = useFileUpload(projectId, 'stem', refreshProject)
   const mixUpload = useFileUpload(projectId, 'mix', refreshProject)
 
-  const stemFiles = existingFiles.filter((f) => f.file_type === 'stem' || f.file_type === 'master_ref')
-  const mixFiles = existingFiles.filter((f) => f.file_type === 'mix')
+  const stemFiles = files.filter((f) => f.file_type === 'stem' || f.file_type === 'master_ref')
+  const mixFiles = files.filter((f) => f.file_type === 'mix')
 
   const handleSetStatus = async (
     status: string,
@@ -347,6 +390,7 @@ export function UploadManager({
           label="Client Stems & References"
           projectId={projectId}
           allowDownload={isStudio}
+          onDeleted={isStudio || !isReadOnly ? handleDeleted : undefined}
         />
 
         {!isReadOnly && !isStudio && (
@@ -401,7 +445,12 @@ export function UploadManager({
             </p>
           </div>
 
-          <FileList files={mixFiles} label="Uploaded Mixes" />
+          <FileList
+            files={mixFiles}
+            label="Uploaded Mixes"
+            projectId={projectId}
+            onDeleted={handleDeleted}
+          />
 
           {studioCanUploadMix && (
             <>
