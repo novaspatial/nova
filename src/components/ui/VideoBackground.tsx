@@ -16,6 +16,12 @@ export function VideoBackground({
     const video = videoRef.current
     if (!video) return
 
+    // readyState >= 3 means HAVE_FUTURE_DATA / HAVE_ENOUGH_DATA — already ready
+    if (video.readyState >= 3) {
+      setIsLoaded(true)
+      return
+    }
+
     function handleCanPlay() {
       setIsLoaded(true)
     }
