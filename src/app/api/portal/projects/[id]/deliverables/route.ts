@@ -62,9 +62,9 @@ export async function POST(
   const body = await request.json()
   const { fileName, fileSize, format } = body
 
-  if (!fileName || !fileSize || !format) {
+  if (!fileName || !fileSize) {
     return NextResponse.json(
-      { error: 'fileName, fileSize, and format are required' },
+      { error: 'fileName and fileSize are required' },
       { status: 400 },
     )
   }
@@ -79,9 +79,7 @@ export async function POST(
       file_name: fileName,
       file_size: fileSize,
       storage_path: storagePath,
-      format,
-      approved_at: new Date().toISOString(),
-      approved_by: user.id,
+      format: format || null,
     })
     .select()
     .single()

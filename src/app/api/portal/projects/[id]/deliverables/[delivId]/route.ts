@@ -44,14 +44,19 @@ export async function DELETE(
     return NextResponse.json({ error: storageError.message }, { status: 500 })
   }
 
-  const { error: dbError } = await supabase
+  const { data: deleted, error: dbError } = await supabase
     .from('deliverables')
     .delete()
     .eq('id', delivId)
     .eq('project_id', projectId)
+    .select('id')
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 })
+  }
+
+  if (!deleted?.length) {
+    return NextResponse.json({ error: 'Deliverable could not be deleted' }, { status: 403 })
   }
 
   return new NextResponse(null, { status: 204 })

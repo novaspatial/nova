@@ -62,7 +62,7 @@ export interface Deliverable {
   file_name: string
   file_size: number
   storage_path: string
-  format: DeliverableFormat
+  format: DeliverableFormat | null
   approved_at: string | null
   approved_by: string | null
   created_at: string
