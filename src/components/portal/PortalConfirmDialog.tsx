@@ -24,7 +24,7 @@ const toneStyles: Record<
   }
 > = {
   danger: {
-    rail: 'bg-linear-to-r from-rose-500 via-orange-400 to-amber-300',
+    rail: 'bg-linear-to-r from-red-800 via-rose-500 to-pink-400',
     iconWrap: 'bg-rose-500/12 ring-1 ring-rose-400/20',
     icon: 'text-rose-300',
     eyebrow: 'text-rose-300/80',
@@ -36,7 +36,7 @@ const toneStyles: Record<
     errorBg: 'bg-rose-500/10',
     errorText: 'text-rose-200',
     confirmButton:
-      'bg-linear-to-r from-rose-600 via-rose-500 to-orange-400 shadow-rose-900/30 hover:brightness-110',
+      'bg-linear-to-r from-red-800 via-rose-500 to-pink-400 shadow-rose-900/30 hover:brightness-110',
   },
   success: {
     rail: 'bg-linear-to-r from-emerald-500 via-teal-400 to-cyan-300',

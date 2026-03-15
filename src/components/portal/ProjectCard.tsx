@@ -22,11 +22,15 @@ export function ProjectCard({
   canDelete = false,
   onDeleted,
   isNewProject = false,
+  isInProgress = false,
+  onOpened,
 }: {
   project: ProjectWithOwner
   canDelete?: boolean
-  onDeleted?: () => void
+  onDeleted?: (id: string) => void
   isNewProject?: boolean
+  isInProgress?: boolean
+  onOpened?: (id: string) => void
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -56,7 +60,7 @@ export function ProjectCard({
       }
 
       setIsDialogOpen(false)
-      onDeleted?.()
+      onDeleted?.(project.id)
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to delete project',
@@ -71,19 +75,32 @@ export function ProjectCard({
       <div
         className={`group relative overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/5 ${
           isNewProject
-            ? 'border-violet-500/40 bg-violet-500/5 shadow-violet-500/15 hover:border-violet-400/60 hover:shadow-violet-500/20'
-            : 'border-white/10 bg-white/2 shadow-violet-500/5 hover:border-white/20 hover:shadow-violet-500/10'
+            ? 'border-emerald-500/40 bg-emerald-500/5 shadow-emerald-500/15 hover:border-emerald-400/60 hover:shadow-emerald-500/20'
+            : isInProgress
+              ? 'border-violet-500/40 bg-violet-500/5 shadow-violet-500/15 hover:border-violet-400/60 hover:shadow-violet-500/20'
+              : 'border-white/10 bg-white/2 shadow-violet-500/5 hover:border-white/20 hover:shadow-violet-500/10'
         }`}
       >
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/3 via-transparent to-violet-400/3 opacity-0 transition duration-300 group-hover:opacity-100" />
         {isNewProject && (
+          <div className="flex items-center gap-2 border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+            </span>
+            <span className="text-xs font-semibold tracking-wide text-emerald-300 uppercase">
+              New Project
+            </span>
+          </div>
+        )}
+        {isInProgress && !isNewProject && (
           <div className="flex items-center gap-2 border-b border-violet-500/20 bg-violet-500/10 px-4 py-2">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-violet-400 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-violet-400" />
             </span>
             <span className="text-xs font-semibold tracking-wide text-violet-300 uppercase">
-              New Project!
+              In Progress
             </span>
           </div>
         )}
@@ -94,14 +111,14 @@ export function ProjectCard({
               setErrorMessage(null)
               setIsDialogOpen(true)
             }}
-            className="absolute top-4 right-4 z-10 inline-flex items-center justify-center rounded-xl border border-rose-400/15 bg-rose-500/10 p-2 text-rose-200 transition hover:border-rose-300/30 hover:bg-rose-500/15 hover:text-white"
+            className={`absolute right-4 z-10 inline-flex items-center justify-center rounded-xl border border-rose-400/15 bg-rose-500/10 p-2 text-rose-200 transition hover:border-rose-300/30 hover:bg-rose-500/15 hover:text-white ${isNewProject || isInProgress ? 'top-13' : 'top-4'}`}
             aria-label={`Remove ${project.title}`}
           >
             <TrashIcon className="size-4" />
           </button>
         )}
 
-        <Link href={href} className="block p-4 sm:p-6">
+        <Link href={href} className="block p-4 sm:p-6" onClick={() => onOpened?.(project.id)}>
           <div className="flex items-start gap-3 pr-12">
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-display text-base font-semibold text-white sm:text-lg">
