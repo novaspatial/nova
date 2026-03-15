@@ -67,7 +67,7 @@ export async function PATCH(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, profile } = auth
+  const { supabase, user, profile } = auth
 
   const projectResult = await getProjectOrApiNotFound<{ id: string }>(
     supabase,
@@ -80,7 +80,7 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const { status } = body
+  const { status, deliverable_format } = body
 
   const validStatuses = [
     'uploading',
@@ -93,6 +93,17 @@ export async function PATCH(
   ]
   if (!validStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+
+  if (status === 'approved' && deliverable_format) {
+    const { error: fmtError } = await supabase
+      .from('deliverables')
+      .update({ format: deliverable_format, approved_at: new Date().toISOString(), approved_by: user.id })
+      .eq('project_id', id)
+
+    if (fmtError) {
+      return NextResponse.json({ error: fmtError.message }, { status: 500 })
+    }
   }
 
   const { data: project, error } = await supabase
@@ -140,9 +151,7 @@ export async function DELETE(
   const nextClientDeletedAt = isStudio
     ? project.client_deleted_at
     : (project.client_deleted_at ?? deletedAt)
-  const nextStudioDeletedAt = isStudio
-    ? (project.studio_deleted_at ?? deletedAt)
-    : project.studio_deleted_at
+  const nextStudioDeletedAt = project.studio_deleted_at ?? deletedAt
 
   const bothSidesDeleted = Boolean(nextClientDeletedAt && nextStudioDeletedAt)
 

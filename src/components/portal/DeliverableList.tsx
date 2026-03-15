@@ -91,9 +91,11 @@ function DeliverableCard({
           {deliverable.file_name}
         </p>
         <div className="mt-1 flex items-center gap-2">
-          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
-            {formatLabels[deliverable.format] || deliverable.format}
-          </span>
+          {deliverable.format && (
+            <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
+              {formatLabels[deliverable.format] ?? deliverable.format}
+            </span>
+          )}
           <span className="text-xs text-zinc-500">
             {formatFileSize(deliverable.file_size)}
           </span>
@@ -153,32 +155,12 @@ function Toast({ message, onDismiss }: { message: string; onDismiss: () => void 
 
 function StudioDeliverableUploader({
   projectId,
-  format,
-  onFormatChange,
-  formatHighlight,
-  flashFormatHighlight,
 }: {
   projectId: string
-  format: DeliverableFormat | null
-  onFormatChange: (f: DeliverableFormat) => void
-  formatHighlight: boolean
-  flashFormatHighlight: () => void
 }) {
   const router = useRouter()
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [uploading, setUploading] = useState(false)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const showToast = useCallback((msg: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    setToastMessage(msg)
-    toastTimer.current = setTimeout(() => setToastMessage(null), 4000)
-  }, [])
-
-  useEffect(() => () => {
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-  }, [])
 
   const handleFilesAdded = useCallback((newFiles: File[]) => {
     const items: FileUploadItem[] = newFiles.map((file) => ({
@@ -196,10 +178,6 @@ function StudioDeliverableUploader({
 
   const handleUploadAll = useCallback(async () => {
     if (files.length === 0) return
-    if (!format) {
-      showToast('Please select a deliverable format before uploading.')
-      return
-    }
     setUploading(true)
     const syncedFileIds: string[] = []
 
@@ -221,7 +199,6 @@ function StudioDeliverableUploader({
             body: JSON.stringify({
               fileName: item.file.name,
               fileSize: item.file.size,
-              format,
             }),
           },
         )
@@ -288,55 +265,21 @@ function StudioDeliverableUploader({
 
     setUploading(false)
     router.refresh()
-  }, [files, projectId, format, router, showToast])
+  }, [files, projectId, router])
 
   useEffect(() => {
     if (uploading) return
     if (!files.some((f) => f.status === 'pending')) return
-    if (!format) {
-      flashFormatHighlight()
-      return
-    }
     void handleUploadAll()
-  }, [files, uploading, format, handleUploadAll, flashFormatHighlight])
+  }, [files, uploading, handleUploadAll])
 
   return (
-    <>
-    {toastMessage && (
-      <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
-    )}
-    <div className="space-y-4">
-      <div>
-        <label className="mb-2 block text-xs font-medium text-zinc-400">
-          Deliverable Format
-        </label>
-        <div className={`inline-flex rounded-xl border bg-white/5 p-1 backdrop-blur-sm transition-colors duration-300 ${formatHighlight ? 'border-rose-500/50' : 'border-white/10'}`}>
-          {formatOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              disabled={uploading}
-              onClick={() => onFormatChange(opt.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
-                format === opt.value
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <FileUploader
-        files={files}
-        onFilesAdded={handleFilesAdded}
-        onRemove={handleRemove}
-        disabled={uploading}
-      />
-    </div>
-    </>
+    <FileUploader
+      files={files}
+      onFilesAdded={handleFilesAdded}
+      onRemove={handleRemove}
+      disabled={uploading}
+    />
   )
 }
 
@@ -360,7 +303,9 @@ export function DeliverableList({
   const [activeDialog, setActiveDialog] = useState<'approved' | null>(null)
   const [format, setFormat] = useState<DeliverableFormat | null>(null)
   const [formatHighlight, setFormatHighlight] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const flashFormatHighlight = useCallback(() => {
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
@@ -368,20 +313,37 @@ export function DeliverableList({
     highlightTimer.current = setTimeout(() => setFormatHighlight(false), 1500)
   }, [])
 
-  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
-
-  const handleDeleted = useCallback((id: string) => {
-    setDeliverables((prev) => prev.filter((d) => d.id !== id))
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToastMessage(msg)
+    toastTimer.current = setTimeout(() => setToastMessage(null), 4000)
   }, [])
+
+  useEffect(() => () => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+  }, [])
+
+  const handleDeleted = useCallback(
+    (id: string) => {
+      setDeliverables((prev) => prev.filter((d) => d.id !== id))
+      router.refresh()
+    },
+    [router],
+  )
 
   const handleSetStatus = useCallback(async (status: string) => {
     setApproving(true)
     setStatusError(null)
     try {
+      const payload: Record<string, string> = { status }
+      if (status === 'approved' && format) {
+        payload.deliverable_format = format
+      }
       const res = await fetch(`/api/portal/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -399,7 +361,7 @@ export function DeliverableList({
     } finally {
       setApproving(false)
     }
-  }, [projectId, router])
+  }, [projectId, router, format])
 
   useEffect(() => {
     if (isStudio && projectStatus === 'approved' && deliverables.length > 0) {
@@ -424,6 +386,21 @@ export function DeliverableList({
 
   return (
     <div className="space-y-4">
+      {/* Studio upload section */}
+      {isStudio && !isApproved && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-violet-300">
+              Upload Deliverables
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Upload final master files for the client to download.
+            </p>
+          </div>
+          <StudioDeliverableUploader projectId={projectId} />
+        </div>
+      )}
+
       {/* Deliverables list */}
       {deliverables.length > 0 && (
         <div className="space-y-3">
@@ -440,31 +417,6 @@ export function DeliverableList({
         </div>
       )}
 
-      {/* Studio upload section */}
-      {isStudio && !isApproved && (
-        <div className="space-y-3 border-t border-white/10 pt-4">
-          <div>
-            <h3 className="text-sm font-semibold text-violet-300">
-              Upload Deliverables
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Upload final master files for the client to download.
-            </p>
-          </div>
-          <StudioDeliverableUploader
-            projectId={projectId}
-            format={format}
-            onFormatChange={(f) => {
-              setFormat(f)
-              if (highlightTimer.current) clearTimeout(highlightTimer.current)
-              setFormatHighlight(false)
-            }}
-            formatHighlight={formatHighlight}
-            flashFormatHighlight={flashFormatHighlight}
-          />
-        </div>
-      )}
-
       {/* Empty state */}
       {deliverables.length === 0 && !(isStudio && !isApproved) && (
         <div className="rounded-2xl border border-white/10 bg-white/2 p-8 text-center backdrop-blur-sm">
@@ -476,28 +428,54 @@ export function DeliverableList({
 
       {/* Studio approval banner */}
       {isStudio && !isApproved && (
-        <div className="space-y-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-emerald-300">
-                Ready to approve?
-              </p>
-              <p className="mt-0.5 text-xs text-emerald-300/60">
-                Approving will make deliverables available to the client.
-              </p>
+        <div className="space-y-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center sm:p-5">
+          <div>
+            <p className="text-sm font-medium text-emerald-300">
+              Ready to approve?
+            </p>
+            <p className="mt-0.5 text-xs text-emerald-300/60">
+              Select a deliverable format and approve to make files available to the client.
+            </p>
+          </div>
+
+          <div>
+            <div className={`inline-flex rounded-xl border bg-white/5 p-1 backdrop-blur-sm transition-colors duration-300 ${formatHighlight ? 'border-rose-500/50' : 'border-white/10'}`}>
+              {formatOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={approving}
+                  onClick={() => {
+                    setFormat(opt.value)
+                    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+                    setFormatHighlight(false)
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    format === opt.value
+                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-900/50'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div>
             <button
               type="button"
               onClick={() => {
                 if (!format) {
                   flashFormatHighlight()
+                  showToast('Please select a deliverable format before approving.')
                   return
                 }
                 setStatusError(null)
                 setActiveDialog('approved')
               }}
               disabled={approving || deliverables.length === 0}
-              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl bg-emerald-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {approving ? 'Approving...' : 'Mark Approved'}
             </button>
@@ -508,6 +486,10 @@ export function DeliverableList({
             </p>
           )}
         </div>
+      )}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
       )}
 
       <PortalConfirmDialog
