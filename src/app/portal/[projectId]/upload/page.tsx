@@ -39,12 +39,18 @@ export default async function UploadPage({
       <div className="space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-white sm:text-xl">
-            {isStudio ? 'Project Files' : 'Secure Upload'}
+            {isStudio
+              ? 'Project Files'
+              : isClientReadOnly
+                ? "We're on it"
+                : 'Secure Upload'}
           </h2>
           <p className="mt-1 text-sm text-zinc-400">
             {isStudio
               ? 'View client uploads and upload your spatial mixes.'
-              : 'Upload your multitrack stems and stereo master reference.'}
+              : isClientReadOnly
+                ? "Our engineers have started working on your project. We'll let you know as soon as there's an update."
+                : 'Upload your multitrack stems and stereo master reference.'}
           </p>
         </div>
 

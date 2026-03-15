@@ -7,7 +7,7 @@ import {
 } from '@/lib/auth/server'
 import type { ProjectComment } from '@/types/portal'
 
-export default async function ReviewPage({
+export default async function CommentsPage({
   params,
 }: {
   params: Promise<{ projectId: string }>
