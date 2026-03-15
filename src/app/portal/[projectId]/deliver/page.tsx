@@ -33,16 +33,6 @@ export default async function DeliverPage({
   return (
     <FadeIn>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">
-            Platform-Ready Delivery
-          </h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Download your approved ADM BWF master files for Apple Music, Tidal,
-            Amazon Music, and all immersive platforms.
-          </p>
-        </div>
-
         <DeliverableList
           key={`${project.status}-${deliverables?.length ?? 0}`}
           projectId={projectId}
