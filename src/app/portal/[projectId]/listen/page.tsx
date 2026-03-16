@@ -17,7 +17,7 @@ export default async function ListenPage({
   const project = await getProjectOrNotFound<{
     id: string
     title: string
-    format: string
+    format: 'atmos' | 'binaural' | 'both'
   }>(supabase, projectId, 'id, title, format', profile?.role)
 
   const { data: files } = await supabase
