@@ -9,8 +9,8 @@ const statusToStep: Record<ProjectStatus, string> = {
   uploading: 'upload',
   processing: 'upload',
   mixing: 'upload',
-  review: 'review',
-  revision: 'review',
+  review: 'comments',
+  revision: 'comments',
   approved: 'deliver',
   delivered: 'deliver',
 }
