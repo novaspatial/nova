@@ -147,13 +147,13 @@ export function FileUploader({
             : 'Drag & drop files or click to browse and upload'}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Upload starts automatically for WAV, AIFF, FLAC, and other audio formats
+          WAV and ADM BWF files supported
         </p>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept="audio/*,.wav,.aiff,.aif,.flac,.mp3,.ogg,.m4a"
+          accept=".wav,.bwf,audio/wav,audio/x-wav,audio/vnd.wave"
           onChange={handleFileInput}
           className="hidden"
           disabled={disabled}

@@ -77,7 +77,7 @@ function useFileUpload(
             body: JSON.stringify({
               fileName: item.file.name,
               fileSize: item.file.size,
-              mimeType: item.file.type || 'audio/wav',
+              mimeType: item.file.type || 'audio/x-wav',
               fileType,
             }),
           },
@@ -109,7 +109,7 @@ function useFileUpload(
           }
           xhr.onerror = () => reject(new Error('Upload failed'))
           xhr.open('PUT', uploadUrl)
-          xhr.setRequestHeader('Content-Type', item.file.type || 'audio/wav')
+          xhr.setRequestHeader('Content-Type', item.file.type || 'audio/x-wav')
           xhr.send(item.file)
         })
 
@@ -441,7 +441,7 @@ export function UploadManager({
               Spatial Mixes
             </h3>
             <p className="mt-1 text-xs text-zinc-500">
-              Upload your Atmos and Binaural mixes for client review.
+              Upload your Atmos and Binaural mixes as WAV or ADM BWF for client review.
             </p>
           </div>
 

@@ -82,7 +82,7 @@ export function NewProjectForm() {
                 body: JSON.stringify({
                   fileName: item.file.name,
                   fileSize: item.file.size,
-                  mimeType: item.file.type || 'audio/wav',
+                  mimeType: item.file.type || 'audio/x-wav',
                   fileType: 'stem',
                 }),
               },
@@ -115,7 +115,7 @@ export function NewProjectForm() {
               xhr.open('PUT', uploadUrl)
               xhr.setRequestHeader(
                 'Content-Type',
-                item.file.type || 'audio/wav',
+                item.file.type || 'audio/x-wav',
               )
               xhr.send(item.file)
             })
