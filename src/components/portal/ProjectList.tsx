@@ -8,7 +8,22 @@ import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
 import { ProjectCard } from './ProjectCard'
 import type { Project } from '@/types/portal'
 
-const PROJECTS_PER_PAGE = 8
+const perPage_DESKTOP = 8
+const perPage_MOBILE = 4
+
+function useProjectsPerPage() {
+  const [perPage, setPerPage] = useState(perPage_DESKTOP)
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 639px)')
+    const update = () => setPerPage(mql.matches ? perPage_MOBILE : perPage_DESKTOP)
+    update()
+    mql.addEventListener('change', update)
+    return () => mql.removeEventListener('change', update)
+  }, [])
+
+  return perPage
+}
 
 type ProjectWithOwner = Project & {
   owner?: { display_name: string | null; email: string | null } | null
@@ -45,6 +60,7 @@ export function ProjectList({
   userId: string
 }) {
   const router = useRouter()
+  const perPage = useProjectsPerPage()
   const [showSuccess, setShowSuccess] = useState(false)
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set())
@@ -62,10 +78,10 @@ export function ProjectList({
     },
     [projects, deletedIds, isStudio, searchQuery],
   )
-  const totalPages = Math.max(1, Math.ceil(visibleProjects.length / PROJECTS_PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(visibleProjects.length / perPage))
   const paginatedProjects = visibleProjects.slice(
-    (currentPage - 1) * PROJECTS_PER_PAGE,
-    currentPage * PROJECTS_PER_PAGE,
+    (currentPage - 1) * perPage,
+    currentPage * perPage,
   )
 
   useEffect(() => {
@@ -166,7 +182,7 @@ export function ProjectList({
       </FadeInStagger>
 
       {totalPages >= 1 && (
-        <div className={`flex items-center justify-center gap-2 ${paginatedProjects.length < PROJECTS_PER_PAGE ? 'mt-16' : 'mt-8'}`}>
+        <div className={`flex items-center justify-center gap-2 ${paginatedProjects.length < perPage ? 'mt-16' : 'mt-8'}`}>
           <button
             type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
