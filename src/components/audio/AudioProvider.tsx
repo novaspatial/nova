@@ -73,6 +73,13 @@ function clampVolume(volume: number): number {
   return Math.min(1, Math.max(0, volume))
 }
 
+const PLAYABLE_EXTENSIONS = ['.wav', '.bwf']
+
+function isPlayableFormat(src: string): boolean {
+  const path = getUrlPath(src).toLowerCase().split('?')[0]
+  return PLAYABLE_EXTENSIONS.some((ext) => path.endsWith(ext))
+}
+
 function getUrlPath(url: string): string {
   if (!url) return ''
   try {
@@ -100,6 +107,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     const play = (file?: MixedMusicFile) => {
       const current = file || state.mixedMusicFile
       if (!current?.audio?.src) return
+      if (!isPlayableFormat(current.audio.src)) return
 
       // Resume current file if no new file passed
       if (!file && state.mixedMusicFile) {
