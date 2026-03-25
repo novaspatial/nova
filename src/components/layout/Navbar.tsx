@@ -572,7 +572,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
               <Logo className="hidden h-14 sm:block 3xl:h-18" />
             </Link>
           </div>
-          <div className="hidden md:flex md:justify-center">
+          <div className="hidden nav:flex nav:justify-center">
             <DesktopNavigation
               className="pointer-events-auto"
               links={resolvedNavLinks}
@@ -580,7 +580,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
             />
           </div>
           <div className="flex flex-1 justify-end">
-             <div className="hidden md:block">
+             <div className="hidden nav:block">
               <UserMenu
                 user={user}
                 loading={loading}
@@ -588,7 +588,7 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
               />
             </div>
             <MobileNavigation
-              className="pointer-events-auto md:hidden"
+              className="pointer-events-auto nav:hidden"
               links={resolvedNavLinks}
               user={user}
               loading={loading}
