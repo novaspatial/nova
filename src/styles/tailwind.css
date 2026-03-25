@@ -3,10 +3,10 @@
 @import './typography.css' layer(components);
 
 @theme {
-  --color-grid-hover-1: #131134;
-  --color-grid-hover-2: #1c0b39;
-  --color-grid-hover-3: #220b35;
-  --color-grid-hover-4: #2c082e;
+  --color-grid-hover-1: #1e1a5e;
+  --color-grid-hover-2: #321466;
+  --color-grid-hover-3: #3d1260;
+  --color-grid-hover-4: #4e0e52;
   
   --color-grid-static-1: #1e1b4b;
   --color-grid-static-2: #2e1065;
