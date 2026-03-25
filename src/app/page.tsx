@@ -7,6 +7,7 @@ import { HowItWorks } from '@/components/sections/HowItWorks'
 import { PromoPopup } from '@/components/popups/PromoPopup'
 import { EmailCapturePopup } from '@/components/popups/EmailCapturePopup'
 import { RootLayout } from '@/components/layout/RootLayout'
+import { heroBgPosterSrc, heroBgVideoSrc } from '@/lib/hero-assets'
 import { Testimonials } from '@/components/sections/Testimonials'
 import { Clients } from '@/components/sections/Clients'
 import { type Metadata } from 'next'
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <RootLayout videoSrc="/videos/hero-bg.mp4">
+    <RootLayout videoSrc={heroBgVideoSrc} videoPoster={heroBgPosterSrc}>
       <Container className="relative mt-16 sm:mt-24 md:mt-36 xl:mt-44 3xl:mt-56">
         <FadeIn className="max-w-5xl xl:max-w-6xl 3xl:max-w-7xl">
           <HeroContent />
