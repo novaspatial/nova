@@ -23,7 +23,7 @@ const navigation = [
 function Navigation() {
   return (
     <nav>
-      <ul role="list" className="grid grid-cols-2 gap-4 sm:gap-8">
+      <ul role="list" className="grid grid-cols-2 gap-4 text-center sm:gap-8 lg:text-left">
         {navigation.map((section, sectionIndex) => (
           <li key={sectionIndex}>
             <div className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
@@ -66,7 +66,7 @@ function ArrowIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 
 function NewsletterForm() {
   return (
-    <form className="max-w-sm 3xl:max-w-md">
+    <form className="max-w-sm text-center lg:text-left 3xl:max-w-md">
       <h2 className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
         Sign up
       </h2>
@@ -101,11 +101,11 @@ export function Footer() {
       <FadeIn>
         <div className="grid grid-cols-1 gap-x-8 gap-y-10 sm:gap-y-16 lg:grid-cols-2">
           <Navigation />
-          <div className="flex lg:justify-end">
+          <div className="flex justify-center lg:justify-end">
             <NewsletterForm />
           </div>
         </div>
-        <div className="mt-10 mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-t border-violet-500/20 pt-6 sm:mt-24 sm:mb-20 sm:pt-12">
+        <div className="mt-10 mb-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-3 border-t border-violet-500/20 pt-6 sm:mt-24 sm:mb-20 sm:pt-12 lg:items-end lg:justify-between">
           <Link href="/" aria-label="Home">
             <Logo className="h-5 sm:h-8 3xl:h-10" fillOnHover />
           </Link>
