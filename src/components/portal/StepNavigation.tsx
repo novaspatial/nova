@@ -109,6 +109,11 @@ export function StepNavigation({
           >
             {isCompleted ? (
               <CheckIcon className="size-4 text-emerald-400 sm:size-5" />
+            ) : step.key === 'listen' && !isActive ? (
+              <span className="relative inline-flex">
+                <span className="absolute inset-0 animate-ping rounded-full bg-violet-400 opacity-50" />
+                <Icon className="relative size-4 text-violet-300 sm:size-5" />
+              </span>
             ) : (
               <Icon className="size-4 sm:size-5" />
             )}

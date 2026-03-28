@@ -9,10 +9,10 @@ export default function NewProjectPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <FadeIn>
-        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
           Start a New Project
         </h1>
-        <p className="mt-2 text-sm text-zinc-400 sm:text-base">
+        <p className="mt-2 text-xs text-zinc-400 sm:text-sm">
           Upload your multitrack stems and reference to begin the Dolby Atmos
           mixing process.
         </p>

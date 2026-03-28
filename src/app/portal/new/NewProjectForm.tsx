@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
 
 const inputClassName =
-  'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50'
+  'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
 
 export function NewProjectForm() {
   const [title, setTitle] = useState('')
@@ -179,7 +179,7 @@ export function NewProjectForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300 sm:text-sm">
           {error}
         </div>
       )}
@@ -188,7 +188,7 @@ export function NewProjectForm() {
       <div>
         <label
           htmlFor="title"
-          className="block text-sm font-medium text-zinc-300"
+          className="block text-xs font-medium text-zinc-300 sm:text-sm"
         >
           Project Title
         </label>
@@ -205,7 +205,7 @@ export function NewProjectForm() {
 
       {/* Format */}
       <div>
-        <label className="block text-sm font-medium text-zinc-300">
+        <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
           Target Format
         </label>
         <div className="mt-2 flex gap-2">
@@ -221,7 +221,7 @@ export function NewProjectForm() {
               type="button"
               onClick={() => setFormat(option.value)}
               disabled={submitting}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+              className={`rounded-xl px-4 py-2 text-xs font-medium transition sm:text-sm ${
                 format === option.value
                   ? 'bg-violet-600/20 text-violet-300 ring-1 ring-violet-500/30'
                   : 'border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
@@ -237,7 +237,7 @@ export function NewProjectForm() {
       <div>
         <label
           htmlFor="notes"
-          className="block text-sm font-medium text-zinc-300"
+          className="block text-xs font-medium text-zinc-300 sm:text-sm"
         >
           Project Notes{' '}
           <span className="text-zinc-500">(optional)</span>
@@ -255,7 +255,7 @@ export function NewProjectForm() {
 
       {/* File Upload */}
       <div>
-        <label className="block text-sm font-medium text-zinc-300">
+        <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
           Upload Files
         </label>
         <p className="mt-1 text-xs text-zinc-500">
@@ -275,7 +275,7 @@ export function NewProjectForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-xl bg-violet-600 px-6 py-3 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
       >
         {submitting ? 'Creating Project & Uploading...' : 'Create Project & Upload'}
       </button>
