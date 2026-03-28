@@ -47,7 +47,7 @@ export function Services() {
           <TagListItem>Award-Winning Engineers</TagListItem>
           <TagListItem>Secure Remote Mix Platform</TagListItem>
         </TagList>
-          <h3 className="mt-2 font-display text-xs font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
+          <h3 className="mt-2 font-display text-[0.625rem] font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
           Claim your spot today - <Button href="/contact" className="!py-0.5 sm:!py-1">Book Your Atmos Mix !</Button>
         </h3>
       </Section>
@@ -65,8 +65,8 @@ export function Services() {
           </p>
         </div>
 
-        <h3 className="mt-4 flex items-center gap-x-2 sm:gap-x-4 sm:mt-6 3xl:mt-8 font-display text-xs sm:text-base 3xl:text-lg font-semibold text-white">
-          Experience Spatial Tone Lock  - <Button href="/contact" className="!py-0.5 sm:!py-1">Start your Project Now !</Button>
+        <h3 className="mt-2 flex items-center gap-x-2 sm:gap-x-4 sm:mt-6 3xl:mt-8 font-display text-[0.625rem] sm:text-base 3xl:text-lg font-semibold text-white">
+          Experience Spatial Tone Lock  - <Button href="/contact" className="!py-0.5 sm:!py-1">Start Project Now !</Button>
         </h3>
       </Section>
     </div>
