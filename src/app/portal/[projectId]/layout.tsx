@@ -30,7 +30,7 @@ export default async function ProjectDetailLayout({
   return (
     <div className="mx-auto max-w-4xl">
       <FadeIn>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-row items-center justify-between gap-4">
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             {project.title}
           </h1>
@@ -50,7 +50,7 @@ export default async function ProjectDetailLayout({
                 clipRule="evenodd"
               />
             </svg>
-            Back to Projects
+            <span className="hidden sm:inline">Back to Projects</span>
           </Link>
         </div>
         <div className="mt-4 sm:mt-6">
