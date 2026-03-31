@@ -3,20 +3,15 @@ import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Logo } from '@/components/ui/Logo'
-import { socialMediaProfiles } from '@/components/ui/SocialMedia'
 
 const navigation = [
   {
-    title: 'Company',
+    title: 'NovaSpatial',
     links: [
       { title: 'About', href: '/about' },
       { title: 'Blog', href: '/blog' },
-      { title: 'Contact us', href: '/contact' },
+      { title: 'Contact us', href: '/about' },
     ],
-  },
-  {
-    title: 'Connect',
-    links: socialMediaProfiles,
   },
 ]
 
@@ -68,7 +63,7 @@ function NewsletterForm() {
   return (
     <form className="max-w-sm text-center lg:text-left 3xl:max-w-md">
       <h2 className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
-        Sign up
+        Subscribe
       </h2>
       <p className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base">
         Subscribe to get a 50% discount on your first Atmos mix.

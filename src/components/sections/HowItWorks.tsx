@@ -144,7 +144,7 @@ export function HowItWorks() {
           {/* CTA Button */}
           <FadeIn>
             <div className="mt-4 flex justify-center px-2 sm:mt-10 3xl:mt-12">
-              <Button href="/contact" className="w-auto sm:min-w-50">
+              <Button href="/about" className="w-auto sm:min-w-50">
                 Start Your Spatial Mix
               </Button>
             </div>
