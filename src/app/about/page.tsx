@@ -1,51 +1,24 @@
 import { type Metadata } from 'next'
-import Image from 'next/image'
-import { Suspense } from 'react'
+import Link from 'next/link'
 
 import { Border } from '@/components/ui/Border'
+import { ContactForm } from '@/components/sections/ContactForm'
 import { Container } from '@/components/layout/Container'
 import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
-
+import { Offices } from '@/components/sections/Offices'
 import { PageIntro } from '@/components/ui/PageIntro'
-import { PageLinks } from '@/components/ui/PageLinks'
 
 import { StatList, StatListItem } from '@/components/ui/StatList'
-import imageAngelaFisher from '@/images/team/angela-fisher.jpg'
-import imageBenjaminRussel from '@/images/team/benjamin-russel.jpg'
 import imageBlakeReid from '@/images/team/blake-reid.jpg'
 import imageChelseaHagon from '@/images/team/chelsea-hagon.jpg'
-import imageDriesVincent from '@/images/team/dries-vincent.jpg'
 import imageEmmaDorsey from '@/images/team/emma-dorsey.jpg'
-import imageJeffreyWebb from '@/images/team/jeffrey-webb.jpg'
 import imageKathrynMurphy from '@/images/team/kathryn-murphy.jpg'
 import imageLeonardKrasner from '@/images/team/leonard-krasner.jpg'
-import imageLeslieAlexander from '@/images/team/leslie-alexander.jpg'
-import imageMichaelFoster from '@/images/team/michael-foster.jpg'
 import imageWhitneyFrancis from '@/images/team/whitney-francis.jpg'
-import { loadArticles } from '@/lib/mdx'
 import { RootLayout } from '@/components/layout/RootLayout'
+import { PersonCard } from '@/components/ui/PersonCard'
 
 const team = [
-  {
-    title: 'Leadership',
-    people: [
-      {
-        name: 'Leslie Alexander',
-        role: 'Co-Founder / CEO',
-        image: { src: imageLeslieAlexander },
-      },
-      {
-        name: 'Michael Foster',
-        role: 'Co-Founder / CTO',
-        image: { src: imageMichaelFoster },
-      },
-      {
-        name: 'Dries Vincent',
-        role: 'Partner & Business Relations',
-        image: { src: imageDriesVincent },
-      },
-    ],
-  },
   {
     title: 'Team',
     people: [
@@ -53,50 +26,91 @@ const team = [
         name: 'Chelsea Hagon',
         role: 'Senior Developer',
         image: { src: imageChelseaHagon },
+        bio: 'Chelsea has been shaping our engineering culture for over a decade. She leads architecture decisions and mentors junior developers, with a passion for clean, maintainable systems.',
       },
       {
         name: 'Emma Dorsey',
         role: 'Senior Designer',
         image: { src: imageEmmaDorsey },
+        bio: 'Emma brings a rare blend of visual artistry and spatial intuition to every project. Her design language defines the NovaSpatial aesthetic — minimal, immersive, and purposeful.',
       },
       {
         name: 'Leonard Krasner',
         role: 'VP, User Experience',
         image: { src: imageLeonardKrasner },
+        bio: 'Leonard has spent 20 years obsessing over how people interact with sound. He leads our UX strategy, ensuring every touchpoint feels as natural as the music itself.',
       },
       {
         name: 'Blake Reid',
         role: 'Junior Copywriter',
         image: { src: imageBlakeReid },
+        bio: 'Blake crafts the words that carry our brand voice. With a background in music journalism, he brings authentic storytelling to everything from campaign copy to liner notes.',
       },
       {
         name: 'Kathryn Murphy',
         role: 'VP, Human Resources',
         image: { src: imageKathrynMurphy },
+        bio: 'Kathryn builds the team behind the sound. She champions a culture of excellence and inclusion, making sure NovaSpatial remains a place where world-class talent thrives.',
       },
       {
         name: 'Whitney Francis',
         role: 'Content Specialist',
         image: { src: imageWhitneyFrancis },
-      },
-      {
-        name: 'Jeffrey Webb',
-        role: 'Account Coordinator',
-        image: { src: imageJeffreyWebb },
-      },
-      {
-        name: 'Benjamin Russel',
-        role: 'Senior Developer',
-        image: { src: imageBenjaminRussel },
-      },
-      {
-        name: 'Angela Fisher',
-        role: 'Front-end Developer',
-        image: { src: imageAngelaFisher },
+        bio: 'Whitney shapes how the world understands spatial audio. Her editorial strategy spans long-form features, social content, and educational resources that put our work in context.',
       },
     ],
   },
 ]
+
+function ContactSection() {
+  return (
+    <Container className="mt-24 sm:mt-32 lg:mt-40">
+      <FadeIn>
+        <h2 className="font-display text-base font-semibold text-white">
+          Contact us
+        </h2>
+        <p className="mt-6 font-display text-5xl font-medium tracking-tight text-white text-balance sm:text-6xl">
+          Let&apos;s work together.
+        </p>
+        <p className="mt-6 text-xl text-zinc-300">
+          Ready to elevate your music to the next dimension? <br/> Reach out to our team and let&apos;s craft a spatial audio experience that moves your audience.
+        </p>
+      </FadeIn>
+      <Border className="mt-16" />
+      <div className="grid grid-cols-1 gap-x-8 gap-y-24 pt-16 lg:grid-cols-2">
+        <ContactForm />
+
+        <FadeIn>
+          <h2 className="font-display text-base font-semibold text-white">
+            Our offices
+          </h2>
+          <Offices className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2" />
+
+          <Border className="mt-16 pt-16">
+            <h2 className="font-display text-base font-semibold text-white">
+              Email us
+            </h2>
+            <dl className="mt-6 grid grid-cols-1 gap-8 text-sm sm:grid-cols-2">
+              {[['Contact', 'mix@nova-spatial.com']].map(([label, email]) => (
+                <div key={email}>
+                  <dt className="font-semibold text-white">{label}</dt>
+                  <dd>
+                    <Link
+                      href={`mailto:${email}`}
+                      className="text-white hover:text-violet-300"
+                    >
+                      {email}
+                    </Link>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Border>
+        </FadeIn>
+      </div>
+    </Container>
+  )
+}
 
 function Team() {
   return (
@@ -119,21 +133,7 @@ function Team() {
                   {group.people.map((person) => (
                     <li key={person.name}>
                       <FadeIn>
-                        <div className="group relative overflow-hidden rounded-3xl bg-white/10">
-                          <Image
-                            alt=""
-                            {...person.image}
-                            className="h-96 w-full object-cover grayscale transition duration-500 motion-safe:group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-black to-black/0 to-40% p-6">
-                            <p className="font-display text-base/6 font-semibold tracking-wide text-white">
-                              {person.name}
-                            </p>
-                            <p className="mt-2 text-sm text-white">
-                              {person.role}
-                            </p>
-                          </div>
-                        </div>
+                        <PersonCard {...person} />
                       </FadeIn>
                     </li>
                   ))}
@@ -151,19 +151,6 @@ export const metadata: Metadata = {
   title: 'About Us',
   description:
     'We believe that our strength lies in our collaborative approach, which puts our clients at the center of everything we do.',
-}
-
-async function BlogArticles() {
-  const blogArticles = (await loadArticles()).slice(0, 2)
-
-  return (
-    <PageLinks
-      className="mb-12 sm:mb-16 lg:mb-20"
-      title="From the blog"
-      intro="Our team of experienced designers and developers has just one thing on their mind; working on your ideas to draw a smile on the face of your users worldwide. From conducting Brand Sprints to UX Design."
-      pages={blogArticles}
-    />
-  )
 }
 
 export default function About() {
@@ -193,9 +180,7 @@ export default function About() {
 
       <Team />
 
-      <Suspense fallback={<div className="mt-12 sm:mt-16 lg:mt-20 text-center text-white">Loading articles...</div>}>
-        <BlogArticles />
-      </Suspense>
+      <ContactSection />
     </RootLayout>
   )
 }
