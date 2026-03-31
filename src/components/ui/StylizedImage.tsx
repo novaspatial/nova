@@ -24,17 +24,36 @@ type ImagePropsWithOptionalAlt = Omit<ImageProps, 'alt'> & { alt?: string }
 
 export function StylizedImage({
   shape = 0,
+  plain = false,
   className,
   ...props
-}: ImagePropsWithOptionalAlt & { shape?: 0 | 1 | 2 }) {
+}: ImagePropsWithOptionalAlt & { shape?: 0 | 1 | 2; plain?: boolean }) {
   const id = useId()
   const { width, height, path } = shapes[shape]
 
+  if (plain) {
+    return (
+      <div className={clsx(
+        className,
+        'group/image relative flex w-full overflow-hidden rounded-2xl',
+        'shadow-lg shadow-violet-500/0 transition-shadow duration-700 ease-out hover:shadow-violet-500/25 hover:shadow-2xl',
+      )}>
+        <Image
+          alt=""
+          className="w-full object-cover transition duration-700 ease-out group-hover/image:scale-[1.03]"
+          {...props}
+        />
+        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/10 transition-all duration-700 group-hover/image:ring-violet-400/30" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-violet-600/0 via-white/0 to-violet-400/0 transition-all duration-700 group-hover/image:from-violet-600/5 group-hover/image:via-white/10 group-hover/image:to-violet-400/0" />
+      </div>
+    )
+  }
+
   return (
-    <div className={clsx(className, 'relative flex aspect-719/680 w-full')}>
+    <div className={clsx(className, 'group/image relative flex aspect-719/680 w-full drop-shadow-lg transition-[filter] duration-700 ease-out hover:drop-shadow-[0_20px_40px_rgba(139,92,246,0.25)]')}>
       <svg viewBox={`0 0 ${width} ${height}`} fill="none" className="h-full">
         <g clipPath={`url(#${id}-clip)`} className="group">
-          <g className="origin-center scale-100 transition duration-500 motion-safe:group-hover:scale-105">
+          <g className="origin-center scale-100 transition duration-700 ease-out motion-safe:group-hover/image:scale-105">
             <foreignObject width={width} height={height}>
               <Image
                 alt=""
@@ -47,7 +66,7 @@ export function StylizedImage({
           <use
             href={`#${id}-shape`}
             strokeWidth="2"
-            className="stroke-white/10"
+            className="stroke-white/10 transition duration-700 group-hover/image:stroke-violet-400/30"
           />
         </g>
         <defs>
