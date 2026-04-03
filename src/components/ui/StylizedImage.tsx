@@ -37,10 +37,11 @@ export function StylizedImage({
         className,
         'group/image relative flex w-full overflow-hidden rounded-2xl',
         'shadow-lg shadow-violet-500/0 transition-shadow duration-700 ease-out hover:shadow-violet-500/25 hover:shadow-2xl',
+        'aspect-4/3',
       )}>
         <Image
           alt=""
-          className="w-full object-cover transition duration-700 ease-out group-hover/image:scale-[1.03]"
+          className="h-full w-full object-cover transition duration-700 ease-out group-hover/image:scale-[1.03]"
           {...props}
         />
         <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/10 transition-all duration-700 group-hover/image:ring-violet-400/30" />

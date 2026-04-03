@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <RootLayout videoSrc={heroBgVideoSrc} videoPoster={heroBgPosterSrc}>
       <Container className="relative mt-16 sm:mt-24 md:mt-36 xl:mt-44 3xl:mt-56">
-        <FadeIn className="max-w-5xl xl:max-w-6xl 3xl:max-w-7xl">
+        <FadeIn>
           <HeroContent />
         </FadeIn>
         <PromoPopup />

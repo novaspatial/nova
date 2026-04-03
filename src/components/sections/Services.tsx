@@ -1,7 +1,8 @@
 import { Section } from '@/components/layout/Section'
 import { TagList, TagListItem } from '@/components/ui/TagList'
-import nova from '@/images/nova.png'
+import nova from '@/images/nova.jpg'
 import composition from '@/images/composition.png'
+import awards from '@/images/awards.png'
 import { Button } from '@/components/ui/Button'
 
 export function Services() {
@@ -14,40 +15,20 @@ export function Services() {
       >
         <div className="space-y-3 text-xs text-zinc-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
           <p>
-            Nova Spatial operates out of a premier, purpose-built mix studio. Our
-            flagship mix room was custom-designed by renowned studio architect
-            J.H. Brandt, ensuring absolute critical listening accuracy and a
-            perfectly controlled immersive soundstage. Our award-winning engineers
-            leverage this environment to deliver unparalleled results across Pop,
-            Rap, EDM, Rock, Country, and Orchestral projects.
+            NOVA Spatial is a Dolby Atmos certified studio — built from the ground up for one purpose: getting spatial audio right. A flagship ATC SCM100 monitoring array, high-end conversion, the best in modern processing, and select classic analog equipment give our award-winning engineers the critical listening environment to deliver unparalleled results across Pop, Rap, EDM, Rock, Country, and Orchestral projects.
           </p>
           <p>
-            Our facility is officially Dolby Atmos Certified and features a
-            top-tier monitoring array powered by flagship ATC SCM100 speakers.
-            This elite hardware, coupled with high-end conversion, the best in
-            modern processing and select classic analog equipment allows our
-            engineers to create the amazing sounding spatial audio mixes that are
-            true to your vision and translate in all environments.
+            <strong>Exceptional results. Seamless remote workflow.</strong> Our custom client portal makes file submission, mix feedback, and final approval simple from start to finish.
           </p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><strong>Secure file uploads</strong> — fast, private, and simple</li>
+            <li><strong>Atmos &amp; Binaural playback</strong> — hear your mix exactly as intended, in any format</li>
+            <li><strong>Apple Music &amp; Tidal compliant delivery</strong> — final files ready to distribute</li>
+          </ul>
           <p>
-            When you book with us, you are getting the acoustic perfection of a
-            best-in-class studio paired with the convenience of a remote workflow.
-            Our easy system streamlines your project with secure file uploads, an
-            interactive online listening portal with Binaural or Atmos playback,
-            and simple downloading of your final Apple Music and Tidal compliant
-            files.
+            <strong>No Atmos system? No problem.</strong> Our client portal lets you preview your spatial mix in binaural playback — exactly how listeners on headphones and stereo setups will hear it. Review, approve, and sign off with confidence. No special hardware required.
           </p>
         </div>
-
-
-        <TagList className="mt-2 sm:mt-3">
-          <TagListItem>Dolby Atmos Certified Facility</TagListItem>
-          <TagListItem>Spatial Tone Lock Translation</TagListItem>
-          <TagListItem>Flagship ATC Monitoring</TagListItem>
-          <TagListItem>High-End Conversion</TagListItem>
-          <TagListItem>Award-Winning Engineers</TagListItem>
-          <TagListItem>Secure Remote Mix Platform</TagListItem>
-        </TagList>
           <h3 className="mt-2 font-display text-[0.625rem] font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
           Claim your spot today - <Button href="/about" className="!py-0.5 sm:!py-1">Book Your Atmos Mix !</Button>
         </h3>
@@ -56,19 +37,39 @@ export function Services() {
       <Section id="spatial-tone-lock" title="Spatial Tone Lock" image={{ src: composition, shape: 1 }} plainImage>
         <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-zinc-300">
           <p>
-            Part of what makes Atmos Spatial Audio so incredible is the added dynamic range and spread that results from going from stereo to fully immersive. But without the right technical knowledge and tools, Spatial Audio mixes often sound flat and dull and lack the energy of the Stereo Master. That is why we developed Spatial Tone Lock - a specialized workflow that combines our engineers&apos; highly trained ears with proprietary audio plugins and reference tools to guarantee your spatial mix hits just as hard as the original.
+            <strong>Your stereo master is a carefully crafted piece of art — every limiter smash, every clipping decision, every sonic quirk is intentional. But when it comes to Spatial Audio, most engineers don&apos;t apply that same obsessive attention to detail. The result? A wider mix that somehow feels smaller.</strong>
           </p>
           <p>
-            We utilize exclusive techniques for multi-channel clipping, musical compression, and spatial limiting to maximize headroom and immersive depth without ever sacrificing the song&apos;s original vibe. Furthermore, knowing how and where to spread a mix is vital; it requires musical intuition and deep technical knowledge of spatial formatting. Rather than simply panning audio to different speakers, we use the industry&apos;s finest immersive reverbs, multi-tap delays, and chorus effects to create a perfect, three-dimensional environment that elevates the music to an entirely new level.
+            <strong>Our solution: Spatial Tone Lock.</strong> NOVA&apos;s proprietary workflow combines highly trained engineers with exclusive plugins and reference tools, engineered to guarantee your spatial mix hits just as hard as the original.
           </p>
           <p>
-            Because spatial audio formats like Apple Spatial handle rendering uniquely, ensuring flawless translation across all platforms is our final, crucial step. We rigorously double-check your project using advanced emulators to replicate how the mix will behave across a wide variety of playback devices. Whether your fans are listening on a dedicated audiophile home Atmos system, a modern Atmos-equipped car, or walking down the street with AirPods, our comprehensive quality control ensures a spectacular, perfectly translated listening experience.
+            <strong>Platform-perfect translation.</strong> Every streaming platform renders Spatial Audio differently. Spatial Tone Lock ensures flawless playback across all of them.
+          </p>
+          <p>
+            <strong>The technical edge.</strong> Multi-channel limiting, musical compression, and precision EQ matching maximize headroom and immersive depth without losing the original vibe.
+          </p>
+          <p>
+            <strong>Depth that feels real.</strong> Rather than simply panning audio to different speakers, we use industry-leading immersive reverbs, multi-tap delays, and chorus effects to build a true three-dimensional environment around your music.
           </p>
         </div>
 
         <h3 className="mt-2 flex items-center gap-x-2 sm:gap-x-4 sm:mt-6 3xl:mt-8 font-display text-[0.625rem] sm:text-base 3xl:text-lg font-semibold text-white">
           Experience Spatial Tone Lock  - <Button href="/about" className="!py-0.5 sm:!py-1">Start Project Now !</Button>
         </h3>
+      </Section>
+
+      <Section title="The Atmos Advantage" image={{ src: awards, shape: 2 }} plainImage>
+        <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-zinc-300">
+          <p>
+            <strong>Sound bigger.</strong> Three-dimensional audio. Unprecedented depth and dynamic range.
+          </p>
+          <p>
+            <strong>Get discovered faster.</strong> Apple Music&apos;s algorithm actively favors Atmos-enabled tracks — better placement, more reach.
+          </p>
+          <p>
+            <strong>Earn more per stream.</strong> Apple pays higher royalty rates for Spatial Audio releases.
+          </p>
+        </div>
       </Section>
     </div>
   )
