@@ -8,32 +8,6 @@ import { Button } from '@/components/ui/Button'
 export function Services() {
   return (
     <div className="mt-6 space-y-24 [counter-reset:section] sm:mt-8 sm:space-y-32 lg:mt-10 lg:space-y-40">
-      <Section
-        title="World-Class Dolby Atmos Certified Mixing Facility"
-        image={{ src: nova }}
-        plainImage
-      >
-        <div className="space-y-3 text-xs text-zinc-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
-          <p>
-            NOVA Spatial is a Dolby Atmos certified studio — built from the ground up for one purpose: getting spatial audio right. A flagship ATC SCM100 monitoring array, high-end conversion, the best in modern processing, and select classic analog equipment give our award-winning engineers the critical listening environment to deliver unparalleled results across Pop, Rap, EDM, Rock, Country, and Orchestral projects.
-          </p>
-          <p>
-            <strong>Exceptional results. Seamless remote workflow.</strong> Our custom client portal makes file submission, mix feedback, and final approval simple from start to finish.
-          </p>
-          <ul className="list-disc list-inside space-y-1">
-            <li><strong>Secure file uploads</strong> — fast, private, and simple</li>
-            <li><strong>Atmos &amp; Binaural playback</strong> — hear your mix exactly as intended, in any format</li>
-            <li><strong>Apple Music &amp; Tidal compliant delivery</strong> — final files ready to distribute</li>
-          </ul>
-          <p>
-            <strong>No Atmos system? No problem.</strong> Our client portal lets you preview your spatial mix in binaural playback — exactly how listeners on headphones and stereo setups will hear it. Review, approve, and sign off with confidence. No special hardware required.
-          </p>
-        </div>
-          <h3 className="mt-2 font-display text-[0.625rem] font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
-          Claim your spot today - <Button href="/about" className="!py-0.5 sm:!py-1">Book Your Atmos Mix !</Button>
-        </h3>
-      </Section>
-
       <Section id="spatial-tone-lock" title="Spatial Tone Lock" image={{ src: composition, shape: 1 }} plainImage>
         <div className="space-y-3 sm:space-y-6 3xl:space-y-8 text-xs sm:text-base 3xl:text-lg text-zinc-300">
           <p>
@@ -55,6 +29,32 @@ export function Services() {
 
         <h3 className="mt-2 flex items-center gap-x-2 sm:gap-x-4 sm:mt-6 3xl:mt-8 font-display text-[0.625rem] sm:text-base 3xl:text-lg font-semibold text-white">
           Experience Spatial Tone Lock  - <Button href="/about" className="!py-0.5 sm:!py-1">Start Project Now !</Button>
+        </h3>
+      </Section>
+
+      <Section
+        title="Dolby Atmos Certified Mixing Facility"
+        image={{ src: nova }}
+        plainImage
+      >
+        <div className="space-y-3 text-xs text-zinc-300 sm:space-y-6 sm:text-base 3xl:space-y-8 3xl:text-lg">
+          <p>
+            NOVA Spatial is a world-class Dolby Atmos certified studio, built from the ground up for one purpose: getting spatial audio right. A flagship ATC SCM100 monitoring array, high-end conversion, the best in modern processing, and select classic analog equipment give our award-winning engineers the critical listening environment to deliver unparalleled results across Pop, Rap, EDM, Rock, Country, and Orchestral projects.
+          </p>
+          <p>
+            <strong>Exceptional results. Seamless remote workflow.</strong> Our custom client portal makes file submission, mix feedback, and final approval simple from start to finish.
+          </p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><strong>Secure file uploads</strong> — fast, private, and simple</li>
+            <li><strong>Atmos &amp; Binaural playback</strong> — hear your mix exactly as intended, in any format</li>
+            <li><strong>Apple Music &amp; Tidal compliant delivery</strong> — final files ready to distribute</li>
+          </ul>
+          <p>
+            <strong>No Atmos system? No problem.</strong> Our client portal lets you preview your spatial mix in binaural playback — exactly how listeners on headphones and stereo setups will hear it. Review, approve, and sign off with confidence. No special hardware required.
+          </p>
+        </div>
+          <h3 className="mt-2 font-display text-[0.625rem] font-semibold text-white sm:mt-3 sm:text-base 3xl:mt-4 3xl:text-lg">
+          Claim your spot today - <Button href="/about" className="!py-0.5 sm:!py-1">Book Your Atmos Mix !</Button>
         </h3>
       </Section>
 

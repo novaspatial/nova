@@ -19,7 +19,7 @@ export function Button({
     'inline-flex rounded-2xl px-2 py-1 text-[10px] font-bold transition-all duration-300 ease-in-out sm:px-4 sm:py-2 sm:text-base',
     invert
       ? 'bg-zinc-950 text-white hover:bg-zinc-800'
-      : 'bg-gradient-to-r from-indigo-900/80 via-violet-800/80 to-purple-900/80 text-white shadow-lg shadow-violet-500/20 hover:from-indigo-950 hover:via-violet-900 hover:to-purple-950 hover:shadow-xl hover:shadow-violet-500/40 hover:scale-105',
+      : 'bg-gradient-to-r from-violet-950 via-purple-900 to-violet-950 text-white ring-1 ring-violet-500/20 hover:from-violet-900 hover:via-purple-800 hover:to-violet-900 hover:ring-violet-400/30 hover:scale-[1.02]',
   )
 
   const inner = <span className="relative top-px">{children}</span>
