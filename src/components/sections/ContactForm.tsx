@@ -112,21 +112,25 @@ export function ContactForm() {
           />
           <TextArea label="Message" name="message" required />
         </div>
-        <Button
-          type="submit"
-          disabled={status === 'submitting'}
-          className="mt-10 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {status === 'submitting' ? 'Sending...' : 'Send message'}
-        </Button>
-        {status === 'success' && (
-          <p className="mt-4 text-sm text-green-400">
-            Thank you! We&apos;ll be in touch soon.
-          </p>
-        )}
-        {status === 'error' && (
-          <p className="mt-4 text-sm text-red-400">{errorMessage}</p>
-        )}
+        <div className="mt-10 flex items-center gap-4">
+          <Button
+            type="submit"
+            disabled={status === 'submitting'}
+            className="shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {status === 'submitting' ? 'Sending...' : 'Send message'}
+          </Button>
+          {status === 'success' && (
+            <div className="flex-1 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-center text-sm text-emerald-300">
+              Thank you! We&apos;ll be in touch soon.
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="flex-1 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+              {errorMessage}
+            </div>
+          )}
+        </div>
       </form>
     </FadeIn>
   )

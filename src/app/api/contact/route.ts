@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   }
 
   const { error: emailError } = await resend.emails.send({
-    from: 'Atmos <no-reply@atmosdesign.com>',
-    to: 'hello@atmosdesign.com',
+    from: 'Atmos <onboarding@resend.dev>',
+    to: '6f6e7572@pm.me',
     subject: subject || `New inquiry from ${name}`,
     replyTo: email,
     text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\n${message}`,
