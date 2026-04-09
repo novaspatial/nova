@@ -15,7 +15,7 @@ export async function POST(
   // Hand the project off to the studio and begin mixing immediately.
   const { error } = await supabase
     .from('projects')
-    .update({ status: 'mixing' })
+    .update({ status: 'in_review' })
     .eq('id', projectId)
     .eq('owner_id', user.id)
 

@@ -84,6 +84,7 @@ export async function PATCH(
 
   const validStatuses = [
     'uploading',
+    'in_review',
     'processing',
     'mixing',
     'review',
@@ -145,39 +146,6 @@ export async function DELETE(
 
   if (!canDelete) {
     return forbiddenResponse()
-  }
-  const isStudio = profile?.role === 'studio'
-  const deletedAt = new Date().toISOString()
-  const nextClientDeletedAt = isStudio
-    ? project.client_deleted_at
-    : (project.client_deleted_at ?? deletedAt)
-  const nextStudioDeletedAt = project.studio_deleted_at ?? deletedAt
-
-  const bothSidesDeleted = Boolean(nextClientDeletedAt && nextStudioDeletedAt)
-
-  if (!bothSidesDeleted) {
-    const { data: hiddenProject, error: hideError } = await supabase
-      .from('projects')
-      .update({
-        client_deleted_at: nextClientDeletedAt,
-        studio_deleted_at: nextStudioDeletedAt,
-        updated_at: deletedAt,
-      })
-      .eq('id', id)
-      .select('id')
-      .single()
-
-    if (hideError || !hiddenProject) {
-      return NextResponse.json(
-        {
-          error:
-            hideError?.message || 'Project could not be removed from your view.',
-        },
-        { status: 500 },
-      )
-    }
-
-    return NextResponse.json({ success: true, hidden: true, deleted: false })
   }
 
   const [filesResult, deliverablesResult] = await Promise.all([

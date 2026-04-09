@@ -7,6 +7,7 @@ import type { ProjectStatus } from '@/types/portal'
 
 const statusToStep: Record<ProjectStatus, string> = {
   uploading: 'upload',
+  in_review: 'upload',
   processing: 'upload',
   mixing: 'upload',
   review: 'comments',

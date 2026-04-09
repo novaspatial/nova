@@ -1,5 +1,6 @@
 export type ProjectStatus =
   | 'uploading'
+  | 'in_review'
   | 'processing'
   | 'mixing'
   | 'review'
