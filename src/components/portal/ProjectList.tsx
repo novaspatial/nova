@@ -165,14 +165,18 @@ export function ProjectList({
         <div className="grid gap-4 sm:grid-cols-2">
           {paginatedProjects.map((project) => {
             const isMixing = project.status === 'mixing' || project.status === 'processing'
+            const isInReview = project.status === 'in_review'
+            const isMixAvailable = project.status === 'review'
             return (
               <FadeIn key={project.id}>
                 <ProjectCard
                   project={project}
                   canDelete={isStudio || project.owner_id === userId}
                   onDeleted={handleDeleted}
-                  isNewProject={isStudio && isMixing && !seenIds.has(project.id)}
+                  isNewProject={isStudio && isInReview && !seenIds.has(project.id)}
+                  isInReview={isInReview && (!isStudio || seenIds.has(project.id))}
                   isInProgress={isMixing && (!isStudio || seenIds.has(project.id))}
+                  isMixAvailable={isMixAvailable}
                   onOpened={isStudio ? handleOpened : undefined}
                 />
               </FadeIn>

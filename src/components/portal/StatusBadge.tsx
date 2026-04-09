@@ -10,17 +10,21 @@ const statusConfig: Record<
     label: 'Uploading',
     className: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
   },
+  in_review: {
+    label: 'In Review',
+    className: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
+  },
   processing: {
     label: 'Mixing',
-    className: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
+    className: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
   },
   mixing: {
     label: 'Mixing',
-    className: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
+    className: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
   },
   review: {
-    label: 'In Review',
-    className: 'bg-orange-500/10 text-orange-300 border-orange-500/20',
+    label: 'Mix Available',
+    className: 'bg-purple-500/10 text-purple-300 border-purple-500/20',
   },
   revision: {
     label: 'Revision',
