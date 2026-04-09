@@ -8,7 +8,6 @@ const inputClassName =
 
 export function NewProjectForm() {
   const [title, setTitle] = useState('')
-  const [format, setFormat] = useState<'atmos' | 'binaural' | 'both'>('atmos')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -50,7 +49,7 @@ export function NewProjectForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: title.trim(),
-            format,
+            format: 'atmos',
             notes: notes.trim() || null,
           }),
         })
@@ -173,7 +172,7 @@ export function NewProjectForm() {
         setSubmitting(false)
       }
     },
-    [title, format, notes, files],
+    [title, notes, files],
   )
 
   return (
@@ -203,36 +202,6 @@ export function NewProjectForm() {
         />
       </div>
 
-      {/* Format */}
-      <div>
-        <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
-          Target Format
-        </label>
-        <div className="mt-2 flex gap-2">
-          {(
-            [
-              { value: 'atmos', label: 'Dolby Atmos' },
-              { value: 'binaural', label: 'Binaural' },
-              { value: 'both', label: 'Both' },
-            ] as const
-          ).map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setFormat(option.value)}
-              disabled={submitting}
-              className={`rounded-xl px-4 py-2 text-xs font-medium transition sm:text-sm ${
-                format === option.value
-                  ? 'bg-violet-600/20 text-violet-300 ring-1 ring-violet-500/30'
-                  : 'border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Notes */}
       <div>
         <label
@@ -258,9 +227,6 @@ export function NewProjectForm() {
         <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
           Upload Files
         </label>
-        <p className="mt-1 text-xs text-zinc-500">
-          Multitrack stems and stereo master reference
-        </p>
         <div className="mt-2">
           <FileUploader
             files={files}
