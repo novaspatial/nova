@@ -219,29 +219,46 @@ export function ProjectDetailLoading() {
   )
 }
 
+function ProgressTimelineSkeleton() {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/2 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">
+      <div className="flex items-center">
+        {[0, 1, 2, 3].map((step) => (
+          <div
+            key={step}
+            className={`flex items-center${step < 3 ? ' flex-1' : ''}`}
+          >
+            <div className="flex flex-col items-center">
+              <SkeletonBlock className="size-8 rounded-full sm:size-9" />
+              <SkeletonBlock className="mt-2 h-3 w-12 rounded-md sm:h-3.5 sm:w-16" />
+            </div>
+            {step < 3 && (
+              <div className="mx-2 mb-5 h-0.5 flex-1 sm:mx-3">
+                <SkeletonBlock className="h-full w-full rounded-full" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function UploadPageLoading() {
   return (
     <div className="animate-pulse space-y-6">
       <SectionIntroSkeleton titleWidth="w-40 sm:w-48" bodyWidth="max-w-md" />
-      <div className="space-y-8">
-        {/* Client stems section */}
-        <div className="space-y-4">
-          <SkeletonBlock className="h-4 w-40 rounded-md" />
-          <FileListRowSkeleton />
-          <FileListRowSkeleton />
-          <UploadDropzoneSkeleton />
-          <SkeletonBlock className="mx-auto h-12 w-full rounded-xl sm:w-44" />
-        </div>
 
-        {/* Studio mixes section */}
-        <div className="space-y-4 border-t border-white/10 pt-6">
-          <div>
-            <SkeletonBlock className="h-4 w-24 rounded-md" />
-            <SkeletonBlock className="mt-1.5 h-3 w-56 rounded-md" />
-          </div>
-          <SkeletonBlock className="h-4 w-28 rounded-md" />
-          <FileListRowSkeleton />
-          <UploadDropzoneSkeleton />
+      <ProgressTimelineSkeleton />
+
+      <div className="space-y-4">
+        <SkeletonBlock className="h-4 w-28 rounded-md" />
+        <FileListRowSkeleton />
+        <FileListRowSkeleton />
+        <UploadDropzoneSkeleton />
+        <div className="flex flex-col items-center border-t border-white/10 pt-4">
+          <SkeletonBlock className="mb-4 h-4 w-72 rounded-md" />
+          <SkeletonBlock className="h-12 w-full rounded-xl sm:w-48" />
         </div>
       </div>
     </div>
