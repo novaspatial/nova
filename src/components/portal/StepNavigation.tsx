@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowUpTrayIcon,
   MusicalNoteIcon,
-  ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
   CheckIcon,
   LockClosedIcon,
@@ -18,11 +17,6 @@ const steps = [
     key: 'upload',
     label: 'Upload',
     icon: ArrowUpTrayIcon,
-  },
-  {
-    key: 'comments',
-    label: 'Comments',
-    icon: ChatBubbleLeftRightIcon,
   },
   {
     key: 'listen',
@@ -39,23 +33,25 @@ const steps = [
 type StepKey = (typeof steps)[number]['key']
 
 const unlockedSteps: Record<ProjectStatus, StepKey[]> = {
-  uploading: ['upload', 'comments'],
-  processing: ['upload', 'comments'],
-  mixing: ['upload', 'comments'],
-  review: ['upload', 'comments', 'listen'],
-  revision: ['upload', 'comments', 'listen'],
-  approved: ['upload', 'comments', 'listen', 'deliver'],
-  delivered: ['upload', 'comments', 'listen', 'deliver'],
+  uploading: ['upload'],
+  in_review: ['upload'],
+  processing: ['upload'],
+  mixing: ['upload'],
+  review: ['upload', 'listen'],
+  revision: ['upload', 'listen'],
+  approved: ['upload', 'listen', 'deliver'],
+  delivered: ['upload', 'listen', 'deliver'],
 }
 
 const studioUnlockedSteps: Record<ProjectStatus, StepKey[]> = {
-  uploading: ['upload', 'comments'],
-  processing: ['upload', 'comments'],
-  mixing: ['upload', 'comments'],
-  review: ['upload', 'comments', 'listen', 'deliver'],
-  revision: ['upload', 'comments', 'listen', 'deliver'],
-  approved: ['upload', 'comments', 'listen', 'deliver'],
-  delivered: ['upload', 'comments', 'listen', 'deliver'],
+  uploading: ['upload'],
+  in_review: ['upload'],
+  processing: ['upload'],
+  mixing: ['upload'],
+  review: ['upload', 'listen', 'deliver'],
+  revision: ['upload', 'listen', 'deliver'],
+  approved: ['upload', 'listen', 'deliver'],
+  delivered: ['upload', 'listen', 'deliver'],
 }
 
 export function StepNavigation({
