@@ -256,26 +256,23 @@ export function ProfileForm({ profile }: { profile: Profile | null }) {
 
         <Feedback state={feedback} />
 
-        <div className="flex justify-center">
+        <div className="flex items-center justify-between border-t border-white/10 pt-6 sm:pt-8">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded-xl border border-white/10 bg-white/5 px-8 py-3 text-sm font-medium text-zinc-400 transition hover:scale-[1.03] hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.98] sm:py-2.5"
+          >
+            Sign Out
+          </button>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:scale-[1.03] hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5"
+            className="rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:scale-[1.03] hover:from-indigo-500 hover:via-violet-500 hover:to-purple-500 hover:shadow-violet-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-2.5"
           >
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
-
-      <div className="mt-6 flex justify-center border-t border-white/10 pt-6 sm:mt-8 sm:pt-8">
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-8 py-3 text-sm font-medium text-zinc-400 transition hover:scale-[1.03] hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.98] sm:w-auto sm:py-2.5"
-        >
-          Sign Out
-        </button>
-      </div>
     </div>
   )
 }
