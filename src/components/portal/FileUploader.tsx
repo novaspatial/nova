@@ -146,14 +146,10 @@ export function FileUploader({
             ? 'Drop files here'
             : 'Drag & drop files or click to browse and upload'}
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          WAV and ADM BWF files supported
-        </p>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept=".wav,.bwf,audio/wav,audio/x-wav,audio/vnd.wave"
           onChange={handleFileInput}
           className="hidden"
           disabled={disabled}

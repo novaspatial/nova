@@ -304,11 +304,12 @@ export function UploadManager({
 }) {
   const router = useRouter()
   const [files, setFiles] = useState(initialFiles)
+  const [currentStatus, setCurrentStatus] = useState(projectStatus)
   const [settingStatus, setSettingStatus] = useState(false)
   const [finishingUpload, setFinishingUpload] = useState(false)
   const [clientActionError, setClientActionError] = useState<string | null>(null)
   const [studioActionError, setStudioActionError] = useState<string | null>(null)
-  const [activeDialog, setActiveDialog] = useState<'finishUpload' | 'sendForReview' | null>(null)
+  const [activeDialog, setActiveDialog] = useState<'finishUpload' | 'approveProject' | 'sendForReview' | null>(null)
 
   const handleDeleted = useCallback((id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id))
@@ -341,6 +342,7 @@ export function UploadManager({
         throw new Error(data.error || 'Failed to update project status.')
       }
 
+      setCurrentStatus(status as ProjectStatus)
       setActiveDialog(null)
       router.refresh()
       return true
@@ -387,7 +389,7 @@ export function UploadManager({
       <div className="space-y-4">
         <FileList
           files={stemFiles}
-          label="Client Stems & References"
+          label="Client Uploads"
           projectId={projectId}
           allowDownload={isStudio}
           onDeleted={isStudio || !isReadOnly ? handleDeleted : undefined}
@@ -438,12 +440,43 @@ export function UploadManager({
         <div className="space-y-4 border-t border-white/10 pt-6">
           <div>
             <h3 className="text-sm font-semibold text-violet-300">
-              Spatial Mixes
+              Upload Mixes
             </h3>
             <p className="mt-1 text-xs text-zinc-500">
-              Upload your Atmos and Binaural mixes as WAV or ADM BWF for client review.
+              Upload your spatial mixes for client review.
             </p>
           </div>
+
+          {currentStatus === 'in_review' && (
+            <div className="flex flex-col items-center rounded-2xl border border-blue-500/20 bg-blue-500/5 px-5 py-5 text-center backdrop-blur-sm">
+              <span className="relative mb-3 inline-flex">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-50" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-blue-400" />
+              </span>
+              <p className="text-sm font-semibold text-blue-300">
+                New project awaiting approval
+              </p>
+              <p className="mt-1 text-sm text-blue-300/60">
+                Review the client&apos;s uploaded stems and approve to begin mixing.
+              </p>
+              {studioActionError && (
+                <p className="mt-3 w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                  {studioActionError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setStudioActionError(null)
+                  setActiveDialog('approveProject')
+                }}
+                disabled={settingStatus}
+                className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/80 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 backdrop-blur-sm transition hover:bg-emerald-500/90 hover:shadow-emerald-500/35 disabled:opacity-50"
+              >
+                Approve &amp; Start Mixing
+              </button>
+            </div>
+          )}
 
           <FileList
             files={mixFiles}
@@ -452,7 +485,7 @@ export function UploadManager({
             onDeleted={handleDeleted}
           />
 
-          {studioCanUploadMix && (
+          {(studioCanUploadMix || ['processing', 'mixing', 'review', 'revision'].includes(currentStatus)) && currentStatus !== 'in_review' && (
             <>
               <FileUploader
                 files={mixUpload.newFiles}
@@ -462,7 +495,7 @@ export function UploadManager({
               />
 
               {/* Status transition buttons */}
-              {mixFiles.length > 0 && mixUpload.newFiles.length === 0 && ['processing', 'mixing', 'revision'].includes(projectStatus) && (
+              {mixFiles.length > 0 && mixUpload.newFiles.length === 0 && ['in_review', 'processing', 'mixing', 'revision'].includes(currentStatus) && (
                 <div className="flex flex-wrap justify-center gap-3 pt-4">
                   {studioActionError && (
                     <p className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -487,7 +520,7 @@ export function UploadManager({
 
           {!studioCanUploadMix && mixFiles.length === 0 && (
             <p className="text-sm text-zinc-500">
-              {projectStatus === 'uploading'
+              {currentStatus === 'uploading' || currentStatus === 'in_review'
                 ? 'Waiting for client to finish uploading stems.'
                 : 'Mixes will appear here once uploaded.'}
             </p>
@@ -513,6 +546,27 @@ export function UploadManager({
           }
         }}
         onConfirm={() => void handleFinishUpload()}
+      />
+
+      <PortalConfirmDialog
+        isOpen={activeDialog === 'approveProject'}
+        tone="violet"
+        eyebrow="Approve"
+        title="Start mixing this project?"
+        description="This will move the project to In Progress and notify the client that work has begun."
+        noteTitle="The client will see the status change."
+        noteBody="Make sure you have reviewed the uploaded stems before approving."
+        confirmLabel="Approve & Start Mixing"
+        busyLabel="Approving..."
+        cancelLabel="Not Yet"
+        isBusy={settingStatus}
+        errorMessage={studioActionError}
+        onClose={() => {
+          if (!settingStatus) {
+            setActiveDialog(null)
+          }
+        }}
+        onConfirm={() => void handleSetStatus('mixing', setStudioActionError)}
       />
 
       <PortalConfirmDialog

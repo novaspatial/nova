@@ -1,5 +1,6 @@
 import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
+import { ProgressTimeline } from '@/components/portal/ProgressTimeline'
 import { UploadManager } from '@/components/portal/UploadManager'
 import {
   getProjectOrNotFound,
@@ -32,7 +33,7 @@ export default async function UploadPage({
   const status = project.status as ProjectStatus
   const isClientReadOnly = status !== 'uploading'
   const isStudio = role === 'studio'
-  const studioCanUploadMix = isStudio && ['processing', 'mixing', 'review', 'revision'].includes(status)
+  const studioCanUploadMix = isStudio && ['in_review', 'processing', 'mixing', 'review', 'revision'].includes(status)
   const isReview = !isStudio && status === 'review'
 
   return (
@@ -55,22 +56,43 @@ export default async function UploadPage({
           </a>
         )}
 
-        <div>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">
-            {isStudio
-              ? 'Project Files'
-              : isClientReadOnly
-                ? "We're on it"
-                : 'Secure Upload'}
-          </h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            {isStudio
-              ? 'View client uploads and upload your spatial mixes.'
-              : isClientReadOnly
-                ? "Our engineers have started working on your project. We'll let you know as soon as there's an update."
-                : 'Upload your multitrack stems and stereo master reference.'}
-          </p>
-        </div>
+        {isStudio ? (
+          <div>
+            <h2 className="text-lg font-semibold text-white sm:text-xl">
+              Project Files
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              View client uploads and upload your spatial mixes.
+            </p>
+          </div>
+        ) : isClientReadOnly && !isReview ? (
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-5 backdrop-blur-sm">
+            <span className="relative mt-0.5 inline-flex">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-emerald-300">
+                We&apos;re on it
+              </p>
+              <p className="mt-1 text-sm text-emerald-300/60">
+                Our engineers have started working on your project. We&apos;ll
+                let you know as soon as there&apos;s an update.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-lg font-semibold text-white sm:text-xl">
+              Secure Upload
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Upload your multitrack stems and stereo master reference.
+            </p>
+          </div>
+        )}
+
+        {!isStudio && <ProgressTimeline status={status} />}
 
         <UploadManager
           key={`${status}-${files?.length ?? 0}`}
