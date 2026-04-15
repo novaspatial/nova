@@ -1,6 +1,3 @@
-'use client'
-
-import { useState } from 'react'
 import { Container } from '@/components/layout/Container'
 import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
@@ -9,7 +6,6 @@ import {
   MusicalNoteIcon,
   ChatBubbleLeftRightIcon,
   ArrowDownTrayIcon,
-  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 
 const steps = [
@@ -52,7 +48,6 @@ function TimelineStep({
   step: (typeof steps)[0]
   index: number
 }) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const Icon = step.icon
   const isEven = index % 2 === 0
 
@@ -74,43 +69,23 @@ function TimelineStep({
           }`}
         >
           <div className="group min-w-0 rounded-lg bg-white/3 p-2.5 ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/6 hover:ring-white/20 hover:shadow-xl hover:shadow-violet-500/20 sm:rounded-xl sm:p-5 3xl:p-6">
-          {/* Header row: title + icon */}
-          <div className="relative min-w-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
-            <h3 className="min-w-0 truncate text-center font-display text-xs font-semibold text-white sm:text-left sm:text-lg 3xl:text-xl">
-              {step.title}
-            </h3>
-            <div className="absolute right-0 top-0 flex shrink-0 size-6 items-center justify-center rounded-md bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:ring-white/20 sm:static sm:size-8 sm:rounded-lg 3xl:size-9">
-              <Icon className="size-3 text-white/90 transition-all duration-300 group-hover:text-white group-hover:scale-105 sm:size-5 3xl:size-5" />
+            {/* Header row: title + icon */}
+            <div className="relative min-w-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
+              <h3 className="min-w-0 truncate text-center font-display text-xs font-semibold text-white sm:text-left sm:text-lg 3xl:text-xl">
+                {step.title}
+              </h3>
+              <div className="absolute right-0 top-0 flex shrink-0 size-6 items-center justify-center rounded-md bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/10 group-hover:ring-white/20 sm:static sm:size-8 sm:rounded-lg 3xl:size-9">
+                <Icon className="size-3 text-white/90 transition-all duration-300 group-hover:text-white group-hover:scale-105 sm:size-5 3xl:size-5" />
+              </div>
             </div>
-          </div>
 
-          {/* Description */}
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              isExpanded ? 'sm:max-h-96' : 'sm:max-h-14 3xl:max-h-16'
-            }`}
-          >
+            {/* Description */}
             <p className="mt-1.5 text-center text-[11px] leading-relaxed text-zinc-400 sm:text-left sm:text-sm 3xl:text-base">
               {step.description}
             </p>
           </div>
-
-          {/* Read More button */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            aria-expanded={isExpanded}
-            className="mt-2 hidden items-center gap-1 py-2 text-[11px] font-medium text-white/80 transition-all duration-200 hover:gap-1.5 hover:text-white sm:mt-3 sm:flex sm:min-h-0 sm:gap-1.5 sm:py-0 sm:text-xs sm:hover:gap-2 3xl:text-sm"
-          >
-            <span>{isExpanded ? 'Show Less' : 'Show More'}</span>
-            <ChevronDownIcon
-              className={`size-3 transition-transform duration-300 sm:size-3.5 3xl:size-4 ${
-                isExpanded ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
         </div>
       </div>
-    </div>
     </FadeIn>
   )
 }
