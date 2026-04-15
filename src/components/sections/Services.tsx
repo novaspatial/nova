@@ -257,9 +257,9 @@ function SpatialToneLockBlock() {
     <FadeIn>
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex size-10 items-center justify-center rounded-xl bg-violet-500/10 ring-1 ring-violet-400/30 sm:size-14 3xl:size-16">
-          <Lock className="size-5 text-violet-300 sm:size-7 3xl:size-8" />
+          <Lock className="size-4 text-violet-300 sm:size-6 3xl:size-7" />
         </div>
-        <h3 className="font-display text-2xl font-medium tracking-tight text-white sm:text-4xl 3xl:text-5xl">
+        <h3 id="spatial-tone-lock" className="scroll-mt-28 font-display text-3xl font-medium tracking-tight text-white sm:text-5xl 3xl:text-6xl">
           Spatial Tone Lock
         </h3>
       </div>
