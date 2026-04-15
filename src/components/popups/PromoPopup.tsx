@@ -29,29 +29,12 @@ export function PromoPopup() {
   const router = useRouter()
 
   useEffect(() => {
-    if (
-      localStorage.getItem('promo-dismissed') ||
-      localStorage.getItem('email-promo-submitted')
-    ) {
+    if (localStorage.getItem('promo-dismissed')) {
       return
     }
 
-    const handleShow = () => setVisible(true)
-    const handleHide = () => setVisible(false)
-
-    window.addEventListener('show-promo-popup', handleShow)
-    window.addEventListener('hide-promo-popup', handleHide)
-
-    let timer: NodeJS.Timeout | undefined
-    if (localStorage.getItem('email-promo-rejected')) {
-      timer = setTimeout(() => setVisible(true), 500)
-    }
-
-    return () => {
-      window.removeEventListener('show-promo-popup', handleShow)
-      window.removeEventListener('hide-promo-popup', handleHide)
-      if (timer) clearTimeout(timer)
-    }
+    const timer = setTimeout(() => setVisible(true), 500)
+    return () => clearTimeout(timer)
   }, [])
 
   function handleDismiss() {

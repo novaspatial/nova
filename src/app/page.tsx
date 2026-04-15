@@ -5,17 +5,10 @@ import { FAQ } from '@/components/sections/FAQ'
 import { HeroContent } from '@/components/sections/HeroContent'
 import { HowItWorks } from '@/components/sections/HowItWorks'
 import { PromoPopup } from '@/components/popups/PromoPopup'
-import { EmailCapturePopup } from '@/components/popups/EmailCapturePopup'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { heroBgPosterSrc, heroBgVideoSrc } from '@/lib/hero-assets'
 import { Testimonials } from '@/components/sections/Testimonials'
 import { Clients } from '@/components/sections/Clients'
-import { type Metadata } from 'next'
-
-export const metadata: Metadata = {
-  description:
-    'We are a development studio working at the intersection of design and technology.',
-}
 
 export default function Home() {
   return (
@@ -25,7 +18,6 @@ export default function Home() {
           <HeroContent />
         </FadeIn>
         <PromoPopup />
-        <EmailCapturePopup />
       </Container>
       <Clients />
       <Services />
