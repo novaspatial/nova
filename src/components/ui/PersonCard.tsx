@@ -45,7 +45,7 @@ export function PersonCard({ name, role, bio, image }: PersonCardProps) {
             <button
               onClick={() => setBioOpen(false)}
               aria-label="Hide bio"
-              className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
+              className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:border-transparent hover:bg-linear-to-r hover:from-violet-950 hover:via-purple-900 hover:to-violet-950 hover:ring-1 hover:ring-violet-500/20"
             >
               Close
             </button>
@@ -69,7 +69,7 @@ export function PersonCard({ name, role, bio, image }: PersonCardProps) {
             <button
               onClick={() => setBioOpen(true)}
               aria-label="Show bio"
-              className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm transition hover:border-transparent hover:bg-linear-to-r hover:from-violet-950 hover:via-purple-900 hover:to-violet-950 hover:ring-1 hover:ring-violet-500/20"
             >
               Bio
             </button>
