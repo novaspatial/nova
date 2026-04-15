@@ -48,7 +48,7 @@ export async function POST(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user, profile } = auth
+  const { supabase, profile } = auth
 
   const projectResult = await getProjectOrApiNotFound<{
     id: string

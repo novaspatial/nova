@@ -1,5 +1,5 @@
 import { Container } from '@/components/layout/Container'
-import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
 import {
   ArrowUpTrayIcon,
