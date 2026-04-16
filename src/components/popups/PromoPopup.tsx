@@ -78,17 +78,9 @@ export function PromoPopup() {
           <div className="relative overflow-hidden rounded-t-3xl border border-white/10 border-b-0 bg-zinc-900/95 shadow-2xl shadow-violet-500/10 backdrop-blur-xl lg:rounded-2xl lg:border-b">
             <div className="h-1 w-full bg-linear-to-r from-indigo-500 via-violet-500 to-purple-500" />
 
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="absolute top-3 right-3 rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
-              aria-label="Dismiss"
-            >
-              <CloseIcon className="h-5 w-5" />
-            </button>
-
             <div className="px-6 pt-6 pb-7">
-              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1 text-xs font-semibold tracking-wide text-violet-300">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1 text-xs font-semibold tracking-wide text-violet-300">
                 <svg
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -102,6 +94,15 @@ export function PromoPopup() {
                   />
                 </svg>
                 Limited Offer
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDismiss}
+                  className="rounded-full p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  aria-label="Dismiss"
+                >
+                  <CloseIcon className="h-5 w-5" />
+                </button>
               </div>
 
               <h3 className="mt-3 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
@@ -126,7 +127,7 @@ export function PromoPopup() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-center text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
                     />
                     <button
                       type="submit"
