@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import { Container } from '@/components/layout/Container'
 import { Logo, Logomark } from '@/components/ui/Logo'
 import { useAuthUser } from '@/hooks/useAuthUser'
+import { useNewProjectCount } from '@/hooks/useNewProjectCount'
 import { createClient } from '@/lib/supabase/supabaseClient'
 
 const navLinks = [
@@ -90,14 +91,23 @@ function MenuIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 function MobileNavItem({
   href,
   children,
+  notificationCount = 0,
 }: {
   href: string
   children: React.ReactNode
+  notificationCount?: number
 }) {
   return (
     <li>
       <PopoverButton as={Link} href={href} className="block py-1.5">
-        {children}
+        <span className="inline-flex items-center gap-2">
+          {children}
+          {notificationCount > 0 && (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-lg shadow-violet-500/30">
+              {notificationCount > 99 ? '99+' : notificationCount}
+            </span>
+          )}
+        </span>
       </PopoverButton>
     </li>
   )
@@ -110,7 +120,7 @@ function MobileNavigation({
   onSignOut,
   ...props
 }: React.ComponentPropsWithoutRef<typeof Popover> & {
-  links: NavLink[]
+  links: ResolvedNavLink[]
   user: NavbarAuthUser | null
   loading: boolean
   onSignOut: () => void
@@ -149,8 +159,8 @@ function MobileNavigation({
         </div>
         <nav className="mt-4">
           <ul className="-my-2 divide-y divide-zinc-100/5 text-sm text-zinc-300">
-            {links.map(({ href, label }) => (
-              <MobileNavItem key={href} href={href}>
+            {links.map(({ href, label, notificationCount }) => (
+              <MobileNavItem key={href} href={href} notificationCount={notificationCount}>
                 {label}
               </MobileNavItem>
             ))}
@@ -258,11 +268,13 @@ function NavItem({
   children,
   highlight = false,
   activeHash = '',
+  notificationCount = 0,
 }: {
   href: string
   children: React.ReactNode
   highlight?: boolean
   activeHash?: string
+  notificationCount?: number
 }) {
   const pathname = usePathname()
   const isActive = isNavLinkActive(pathname, href, activeHash)
@@ -281,6 +293,11 @@ function NavItem({
         )}
       >
         {children}
+        {notificationCount > 0 && (
+          <span className="absolute top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-violet-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-lg shadow-violet-500/30">
+            {notificationCount > 99 ? '99+' : notificationCount}
+          </span>
+        )}
         {isActive && !highlight && (
           <span className="absolute inset-x-1 -bottom-px h-px bg-linear-to-r from-violet-400/0 via-violet-400/40 to-violet-400/0" />
         )}
@@ -289,12 +306,14 @@ function NavItem({
   )
 }
 
+type ResolvedNavLink = NavLink & { notificationCount?: number }
+
 function DesktopNavigation({
   links,
   activeHash,
   ...props
 }: React.ComponentPropsWithoutRef<'nav'> & {
-  links: NavLink[]
+  links: ResolvedNavLink[]
   activeHash: string
 }) {
   return (
@@ -308,8 +327,8 @@ function DesktopNavigation({
           }}
         />
         <ul className="relative flex rounded-full bg-zinc-800/90 px-4 text-base font-medium text-zinc-200 backdrop-blur-sm 3xl:px-6 3xl:text-lg">
-          {links.map(({ href, label, highlight }) => (
-            <NavItem key={href} href={href} highlight={highlight} activeHash={activeHash}>
+          {links.map(({ href, label, highlight, notificationCount }) => (
+            <NavItem key={href} href={href} highlight={highlight} activeHash={activeHash} notificationCount={notificationCount}>
               {label}
             </NavItem>
           ))}
@@ -538,13 +557,16 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
     }
   }, [authAware, hasSessionHint, pathname])
 
-  const resolvedNavLinks = navLinks.map((link) =>
+  const newProjectCount = useNewProjectCount(isAuthenticated)
+
+  const resolvedNavLinks: ResolvedNavLink[] = navLinks.map((link) =>
     link.highlight
       ? {
           ...link,
           href: isAuthenticated ? '/portal' : '/login',
           label: isAuthenticated ? 'My Projects' : link.label,
           highlight: !isAuthenticated,
+          notificationCount: newProjectCount,
         }
       : link,
   )

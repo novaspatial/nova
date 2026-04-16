@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FadeIn, FadeInStagger } from '@/components/ui/FadeIn'
+import { markClientStatusesSeen } from '@/hooks/useNewProjectCount'
 import { ProjectCard } from './ProjectCard'
 import type { Project } from '@/types/portal'
 
@@ -92,6 +93,11 @@ export function ProjectList({
     if (!isStudio) return
     setSeenIds(getSeenIds())
   }, [isStudio])
+
+  useEffect(() => {
+    if (isStudio) return
+    markClientStatusesSeen(projects.map((p) => ({ id: p.id, status: p.status })))
+  }, [isStudio, projects])
 
   function handleOpened(id: string) {
     markSeen(id)
