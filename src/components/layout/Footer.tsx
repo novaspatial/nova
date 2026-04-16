@@ -10,7 +10,7 @@ const navigation = [
     links: [
       { title: 'About', href: '/about' },
       { title: 'Blog', href: '/blog' },
-      { title: 'Contact us', href: '/about' },
+      { title: 'Contact', href: '/about' },
     ],
   },
 ]

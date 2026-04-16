@@ -1,4 +1,4 @@
-import { type Metadata } from 'next'
+import { type Metadata, type Viewport } from 'next'
 import localFont from 'next/font/local'
 
 import '@/styles/tailwind.css'
@@ -89,6 +89,9 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   category: 'music',
+}
+
+export const viewport: Viewport = {
   themeColor: '#09090b',
 }
 
