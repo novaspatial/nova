@@ -35,22 +35,11 @@ export default async function CommentsPage({
 
   return (
     <FadeIn>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">
-            Timestamped Revisions
-          </h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Drop precise mix notes directly on the track timeline.
-          </p>
-        </div>
-
-        <ReviewTimeline
-          key={(comments as ProjectComment[])?.map((comment) => comment.id).join('|') || 'empty'}
-          projectId={projectId}
-          initialComments={(comments as ProjectComment[]) || []}
-        />
-      </div>
+      <ReviewTimeline
+        key={(comments as ProjectComment[])?.map((comment) => comment.id).join('|') || 'empty'}
+        projectId={projectId}
+        initialComments={(comments as ProjectComment[]) || []}
+      />
     </FadeIn>
   )
 }
