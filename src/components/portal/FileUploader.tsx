@@ -9,14 +9,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-
-export type FileUploadItem = {
-  id: string
-  file: File
-  progress: number
-  status: 'pending' | 'uploading' | 'uploaded' | 'syncing' | 'synced' | 'failed'
-  error?: string
-}
+import type { FileUploadItem } from '@/types/portal'
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

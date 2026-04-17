@@ -12,6 +12,14 @@ export type FileType = 'stem' | 'master_ref' | 'mix' | 'deliverable'
 
 export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'failed'
 
+export interface FileUploadItem {
+  id: string
+  file: File
+  progress: number
+  status: 'pending' | 'uploading' | 'uploaded' | 'syncing' | 'synced' | 'failed'
+  error?: string
+}
+
 export type DeliverableFormat = 'adm_bwf' | 'binaural_wav' | 'dolby_atmos_adm'
 
 export type UserRole = 'client' | 'studio'
