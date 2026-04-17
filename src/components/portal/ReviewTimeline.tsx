@@ -158,7 +158,7 @@ export function ReviewTimeline({
   )
 
   return (
-    <div className="space-y-6">
+    <div data-listen-comments className="space-y-6">
       {/* Comments list */}
       {comments.length > 0 ? (
         <div className="space-y-4 rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm sm:p-6">

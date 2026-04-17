@@ -146,7 +146,7 @@ function Thumb({
           onChangeStart?.()
         }}
         className={clsx(
-          'pointer-events-auto absolute top-0 left-1/2 h-[160%] -translate-x-1/2 translate-y-1/4 bg-violet-300 shadow-[0_0_6px_var(--color-violet-400)]',
+          'pointer-events-auto absolute top-0 left-1/2 h-[130%] -translate-x-1/2 translate-y-[38%] bg-violet-300 shadow-[0_0_6px_var(--color-violet-400)]',
           isFocusVisible || state.isThumbDragging(index) ? 'w-0.5' : 'w-px',
         )}
       >
@@ -177,7 +177,7 @@ export function Waveform(props: WaveformProps) {
     ...props,
     numberFormatter: props.numberFormatter as Intl.NumberFormat,
   })
-  const { groupProps, trackProps, labelProps, outputProps } = useSlider(
+  const { groupProps, trackProps, labelProps } = useSlider(
     props,
     state,
     trackRef,
@@ -260,16 +260,12 @@ export function Waveform(props: WaveformProps) {
     return result
   }, [displayPeaks, barCount])
 
-  const totalTime = parseTime(state.getThumbMaxValue(0))
   const isDragging = state.isThumbDragging(0)
   const displayProgress = isDragging
     ? state.getThumbPercent(0)
     : props.maxValue > 0
       ? Math.min(1, Math.max(0, props.progressSeconds / props.maxValue))
       : 0
-  const currentTime = parseTime(
-    Math.floor(isDragging ? state.getThumbValue(0) : props.progressSeconds),
-  )
   const playedBars = Math.round(displayProgress * barCount)
   const viewWidth = trackWidth || barCount * BAR_PITCH
   const isActive = isFocusVisible || isDragging
@@ -316,10 +312,7 @@ export function Waveform(props: WaveformProps) {
       <svg
         viewBox={`0 0 ${viewWidth} ${VIEW_HEIGHT}`}
         preserveAspectRatio="none"
-        className={clsx(
-          'block h-full w-full',
-          !peaksError && 'animate-pulse',
-        )}
+        className={clsx('block h-full w-full', !peaksError && 'animate-pulse')}
         aria-hidden="true"
       >
         {skeletonPeaks.map((peak, i) => {
@@ -352,7 +345,7 @@ export function Waveform(props: WaveformProps) {
   return (
     <div
       {...groupProps}
-      className="absolute inset-x-0 bottom-full flex flex-auto touch-none items-center gap-6 md:relative"
+      className="flex min-w-0 flex-1 touch-none items-center"
     >
       {props.label && (
         <label className="sr-only" {...labelProps}>
@@ -392,30 +385,18 @@ export function Waveform(props: WaveformProps) {
           displayPercent={displayProgress}
         />
       </div>
-      <div className="hidden items-center gap-2 md:flex">
-        <output
-          {...outputProps}
-          aria-live="off"
-          className={clsx(
-            'hidden rounded-md px-1 py-0.5 font-mono text-base/6 md:block',
-            state.getThumbMaxValue(0) === 0 && 'opacity-0',
-            isActive ? 'bg-white/10 text-white' : 'text-zinc-400',
-          )}
-        >
-          {formatTime(currentTime, totalTime)}
-        </output>
-        <span className="text-base/6 text-zinc-600" aria-hidden="true">
-          /
-        </span>
-        <span
-          className={clsx(
-            'hidden rounded-md px-1 py-0.5 font-mono text-base/6 text-zinc-500 md:block',
-            state.getThumbMaxValue(0) === 0 && 'opacity-0',
-          )}
-        >
-          {formatTime(totalTime)}
-        </span>
-      </div>
     </div>
   )
+}
+
+export function formatTrackTime(seconds: number, totalSeconds: number): string {
+  const safeSeconds = Math.max(
+    0,
+    Math.floor(Number.isFinite(seconds) ? seconds : 0),
+  )
+  const safeTotal = Math.max(
+    0,
+    Math.floor(Number.isFinite(totalSeconds) ? totalSeconds : 0),
+  )
+  return formatTime(parseTime(safeSeconds), parseTime(safeTotal))
 }

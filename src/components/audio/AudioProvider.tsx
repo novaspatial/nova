@@ -24,6 +24,7 @@ type AudioPlayerState = {
   duration: number
   currentTime: number
   mixedMusicFile: MixedMusicFile | null
+  loop: boolean
 }
 
 type AudioPlayerAPI = AudioPlayerState & {
@@ -36,6 +37,8 @@ type AudioPlayerAPI = AudioPlayerState & {
   playbackRate(rate: number): void
   setVolume(volume: number): void
   isPlaying(mixedMusicFile?: MixedMusicFile): boolean
+  setLoop(loop: boolean): void
+  toggleLoop(): void
   clear(): void
 }
 
@@ -46,6 +49,7 @@ type Action =
   | { type: 'SET_VOLUME'; payload: number }
   | { type: 'SET_CURRENT_TIME'; payload: number }
   | { type: 'SET_DURATION'; payload: number }
+  | { type: 'SET_LOOP'; payload: boolean }
 
 const AudioPlayerContext = createContext<AudioPlayerAPI | null>(null)
 
@@ -66,6 +70,8 @@ function audioReducer(
       return { ...state, currentTime: action.payload }
     case 'SET_DURATION':
       return { ...state, duration: action.payload }
+    case 'SET_LOOP':
+      return { ...state, loop: action.payload }
   }
 }
 
@@ -100,6 +106,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     duration: 0,
     currentTime: 0,
     mixedMusicFile: null,
+    loop: false,
   })
   const playerRef = useRef<HTMLAudioElement>(null)
 
@@ -179,7 +186,9 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     const toggle = (file?: MixedMusicFile) => {
       const current = file || state.mixedMusicFile
-      return isPlaying(current ?? undefined) ? pause() : play(current ?? undefined)
+      return isPlaying(current ?? undefined)
+        ? pause()
+        : play(current ?? undefined)
     }
 
     return {
@@ -211,18 +220,30 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_VOLUME', payload: nextVolume })
       },
       isPlaying,
+      setLoop(loop: boolean) {
+        dispatch({ type: 'SET_LOOP', payload: loop })
+      },
+      toggleLoop() {
+        dispatch({ type: 'SET_LOOP', payload: !state.loop })
+      },
       clear() {
         dispatch({ type: 'SET_META', payload: null })
         playerRef.current?.pause()
       },
     }
-  }, [state.playing, state.mixedMusicFile])
+  }, [state.playing, state.mixedMusicFile, state.loop])
 
   useEffect(() => {
     if (playerRef.current) {
       playerRef.current.volume = state.volume
     }
   }, [state.volume])
+
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.loop = state.loop
+    }
+  }, [state.loop])
 
   const api = useMemo(
     () => ({ ...state, muted: state.volume === 0, ...actions }),

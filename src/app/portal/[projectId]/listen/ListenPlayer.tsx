@@ -23,13 +23,7 @@ type AudioFile = {
   signedUrl: string | null
 }
 
-function FileRow({
-  file,
-  isActive,
-}: {
-  file: AudioFile
-  isActive: boolean
-}) {
+function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
   const mixedMusicFile: MixedMusicFile = useMemo(
     () => ({
       id: file.id,
@@ -100,15 +94,17 @@ export function ListenPlayer({
       {/* Format indicator */}
       {format === 'both' && (
         <p className="text-xs text-zinc-500">
-          Formats available:{' '}
-          <span className="text-zinc-300">Dolby Atmos</span> and{' '}
-          <span className="text-zinc-300">Binaural</span>
+          Formats available: <span className="text-zinc-300">Dolby Atmos</span>{' '}
+          and <span className="text-zinc-300">Binaural</span>
         </p>
       )}
 
       {/* File list */}
-      <div className="space-y-1 rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+      <div
+        data-listen-tracks
+        className="space-y-1 rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm"
+      >
+        <p className="mb-3 text-xs font-medium tracking-wider text-zinc-500 uppercase">
           Tracks
         </p>
         {playableFiles.map((file) => (

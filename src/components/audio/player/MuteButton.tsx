@@ -9,7 +9,7 @@ function VolumeIcon({
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      strokeWidth="2"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       {...props}
@@ -68,24 +68,24 @@ export function MuteButton({ player }: { player: AudioPlayerAPI }) {
   }, [isOpen])
 
   return (
-    <div ref={wrapperRef} className="relative md:order-first">
+    <div ref={wrapperRef} className="relative">
       <button
         type="button"
-        className="group relative rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+        className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
         onClick={() => setIsOpen((open) => !open)}
         aria-label="Adjust volume"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
-        <div className="absolute -inset-4 md:hidden" />
+        <div className="absolute -inset-2 md:hidden" />
         <VolumeIcon
           volume={player.volume}
-          className="size-8 fill-zinc-400 stroke-zinc-400 group-hover:fill-white group-hover:stroke-white"
+          className="size-5 fill-current stroke-current"
         />
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-1/2 mb-3 flex w-16 -translate-x-1/2 flex-col items-center rounded-2xl border border-white/10 bg-zinc-900/95 px-3 py-4 shadow-lg shadow-black/30 ring-1 ring-white/10 backdrop-blur-sm">
+        <div className="absolute bottom-full left-1/2 mb-3 flex w-16 -translate-x-1/2 flex-col items-center rounded-2xl border border-white/10 bg-zinc-900/95 px-3 py-4 shadow-lg ring-1 shadow-black/30 ring-white/10 backdrop-blur-sm">
           <span className="text-xs text-zinc-400">{volumePercent}%</span>
           <div className="my-4 flex h-28 items-center justify-center">
             <input
@@ -101,7 +101,7 @@ export function MuteButton({ player }: { player: AudioPlayerAPI }) {
               className="h-2 w-24 -rotate-90 cursor-pointer appearance-none rounded-full bg-white/10 accent-violet-500"
             />
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+          <span className="text-[10px] font-medium tracking-[0.2em] text-zinc-500 uppercase">
             Volume
           </span>
         </div>

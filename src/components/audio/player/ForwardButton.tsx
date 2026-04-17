@@ -10,7 +10,12 @@ function ForwardIcon(props: SVGProps<SVGSVGElement>) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M13 15V19" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M13 15V19"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path
         d="M16 18V16C16 15.4477 16.4477 15 17 15H18C18.5523 15 19 15.4477 19 16V18C19 18.5523 18.5523 19 18 19H17C16.4477 19 16 18.5523 16 18Z"
         strokeWidth="1.5"
@@ -31,12 +36,12 @@ export function ForwardButton({
   return (
     <button
       type="button"
-      className="group relative rounded-full focus:outline-none"
+      className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
       onClick={() => player.seekBy(amount)}
       aria-label={`Fast-forward ${amount} seconds`}
     >
-      <div className="absolute -inset-4 -left-2 md:hidden" />
-      <ForwardIcon className="size-6 stroke-zinc-400 group-hover:stroke-white" />
+      <div className="absolute -inset-2 md:hidden" />
+      <ForwardIcon className="size-5 stroke-current" />
     </button>
   )
 }

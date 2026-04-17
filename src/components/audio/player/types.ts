@@ -6,6 +6,7 @@ export type AudioPlayerAPI = {
   volume: number
   duration: number
   currentTime: number
+  loop: boolean
   mixedMusicFile: MixedMusicFile | null
   play(): void
   pause(): void
@@ -14,6 +15,8 @@ export type AudioPlayerAPI = {
   seek(time: number): void
   playbackRate(rate: number): void
   setVolume(volume: number): void
+  setLoop(loop: boolean): void
+  toggleLoop(): void
   isPlaying(file?: MixedMusicFile): boolean
   clear(): void
 }

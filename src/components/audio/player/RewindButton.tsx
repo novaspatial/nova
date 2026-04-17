@@ -29,12 +29,12 @@ export function RewindButton({
   return (
     <button
       type="button"
-      className="group relative rounded-full focus:outline-none"
+      className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
       onClick={() => player.seekBy(-amount)}
       aria-label={`Rewind ${amount} seconds`}
     >
-      <div className="absolute -inset-4 -right-2 md:hidden" />
-      <RewindIcon className="size-6 stroke-zinc-400 group-hover:stroke-white" />
+      <div className="absolute -inset-2 md:hidden" />
+      <RewindIcon className="size-5 stroke-current" />
     </button>
   )
 }
