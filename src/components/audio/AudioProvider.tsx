@@ -23,8 +23,8 @@ type AudioPlayerState = {
   volume: number
   duration: number
   currentTime: number
-  mixedMusicFile: MixedMusicFile | null
   loop: boolean
+  mixedMusicFile: MixedMusicFile | null
 }
 
 type AudioPlayerAPI = AudioPlayerState & {
@@ -36,9 +36,9 @@ type AudioPlayerAPI = AudioPlayerState & {
   seek(time: number): void
   playbackRate(rate: number): void
   setVolume(volume: number): void
-  isPlaying(mixedMusicFile?: MixedMusicFile): boolean
   setLoop(loop: boolean): void
   toggleLoop(): void
+  isPlaying(mixedMusicFile?: MixedMusicFile): boolean
   clear(): void
 }
 
@@ -105,8 +105,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     volume: 1,
     duration: 0,
     currentTime: 0,
-    mixedMusicFile: null,
     loop: false,
+    mixedMusicFile: null,
   })
   const playerRef = useRef<HTMLAudioElement>(null)
 
@@ -139,6 +139,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
           newSrc.includes(getUrlPath(currentSrc)))
 
       if ((isSameById || isSameByUrl) && playerRef.current) {
+        // Restore meta after clear() if the same track is reopened
+        if (!state.mixedMusicFile) {
+          dispatch({ type: 'SET_META', payload: current })
+        }
         playerRef.current.play().catch(() => {})
         return
       }
@@ -219,13 +223,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
         dispatch({ type: 'SET_VOLUME', payload: nextVolume })
       },
-      isPlaying,
       setLoop(loop: boolean) {
         dispatch({ type: 'SET_LOOP', payload: loop })
       },
       toggleLoop() {
         dispatch({ type: 'SET_LOOP', payload: !state.loop })
       },
+      isPlaying,
       clear() {
         dispatch({ type: 'SET_META', payload: null })
         playerRef.current?.pause()
