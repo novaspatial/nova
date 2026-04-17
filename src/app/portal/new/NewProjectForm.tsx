@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
+import { FileUploader } from '@/components/portal'
+import type { FileUploadItem } from '@/types/portal'
+import { uploadFile } from '@/lib/portal/uploadFile'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
@@ -55,11 +57,11 @@ export function NewProjectForm() {
         })
 
         if (!projectRes.ok) {
-          const data = await projectRes.json()
+          const data = await projectRes.json() as { error?: string }
           throw new Error(data.error || 'Failed to create project')
         }
 
-        const { id: projectId } = await projectRes.json()
+        const { id: projectId } = await projectRes.json() as { id: string }
 
         // 2. Upload each file (continue on per-file errors, collect failures)
         let failureCount = 0
@@ -88,35 +90,18 @@ export function NewProjectForm() {
             )
 
             if (!registerRes.ok) {
-              const data = await registerRes.json().catch(() => ({}))
+              const data = await registerRes.json().catch(() => ({})) as { error?: string }
               throw new Error(data.error || 'Failed to register file')
             }
-            const { fileId, uploadUrl } = await registerRes.json()
+            const { fileId, uploadUrl } = await registerRes.json() as { fileId: string; uploadUrl: string }
 
             // Upload to storage
-            await new Promise<void>((resolve, reject) => {
-              const xhr = new XMLHttpRequest()
-              xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                  const progress = Math.round((e.loaded / e.total) * 100)
-                  setFiles((prev) =>
-                    prev.map((f) =>
-                      f.id === item.id ? { ...f, progress } : f,
-                    ),
-                  )
-                }
-              }
-              xhr.onload = () =>
-                xhr.status >= 200 && xhr.status < 300
-                  ? resolve()
-                  : reject(new Error(`Upload failed with status ${xhr.status}`))
-              xhr.onerror = () => reject(new Error('Network error during upload'))
-              xhr.open('PUT', uploadUrl)
-              xhr.setRequestHeader(
-                'Content-Type',
-                item.file.type || 'audio/x-wav',
+            await uploadFile(item.file, uploadUrl, (progress) => {
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.id === item.id ? { ...f, progress } : f,
+                ),
               )
-              xhr.send(item.file)
             })
 
             setFiles((prev) =>
