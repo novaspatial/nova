@@ -8,7 +8,8 @@ import { ForwardButton } from '@/components/audio/player/ForwardButton'
 import { MuteButton } from '@/components/audio/player/MuteButton'
 import { PlayButton } from '@/components/audio/player/PlayButton'
 import { RewindButton } from '@/components/audio/player/RewindButton'
-import { Slider, formatHumanTime } from '@/components/audio/player/Slider'
+import { formatHumanTime } from '@/components/audio/player/Slider'
+import { Waveform } from '@/components/audio/player/Waveform'
 
 export function AudioPlayer() {
   const player = useAudioPlayer()
@@ -17,10 +18,32 @@ export function AudioPlayer() {
   const [currentTime, setCurrentTime] = useState<number | null>(
     player.currentTime,
   )
+  const [smoothTime, setSmoothTime] = useState(player.currentTime)
 
   useEffect(() => {
     setCurrentTime(null)
   }, [player.currentTime])
+
+  useEffect(() => {
+    setSmoothTime(player.currentTime)
+    if (!player.playing) return
+    let rafId = 0
+    const baseTime = player.currentTime
+    const baseWall =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const tick = () => {
+      const now =
+        typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const elapsed = (now - baseWall) / 1000
+      const next = baseTime + elapsed
+      setSmoothTime(
+        player.duration > 0 ? Math.min(next, player.duration) : next,
+      )
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [player.playing, player.currentTime, player.duration])
 
   if (!player.mixedMusicFile) {
     return null
@@ -49,11 +72,13 @@ export function AudioPlayer() {
             </div>
             <ForwardButton player={player} />
           </div>
-          <Slider
+          <Waveform
             label="Current time"
+            src={player.mixedMusicFile.audio.src}
             maxValue={player.duration}
-            step={1}
+            step={0.01}
             value={[currentTime ?? player.currentTime]}
+            progressSeconds={currentTime ?? smoothTime}
             onChange={([value]) => setCurrentTime(value)}
             onChangeEnd={([value]) => {
               player.seek(value)

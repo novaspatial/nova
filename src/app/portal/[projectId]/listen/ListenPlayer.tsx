@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   MusicalNoteIcon,
   PlayIcon,
@@ -12,6 +12,7 @@ import {
   useAudioPlayer,
   type MixedMusicFile,
 } from '@/components/audio/AudioProvider'
+import { prefetchWaveformPeaks } from '@/components/audio/player/Waveform'
 
 type Format = 'atmos' | 'binaural' | 'both'
 
@@ -70,6 +71,14 @@ export function ListenPlayer({
 }) {
   const player = useAudioPlayer()
   const playableFiles = audioFiles.filter((f) => f.signedUrl)
+  const prefetchKey = playableFiles.map((f) => f.signedUrl).join('|')
+
+  useEffect(() => {
+    for (const file of playableFiles) {
+      prefetchWaveformPeaks(file.signedUrl)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefetchKey])
 
   if (playableFiles.length === 0) {
     return (

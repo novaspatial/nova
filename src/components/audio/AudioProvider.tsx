@@ -241,7 +241,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         onTimeUpdate={(event) => {
           dispatch({
             type: 'SET_CURRENT_TIME',
-            payload: Math.floor(event.currentTarget.currentTime),
+            payload: event.currentTarget.currentTime,
           })
         }}
         onDurationChange={(event) => {
