@@ -1,53 +1,16 @@
 'use client'
 
 import type { ProjectStatus } from '@/types/portal'
-
-const statusConfig: Record<
-  ProjectStatus,
-  { label: string; className: string }
-> = {
-  uploading: {
-    label: 'Uploading',
-    className: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-  },
-  in_review: {
-    label: 'In Review',
-    className: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-  },
-  processing: {
-    label: 'Mixing',
-    className: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-  },
-  mixing: {
-    label: 'Mixing',
-    className: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-  },
-  review: {
-    label: 'Mix Available',
-    className: 'bg-purple-500/10 text-purple-300 border-purple-500/20',
-  },
-  revision: {
-    label: 'Revision',
-    className: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-  },
-  approved: {
-    label: 'Approved',
-    className: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-  },
-  delivered: {
-    label: 'Delivered',
-    className: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-  },
-}
+import { getStatusDisplay } from '@/lib/portal/workflow'
 
 export function StatusBadge({ status }: { status: ProjectStatus }) {
-  const config = statusConfig[status]
+  const { label, color } = getStatusDisplay(status)
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${config.className}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${color}`}
     >
-      {config.label}
+      {label}
     </span>
   )
 }

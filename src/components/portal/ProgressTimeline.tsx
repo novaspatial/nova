@@ -9,6 +9,7 @@ import {
 import { CheckIcon } from '@heroicons/react/24/solid'
 import clsx from 'clsx'
 import type { ProjectStatus } from '@/types/portal'
+import { getProgressStage } from '@/lib/portal/workflow'
 
 const timelineSteps = [
   { key: 'uploaded', label: 'Uploaded', icon: ArrowUpTrayIcon },
@@ -19,23 +20,12 @@ const timelineSteps = [
 
 type TimelineStep = (typeof timelineSteps)[number]['key']
 
-const statusToStep: Record<ProjectStatus, TimelineStep> = {
-  uploading: 'uploaded',
-  in_review: 'uploaded',
-  processing: 'in_progress',
-  mixing: 'in_progress',
-  review: 'mixed',
-  revision: 'mixed',
-  approved: 'complete',
-  delivered: 'complete',
-}
-
 function getStepIndex(step: TimelineStep) {
   return timelineSteps.findIndex((s) => s.key === step)
 }
 
 export function ProgressTimeline({ status }: { status: ProjectStatus }) {
-  const currentStep = statusToStep[status]
+  const currentStep = getProgressStage(status)
   const currentIndex = getStepIndex(currentStep)
 
   return (
