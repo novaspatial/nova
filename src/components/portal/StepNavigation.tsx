@@ -9,7 +9,8 @@ import {
   CheckIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline'
-import type { ProjectStatus } from '@/types/portal'
+import { getUnlockedSteps } from '@/lib/portal/workflow'
+import { useProject } from '@/components/portal/ProjectContext'
 import clsx from 'clsx'
 
 const steps = [
@@ -32,39 +33,10 @@ const steps = [
 
 type StepKey = (typeof steps)[number]['key']
 
-const unlockedSteps: Record<ProjectStatus, StepKey[]> = {
-  uploading: ['upload'],
-  in_review: ['upload'],
-  processing: ['upload'],
-  mixing: ['upload'],
-  review: ['upload', 'listen'],
-  revision: ['upload', 'listen'],
-  approved: ['upload', 'listen', 'deliver'],
-  delivered: ['upload', 'listen', 'deliver'],
-}
-
-const studioUnlockedSteps: Record<ProjectStatus, StepKey[]> = {
-  uploading: ['upload'],
-  in_review: ['upload'],
-  processing: ['upload'],
-  mixing: ['upload'],
-  review: ['upload', 'listen', 'deliver'],
-  revision: ['upload', 'listen', 'deliver'],
-  approved: ['upload', 'listen', 'deliver'],
-  delivered: ['upload', 'listen', 'deliver'],
-}
-
-export function StepNavigation({
-  projectId,
-  status,
-  isStudio = false,
-}: {
-  projectId: string
-  status: ProjectStatus
-  isStudio?: boolean
-}) {
+export function StepNavigation() {
+  const { projectId, projectStatus: status, isStudio } = useProject()
   const pathname = usePathname()
-  const allowed = isStudio ? studioUnlockedSteps[status] : unlockedSteps[status]
+  const allowed = getUnlockedSteps(status, isStudio ? 'studio' : 'client') as StepKey[]
 
   return (
     <nav className="flex gap-1 rounded-2xl border border-white/10 bg-white/2 p-1.5 backdrop-blur-sm sm:gap-2 sm:p-2">
