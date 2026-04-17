@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
+import { FileUploader } from '@/components/portal/FileUploader'
+import { useProject } from '@/components/portal/ProjectContext'
+import { useFileUpload } from '@/hooks/useFileUpload'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import type { Deliverable, DeliverableFormat, ProjectStatus } from '@/types/portal'
 import {
@@ -56,7 +58,7 @@ function DeliverableCard({
         `/api/portal/projects/${projectId}/deliverables/${deliverable.id}/download`,
       )
       if (!res.ok) throw new Error('Failed to get download URL')
-      const { url } = await res.json()
+      const { url } = await res.json() as { url: string }
       window.open(url, '_blank')
     } catch {
       // Could add error toast
@@ -153,150 +155,18 @@ function Toast({ message, onDismiss }: { message: string; onDismiss: () => void 
   )
 }
 
-function StudioDeliverableUploader({
-  projectId,
-}: {
-  projectId: string
-}) {
-  const router = useRouter()
-  const [files, setFiles] = useState<FileUploadItem[]>([])
-  const [uploading, setUploading] = useState(false)
-
-  const handleFilesAdded = useCallback((newFiles: File[]) => {
-    const items: FileUploadItem[] = newFiles.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      progress: 0,
-      status: 'pending',
-    }))
-    setFiles((prev) => [...prev, ...items])
-  }, [])
-
-  const handleRemove = useCallback((id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id))
-  }, [])
-
-  const handleUploadAll = useCallback(async () => {
-    if (files.length === 0) return
-    setUploading(true)
-    const syncedFileIds: string[] = []
-
-    for (const item of files) {
-      if (item.status !== 'pending') continue
-
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === item.id ? { ...f, status: 'uploading' as const } : f,
-        ),
-      )
-
-      try {
-        const registerRes = await fetch(
-          `/api/portal/projects/${projectId}/deliverables`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: item.file.name,
-              fileSize: item.file.size,
-            }),
-          },
-        )
-
-        if (!registerRes.ok) {
-          const errorData = await registerRes.json().catch(() => ({}))
-          throw new Error(errorData.error || 'Failed to register deliverable')
-        }
-
-        const { uploadUrl } = await registerRes.json()
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const progress = Math.round((e.loaded / e.total) * 100)
-              setFiles((prev) =>
-                prev.map((f) => (f.id === item.id ? { ...f, progress } : f)),
-              )
-            }
-          }
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve()
-            } else {
-              reject(new Error(`Upload failed: ${xhr.status}`))
-            }
-          }
-          xhr.onerror = () => reject(new Error('Upload failed'))
-          xhr.open('PUT', uploadUrl)
-          xhr.setRequestHeader(
-            'Content-Type',
-            item.file.type || 'application/octet-stream',
-          )
-          xhr.send(item.file)
-        })
-
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id
-              ? { ...f, status: 'synced' as const, progress: 100 }
-              : f,
-          ),
-        )
-        syncedFileIds.push(item.id)
-      } catch (err) {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id
-              ? {
-                  ...f,
-                  status: 'failed' as const,
-                  error: err instanceof Error ? err.message : 'Upload failed',
-                }
-              : f,
-          ),
-        )
-      }
-    }
-
-    if (syncedFileIds.length > 0) {
-      setFiles((prev) => prev.filter((f) => !syncedFileIds.includes(f.id)))
-    }
-
-    setUploading(false)
-    router.refresh()
-  }, [files, projectId, router])
-
-  useEffect(() => {
-    if (uploading) return
-    if (!files.some((f) => f.status === 'pending')) return
-    void handleUploadAll()
-  }, [files, uploading, handleUploadAll])
-
-  return (
-    <FileUploader
-      files={files}
-      onFilesAdded={handleFilesAdded}
-      onRemove={handleRemove}
-      disabled={uploading}
-    />
-  )
-}
 
 export function DeliverableList({
-  projectId,
   deliverables: initialDeliverables,
-  isStudio,
   isApproved,
-  projectStatus,
 }: {
-  projectId: string
   deliverables: Deliverable[]
-  isStudio: boolean
   isApproved: boolean
-  projectStatus: ProjectStatus
 }) {
+  const { projectId, isStudio, projectStatus } = useProject()
   const router = useRouter()
+  const refreshOnComplete = useCallback(() => router.refresh(), [router])
+  const deliverableUpload = useFileUpload({ projectId, fileType: 'deliverable', onComplete: refreshOnComplete })
   const [deliverables, setDeliverables] = useState(initialDeliverables)
   const [approving, setApproving] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
@@ -346,7 +216,7 @@ export function DeliverableList({
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
+        const data = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(data.error || `Failed to set status to ${status}`)
       }
 
@@ -397,7 +267,12 @@ export function DeliverableList({
               Upload final master files for the client to download.
             </p>
           </div>
-          <StudioDeliverableUploader projectId={projectId} />
+          <FileUploader
+            files={deliverableUpload.files}
+            onFilesAdded={deliverableUpload.addFiles}
+            onRemove={deliverableUpload.removeFile}
+            disabled={deliverableUpload.uploading}
+          />
         </div>
       )}
 

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileUploader, type FileUploadItem } from '@/components/portal/FileUploader'
+import { FileUploader } from '@/components/portal/FileUploader'
+import { useProject } from '@/components/portal/ProjectContext'
+import { useFileUpload } from '@/hooks/useFileUpload'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import type { ProjectFile, ProjectStatus } from '@/types/portal'
 import {
@@ -32,147 +34,6 @@ const statusIcon: Record<string, React.ReactNode> = {
   pending: <DocumentIcon className="size-5 text-zinc-500" />,
 }
 
-function useFileUpload(
-  projectId: string,
-  fileType: string,
-  onUploadComplete?: () => void,
-) {
-  const [newFiles, setNewFiles] = useState<FileUploadItem[]>([])
-  const [uploading, setUploading] = useState(false)
-
-  const handleFilesAdded = useCallback((files: File[]) => {
-    const items: FileUploadItem[] = files.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      progress: 0,
-      status: 'pending',
-    }))
-    setNewFiles((prev) => [...prev, ...items])
-  }, [])
-
-  const handleRemove = useCallback((id: string) => {
-    setNewFiles((prev) => prev.filter((f) => f.id !== id))
-  }, [])
-
-  const handleUploadAll = useCallback(async () => {
-    if (newFiles.length === 0) return false
-    setUploading(true)
-    const syncedFileIds: string[] = []
-
-    for (const item of newFiles) {
-      if (item.status !== 'pending') continue
-
-      setNewFiles((prev) =>
-        prev.map((f) =>
-          f.id === item.id ? { ...f, status: 'uploading' as const } : f,
-        ),
-      )
-
-      try {
-        const registerRes = await fetch(
-          `/api/portal/projects/${projectId}/files`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: item.file.name,
-              fileSize: item.file.size,
-              mimeType: item.file.type || 'audio/x-wav',
-              fileType,
-            }),
-          },
-        )
-
-        if (!registerRes.ok) {
-          const errorData = await registerRes.json().catch(() => ({}))
-          throw new Error(errorData.error || 'Failed to register file')
-        }
-
-        const { fileId, uploadUrl } = await registerRes.json()
-
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const progress = Math.round((e.loaded / e.total) * 100)
-              setNewFiles((prev) =>
-                prev.map((f) => (f.id === item.id ? { ...f, progress } : f)),
-              )
-            }
-          }
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve()
-            } else {
-              reject(new Error(`Upload failed: ${xhr.status}`))
-            }
-          }
-          xhr.onerror = () => reject(new Error('Upload failed'))
-          xhr.open('PUT', uploadUrl)
-          xhr.setRequestHeader('Content-Type', item.file.type || 'audio/x-wav')
-          xhr.send(item.file)
-        })
-
-        setNewFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id
-              ? { ...f, status: 'uploaded' as const, progress: 100 }
-              : f,
-          ),
-        )
-
-        const confirmRes = await fetch(
-          `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
-          { method: 'POST' },
-        )
-
-        if (!confirmRes.ok) {
-          throw new Error('Failed to confirm upload')
-        }
-
-        setNewFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id ? { ...f, status: 'synced' as const } : f,
-          ),
-        )
-        syncedFileIds.push(item.id)
-      } catch (err) {
-        setNewFiles((prev) =>
-          prev.map((f) =>
-            f.id === item.id
-              ? {
-                  ...f,
-                  status: 'failed' as const,
-                  error: err instanceof Error ? err.message : 'Upload failed',
-                }
-              : f,
-          ),
-        )
-      }
-    }
-
-    if (syncedFileIds.length > 0) {
-      setNewFiles((prev) => prev.filter((f) => !syncedFileIds.includes(f.id)))
-    }
-
-    setUploading(false)
-
-    if (syncedFileIds.length > 0) {
-      onUploadComplete?.()
-    }
-
-    return syncedFileIds.length > 0
-  }, [newFiles, projectId, fileType, onUploadComplete])
-
-  useEffect(() => {
-    if (uploading) return
-    if (!newFiles.some((file) => file.status === 'pending')) return
-
-    void handleUploadAll()
-  }, [newFiles, uploading, handleUploadAll])
-
-  return { newFiles, uploading, handleFilesAdded, handleRemove, handleUploadAll }
-}
 
 function FileList({
   files,
@@ -198,7 +59,7 @@ function FileList({
         `/api/portal/projects/${projectId}/files/${file.id}/download`,
       )
       if (!res.ok) throw new Error('Failed to get download URL')
-      const { url } = await res.json()
+      const { url } = await res.json() as { url: string }
       const a = document.createElement('a')
       a.href = url
       a.download = file.file_name
@@ -288,20 +149,15 @@ function FileList({
 }
 
 export function UploadManager({
-  projectId,
   existingFiles: initialFiles,
   isReadOnly,
-  isStudio = false,
   studioCanUploadMix = false,
-  projectStatus,
 }: {
-  projectId: string
   existingFiles: ProjectFile[]
   isReadOnly: boolean
-  isStudio?: boolean
   studioCanUploadMix?: boolean
-  projectStatus: ProjectStatus
 }) {
+  const { projectId, isStudio, projectStatus } = useProject()
   const router = useRouter()
   const [files, setFiles] = useState(initialFiles)
   const [currentStatus, setCurrentStatus] = useState(projectStatus)
@@ -319,8 +175,8 @@ export function UploadManager({
     router.refresh()
   }, [router])
 
-  const clientUpload = useFileUpload(projectId, 'stem', refreshProject)
-  const mixUpload = useFileUpload(projectId, 'mix', refreshProject)
+  const clientUpload = useFileUpload({ projectId, fileType: 'stem', onComplete: refreshProject })
+  const mixUpload = useFileUpload({ projectId, fileType: 'mix', onComplete: refreshProject })
 
   const stemFiles = files.filter((f) => f.file_type === 'stem' || f.file_type === 'master_ref')
   const mixFiles = files.filter((f) => f.file_type === 'mix')
@@ -338,7 +194,7 @@ export function UploadManager({
         body: JSON.stringify({ status }),
       })
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
+        const data = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(data.error || 'Failed to update project status.')
       }
 
@@ -368,7 +224,7 @@ export function UploadManager({
       })
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
+        const data = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(data.error || 'Failed to submit project. Please try again.')
       }
 
@@ -398,9 +254,9 @@ export function UploadManager({
         {!isReadOnly && !isStudio && (
           <>
             <FileUploader
-              files={clientUpload.newFiles}
-              onFilesAdded={clientUpload.handleFilesAdded}
-              onRemove={clientUpload.handleRemove}
+              files={clientUpload.files}
+              onFilesAdded={clientUpload.addFiles}
+              onRemove={clientUpload.removeFile}
               disabled={clientUpload.uploading}
             />
           </>
@@ -411,7 +267,7 @@ export function UploadManager({
         )}
 
         {/* Client finish upload */}
-        {!isReadOnly && !isStudio && stemFiles.length > 0 && clientUpload.newFiles.length === 0 && (
+        {!isReadOnly && !isStudio && stemFiles.length > 0 && clientUpload.files.length === 0 && (
           <div className="flex flex-col items-center border-t border-white/10 pt-4 text-center">
             <p className="mb-4 text-sm text-zinc-400">
               Once all your stems and references are uploaded, lock the project to begin the mixing process.
@@ -488,14 +344,14 @@ export function UploadManager({
           {(studioCanUploadMix || ['processing', 'mixing', 'review', 'revision'].includes(currentStatus)) && currentStatus !== 'in_review' && (
             <>
               <FileUploader
-                files={mixUpload.newFiles}
-                onFilesAdded={mixUpload.handleFilesAdded}
-                onRemove={mixUpload.handleRemove}
+                files={mixUpload.files}
+                onFilesAdded={mixUpload.addFiles}
+                onRemove={mixUpload.removeFile}
                 disabled={mixUpload.uploading}
               />
 
               {/* Status transition buttons */}
-              {mixFiles.length > 0 && mixUpload.newFiles.length === 0 && ['in_review', 'processing', 'mixing', 'revision'].includes(currentStatus) && (
+              {mixFiles.length > 0 && mixUpload.files.length === 0 && ['in_review', 'processing', 'mixing', 'revision'].includes(currentStatus) && (
                 <div className="flex flex-wrap justify-center gap-3 pt-4">
                   {studioActionError && (
                     <p className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
