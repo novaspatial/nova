@@ -1,4 +1,4 @@
-import { DeliverPageLoading } from '@/components/portal/PortalLoading'
+import { DeliverPageLoading } from '@/components/portal'
 
 export default function Loading() {
   return <DeliverPageLoading />

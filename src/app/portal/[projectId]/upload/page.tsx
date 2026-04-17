@@ -1,7 +1,6 @@
 import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
-import { ProgressTimeline } from '@/components/portal/ProgressTimeline'
-import { UploadManager } from '@/components/portal/UploadManager'
+import { ProgressTimeline, UploadManager } from '@/components/portal'
 import {
   getProjectOrNotFound,
   requirePageProfile,
@@ -96,12 +95,9 @@ export default async function UploadPage({
 
         <UploadManager
           key={`${status}-${files?.length ?? 0}`}
-          projectId={projectId}
           existingFiles={(files as ProjectFile[]) || []}
           isReadOnly={isClientReadOnly}
-          isStudio={isStudio}
           studioCanUploadMix={studioCanUploadMix}
-          projectStatus={status}
         />
       </div>
     </FadeIn>

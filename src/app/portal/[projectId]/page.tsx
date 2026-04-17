@@ -4,17 +4,7 @@ import {
   requirePageProfile,
 } from '@/lib/auth/server'
 import type { ProjectStatus } from '@/types/portal'
-
-const statusToStep: Record<ProjectStatus, string> = {
-  uploading: 'upload',
-  in_review: 'upload',
-  processing: 'upload',
-  mixing: 'upload',
-  review: 'comments',
-  revision: 'comments',
-  approved: 'deliver',
-  delivered: 'deliver',
-}
+import { getStepForStatus } from '@/lib/portal/workflow'
 
 export default async function ProjectPage({
   params,
@@ -30,6 +20,6 @@ export default async function ProjectPage({
     profile?.role,
   )
 
-  const step = statusToStep[project.status as ProjectStatus] || 'upload'
+  const step = getStepForStatus(project.status as ProjectStatus)
   redirect(`/portal/${projectId}/${step}`)
 }

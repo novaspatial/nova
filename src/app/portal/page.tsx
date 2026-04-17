@@ -1,6 +1,6 @@
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
-import { ProjectList } from '@/components/portal/ProjectList'
+import { ProjectList } from '@/components/portal'
 import { requirePageProfile } from '@/lib/auth/server'
 import type { Project } from '@/types/portal'
 

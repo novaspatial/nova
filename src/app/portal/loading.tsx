@@ -1,4 +1,4 @@
-import { PortalDashboardLoading } from '@/components/portal/PortalLoading'
+import { PortalDashboardLoading } from '@/components/portal'
 
 export default function Loading() {
   return <PortalDashboardLoading />

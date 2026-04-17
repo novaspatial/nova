@@ -1,6 +1,6 @@
 import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
-import { ReviewTimeline } from '@/components/portal/ReviewTimeline'
+import { ReviewTimeline } from '@/components/portal'
 import {
   getProjectOrNotFound,
   requirePageProfile,
