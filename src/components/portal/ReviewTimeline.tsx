@@ -143,7 +143,7 @@ export function ReviewTimeline({
 
         if (!res.ok) throw new Error('Failed to post comment')
 
-        const newComment = await res.json()
+        const newComment = await res.json() as ProjectComment
         setComments((prev) => [...prev, newComment])
         setBody('')
         setTimestampInput('')
