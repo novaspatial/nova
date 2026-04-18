@@ -117,6 +117,8 @@ export default async function ListenPage({
           key={commentsWithAttachments.map((comment) => comment.id).join('|') || 'empty'}
           projectId={projectId}
           initialComments={commentsWithAttachments}
+          currentUserId={profile?.id ?? null}
+          currentRole={profile?.role ?? null}
         />
       </div>
     </FadeIn>

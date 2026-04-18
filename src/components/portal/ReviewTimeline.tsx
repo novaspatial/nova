@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ProjectComment, ProjectCommentAttachment } from '@/types/portal'
+import type {
+  ProjectComment,
+  ProjectCommentAttachment,
+  UserRole,
+} from '@/types/portal'
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -15,9 +19,11 @@ import {
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
   PaperClipIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useAudioPlayer } from '@/components/audio/AudioProvider'
+import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import { uploadFile } from '@/lib/portal/uploadFile'
 
 const COLLAPSE_REPLY_THRESHOLD = 3
@@ -209,10 +215,12 @@ function CommentBubble({
   comment,
   onSeek,
   onReply,
+  onDelete,
 }: {
   comment: ProjectComment
   onSeek?: (ms: number) => void
   onReply?: () => void
+  onDelete?: () => void
 }) {
   const isStudio = comment.author?.role === 'studio'
   const initial = (comment.author?.display_name?.[0] || '?').toUpperCase()
@@ -251,6 +259,19 @@ function CommentBubble({
               {formatTimestamp(comment.timestamp_ms)}
             </button>
           )}
+          <div className="ml-auto flex items-center gap-2 text-xs text-zinc-600">
+            <span>{formatRelativeTime(comment.created_at)}</span>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label={`Delete comment by ${authorName}`}
+                className="inline-flex items-center justify-center text-zinc-500 transition hover:text-rose-300 focus:outline-none focus-visible:text-rose-300"
+              >
+                <TrashIcon className="size-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         {body.length > 0 && (
           <p className="mt-1 text-sm text-zinc-300">{body}</p>
@@ -258,9 +279,8 @@ function CommentBubble({
         {attachments.length > 0 && (
           <CommentAttachmentList attachments={attachments} className="mt-2" />
         )}
-        <div className="mt-1 flex items-center gap-3 text-xs text-zinc-600">
-          <span>{formatRelativeTime(comment.created_at)}</span>
-          {onReply && (
+        {onReply && (
+          <div className="mt-1 flex items-center gap-3 text-xs text-zinc-600">
             <button
               type="button"
               onClick={onReply}
@@ -270,8 +290,8 @@ function CommentBubble({
               <ArrowUturnLeftIcon className="size-3" />
               Reply
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -349,12 +369,16 @@ function CommentThread({
   replies,
   onSeek,
   onReply,
+  onDelete,
+  canDelete,
   forceExpanded = false,
 }: {
   parent: ProjectComment
   replies: ProjectComment[]
   onSeek: (ms: number) => void
   onReply: (parentId: string, body: string) => Promise<void>
+  onDelete: (comment: ProjectComment) => void
+  canDelete: (comment: ProjectComment) => boolean
   forceExpanded?: boolean
 }) {
   const hasReplies = replies.length > 0
@@ -373,12 +397,16 @@ function CommentThread({
     if (hasReplies) setExpanded(true)
   }, [hasReplies])
 
+  // parent_id FK has no cascade, so replies must be removed before their parent.
+  const parentDeletable = canDelete(parent) && !hasReplies
+
   return (
     <div className="space-y-3">
       <CommentBubble
         comment={parent}
         onSeek={onSeek}
         onReply={handleOpenReply}
+        onDelete={parentDeletable ? () => onDelete(parent) : undefined}
       />
 
       {hasReplies && (
@@ -405,6 +433,9 @@ function CommentThread({
                   comment={reply}
                   onSeek={onSeek}
                   onReply={handleOpenReply}
+                  onDelete={
+                    canDelete(reply) ? () => onDelete(reply) : undefined
+                  }
                 />
               ))}
             </div>
@@ -432,9 +463,13 @@ function CommentThread({
 export function ReviewTimeline({
   projectId,
   initialComments,
+  currentUserId,
+  currentRole,
 }: {
   projectId: string
   initialComments: ProjectComment[]
+  currentUserId: string | null
+  currentRole: UserRole | null
 }) {
   const router = useRouter()
   const player = useAudioPlayer()
@@ -447,6 +482,9 @@ export function ReviewTimeline({
   const [pendingAttachments, setPendingAttachments] = useState<
     PendingAttachment[]
   >([])
+  const [deleteTarget, setDeleteTarget] = useState<ProjectComment | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewUrlsRef = useRef<Set<string>>(new Set())
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -708,6 +746,54 @@ export function ReviewTimeline({
     [postComment, router],
   )
 
+  const canDelete = useCallback(
+    (comment: ProjectComment) => {
+      if (currentRole === 'studio') return true
+      return Boolean(currentUserId) && comment.author_id === currentUserId
+    },
+    [currentRole, currentUserId],
+  )
+
+  const handleDeleteRequest = useCallback((comment: ProjectComment) => {
+    setDeleteTarget(comment)
+    setDeleteError(null)
+  }, [])
+
+  const handleDeleteCancel = useCallback(() => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }, [isDeleting])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/comments/${deleteTarget.id}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string
+        }
+        throw new Error(data.error || 'Failed to delete comment')
+      }
+      setComments((prev) =>
+        prev.filter((comment) => comment.id !== deleteTarget.id),
+      )
+      setDeleteTarget(null)
+      router.refresh()
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete comment',
+      )
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [deleteTarget, projectId, router])
+
   const uploadedAttachments = pendingAttachments.filter(
     (attachment) => attachment.status === 'uploaded',
   )
@@ -847,6 +933,8 @@ export function ReviewTimeline({
                   replies={replies}
                   onSeek={handleSeek}
                   onReply={handleReply}
+                  onDelete={handleDeleteRequest}
+                  canDelete={canDelete}
                   forceExpanded={isSearching}
                 />
               ))}
@@ -1020,6 +1108,29 @@ export function ReviewTimeline({
           </div>
         </div>
       </form>
+
+      <PortalConfirmDialog
+        isOpen={deleteTarget !== null}
+        tone="danger"
+        eyebrow="Delete"
+        title="Remove this comment?"
+        description={
+          deleteTarget?.body?.trim() ? (
+            <p className="line-clamp-3 italic text-zinc-300">
+              &ldquo;{deleteTarget.body.trim()}&rdquo;
+            </p>
+          ) : undefined
+        }
+        noteTitle="This action is permanent."
+        noteBody="The comment and any attached files will be removed for everyone."
+        confirmLabel="Remove Comment"
+        busyLabel="Removing..."
+        cancelLabel="Keep Comment"
+        isBusy={isDeleting}
+        errorMessage={deleteError}
+        onClose={handleDeleteCancel}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
     </div>
   )
 }

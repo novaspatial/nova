@@ -125,42 +125,42 @@ import { Button } from '@/components/Button'
 
 ### Pages
 
-| Route          | File                       | Type                   | Description                                    |
-| -------------- | -------------------------- | ---------------------- | ---------------------------------------------- |
-| `/`            | `src/app/page.tsx`         | Static                 | Homepage with hero, clients, testimonials, FAQ |
-| `/about`       | `src/app/about/page.tsx`   | Async (loads articles) | Company info, team, blog links                 |
-| `/blog`        | `src/app/blog/page.tsx`    | Async (loads articles) | Blog article listing                           |
-| `/blog/[slug]` | `src/app/blog/*/page.mdx`  | Static (MDX)           | Individual blog articles                       |
-| `/contact`     | `src/app/contact/page.tsx` | Static                 | Contact form + office locations                |
-| `/login`       | `src/app/login/page.tsx`   | Static (client)        | Login/signup page                              |
-| `/profile`     | `src/app/profile/page.tsx` | Async (auth check)     | User profile (protected)                       |
-| `/portal`      | `src/app/portal/page.tsx`  | Async (auth check)     | Client portal dashboard (protected)            |
-| `/portal/new`  | `src/app/portal/new/page.tsx` | Static (client)     | New project creation + file upload             |
-| `/portal/[projectId]` | `src/app/portal/[projectId]/page.tsx` | Async (auth) | Auto-redirects to current step          |
-| `/portal/[projectId]/upload` | `src/app/portal/[projectId]/upload/page.tsx` | Async | Step 1: Secure file upload       |
-| `/portal/[projectId]/listen` | `src/app/portal/[projectId]/listen/page.tsx` | Async | Step 2: Interactive listening     |
-| `/portal/[projectId]/review` | `src/app/portal/[projectId]/review/page.tsx` | Async | Step 3: Timestamped revisions    |
-| `/portal/[projectId]/deliver` | `src/app/portal/[projectId]/deliver/page.tsx` | Async | Step 4: Platform-ready delivery |
+| Route                         | File                                          | Type                   | Description                                    |
+| ----------------------------- | --------------------------------------------- | ---------------------- | ---------------------------------------------- |
+| `/`                           | `src/app/page.tsx`                            | Static                 | Homepage with hero, clients, testimonials, FAQ |
+| `/about`                      | `src/app/about/page.tsx`                      | Async (loads articles) | Company info, team, blog links                 |
+| `/blog`                       | `src/app/blog/page.tsx`                       | Async (loads articles) | Blog article listing                           |
+| `/blog/[slug]`                | `src/app/blog/*/page.mdx`                     | Static (MDX)           | Individual blog articles                       |
+| `/contact`                    | `src/app/contact/page.tsx`                    | Static                 | Contact form + office locations                |
+| `/login`                      | `src/app/login/page.tsx`                      | Static (client)        | Login/signup page                              |
+| `/profile`                    | `src/app/profile/page.tsx`                    | Async (auth check)     | User profile (protected)                       |
+| `/portal`                     | `src/app/portal/page.tsx`                     | Async (auth check)     | Client portal dashboard (protected)            |
+| `/portal/new`                 | `src/app/portal/new/page.tsx`                 | Static (client)        | New project creation + file upload             |
+| `/portal/[projectId]`         | `src/app/portal/[projectId]/page.tsx`         | Async (auth)           | Auto-redirects to current step                 |
+| `/portal/[projectId]/upload`  | `src/app/portal/[projectId]/upload/page.tsx`  | Async                  | Step 1: Secure file upload                     |
+| `/portal/[projectId]/listen`  | `src/app/portal/[projectId]/listen/page.tsx`  | Async                  | Step 2: Interactive listening                  |
+| `/portal/[projectId]/review`  | `src/app/portal/[projectId]/review/page.tsx`  | Async                  | Step 3: Timestamped revisions                  |
+| `/portal/[projectId]/deliver` | `src/app/portal/[projectId]/deliver/page.tsx` | Async                  | Step 4: Platform-ready delivery                |
 
 ### API Routes
 
-| Path             | Method | Auth? | Description                                               |
-| ---------------- | ------ | ----- | --------------------------------------------------------- |
-| `/auth/callback` | `GET`  | No    | OAuth callback — exchanges auth code for Supabase session |
-| `/api/portal/projects` | `GET` | Yes | List projects (client: own, studio: all) |
-| `/api/portal/projects` | `POST` | Yes | Create project + Samply project |
-| `/api/portal/projects/[id]` | `GET` | Yes | Project detail with files/comments/deliverables |
-| `/api/portal/projects/[id]` | `PATCH` | Studio | Update project status |
-| `/api/portal/projects/[id]/files` | `POST` | Yes | Register file → get signed upload URL |
-| `/api/portal/projects/[id]/files/[fileId]/confirm` | `POST` | Yes | Confirm upload → sync to Samply |
-| `/api/portal/projects/[id]/player` | `GET` | Yes | Get Samply player config |
-| `/api/portal/projects/[id]/player` | `POST` | Studio | Create Samply player |
-| `/api/portal/projects/[id]/comments` | `GET` | Yes | List timestamped comments |
-| `/api/portal/projects/[id]/comments` | `POST` | Yes | Create comment |
-| `/api/portal/projects/[id]/deliverables` | `GET` | Yes | List deliverables |
-| `/api/portal/projects/[id]/deliverables` | `POST` | Studio | Upload deliverable |
-| `/api/portal/projects/[id]/deliverables/[delivId]/download` | `GET` | Yes | Get signed download URL |
-| `/api/portal/webhooks/samply` | `POST` | Webhook | Handle Samply webhook events |
+| Path                                                        | Method  | Auth?   | Description                                               |
+| ----------------------------------------------------------- | ------- | ------- | --------------------------------------------------------- |
+| `/auth/callback`                                            | `GET`   | No      | OAuth callback — exchanges auth code for Supabase session |
+| `/api/portal/projects`                                      | `GET`   | Yes     | List projects (client: own, studio: all)                  |
+| `/api/portal/projects`                                      | `POST`  | Yes     | Create project + Samply project                           |
+| `/api/portal/projects/[id]`                                 | `GET`   | Yes     | Project detail with files/comments/deliverables           |
+| `/api/portal/projects/[id]`                                 | `PATCH` | Studio  | Update project status                                     |
+| `/api/portal/projects/[id]/files`                           | `POST`  | Yes     | Register file → get signed upload URL                     |
+| `/api/portal/projects/[id]/files/[fileId]/confirm`          | `POST`  | Yes     | Confirm upload → sync to Samply                           |
+| `/api/portal/projects/[id]/player`                          | `GET`   | Yes     | Get Samply player config                                  |
+| `/api/portal/projects/[id]/player`                          | `POST`  | Studio  | Create Samply player                                      |
+| `/api/portal/projects/[id]/comments`                        | `GET`   | Yes     | List timestamped comments                                 |
+| `/api/portal/projects/[id]/comments`                        | `POST`  | Yes     | Create comment                                            |
+| `/api/portal/projects/[id]/deliverables`                    | `GET`   | Yes     | List deliverables                                         |
+| `/api/portal/projects/[id]/deliverables`                    | `POST`  | Studio  | Upload deliverable                                        |
+| `/api/portal/projects/[id]/deliverables/[delivId]/download` | `GET`   | Yes     | Get signed download URL                                   |
+| `/api/portal/webhooks/samply`                               | `POST`  | Webhook | Handle Samply webhook events                              |
 
 ### Middleware
 
@@ -184,10 +184,10 @@ import { Button } from '@/components/Button'
 
 ### Custom Hooks
 
-| Hook          | Location                       | Purpose                                                                                                    |
-| ------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `useAuthUser` | `src/hooks/useAuthUser.ts`     | Manages Supabase auth state, subscribes to auth changes. Returns `{ user, loading, supabase }`             |
-| `useProfile`  | `src/hooks/useProfile.ts`      | Extends useAuthUser with profile data + role. Returns `{ user, profile, isStudio, loading, supabase }`     |
+| Hook          | Location                   | Purpose                                                                                                |
+| ------------- | -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `useAuthUser` | `src/hooks/useAuthUser.ts` | Manages Supabase auth state, subscribes to auth changes. Returns `{ user, loading, supabase }`         |
+| `useProfile`  | `src/hooks/useProfile.ts`  | Extends useAuthUser with profile data + role. Returns `{ user, profile, isStudio, loading, supabase }` |
 
 ### Context Providers
 
@@ -398,98 +398,98 @@ Client Components
 
 #### Schema: `public.profiles`
 
-| Column               | Type          | Constraints                      |
-| -------------------- | ------------- | -------------------------------- |
-| `id`                 | `uuid`        | PK, FK → `auth.users` (CASCADE) |
-| `email`              | `text`        |                                  |
-| `display_name`       | `text`        |                                  |
-| `avatar_url`         | `text`        |                                  |
+| Column               | Type          | Constraints                                                 |
+| -------------------- | ------------- | ----------------------------------------------------------- |
+| `id`                 | `uuid`        | PK, FK → `auth.users` (CASCADE)                             |
+| `email`              | `text`        |                                                             |
+| `display_name`       | `text`        |                                                             |
+| `avatar_url`         | `text`        |                                                             |
 | `role`               | `text`        | NOT NULL, DEFAULT `'client'`, CHECK in (`client`, `studio`) |
-| `first_mix_discount` | `boolean`     | NOT NULL, DEFAULT `false`        |
-| `created_at`         | `timestamptz` | DEFAULT `now()`                  |
-| `updated_at`         | `timestamptz` | DEFAULT `now()`                  |
+| `first_mix_discount` | `boolean`     | NOT NULL, DEFAULT `false`                                   |
+| `created_at`         | `timestamptz` | DEFAULT `now()`                                             |
+| `updated_at`         | `timestamptz` | DEFAULT `now()`                                             |
 
 #### Schema: `public.projects`
 
-| Column              | Type          | Constraints                                                                                     |
-| ------------------- | ------------- | ----------------------------------------------------------------------------------------------- |
-| `id`                | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                                                 |
-| `owner_id`          | `uuid`        | FK → `profiles(id)` ON DELETE CASCADE, NOT NULL                                                 |
-| `title`             | `text`        | NOT NULL                                                                                        |
+| Column              | Type          | Constraints                                                                                                                    |
+| ------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                                                                                |
+| `owner_id`          | `uuid`        | FK → `profiles(id)` ON DELETE CASCADE, NOT NULL                                                                                |
+| `title`             | `text`        | NOT NULL                                                                                                                       |
 | `status`            | `text`        | NOT NULL, DEFAULT `'uploading'`, CHECK in (`uploading`, `processing`, `mixing`, `review`, `revision`, `approved`, `delivered`) |
-| `samply_project_id` | `text`        | nullable                                                                                        |
-| `samply_player_id`  | `text`        | nullable                                                                                        |
-| `format`            | `text`        | NOT NULL, DEFAULT `'atmos'`, CHECK in (`atmos`, `binaural`, `both`)                             |
-| `notes`             | `text`        | nullable                                                                                        |
-| `created_at`        | `timestamptz` | DEFAULT `now()`                                                                                 |
-| `updated_at`        | `timestamptz` | DEFAULT `now()`                                                                                 |
+| `samply_project_id` | `text`        | nullable                                                                                                                       |
+| `samply_player_id`  | `text`        | nullable                                                                                                                       |
+| `format`            | `text`        | NOT NULL, DEFAULT `'atmos'`, CHECK in (`atmos`, `binaural`, `both`)                                                            |
+| `notes`             | `text`        | nullable                                                                                                                       |
+| `created_at`        | `timestamptz` | DEFAULT `now()`                                                                                                                |
+| `updated_at`        | `timestamptz` | DEFAULT `now()`                                                                                                                |
 
 #### Schema: `public.project_files`
 
-| Column          | Type          | Constraints                                                                             |
-| --------------- | ------------- | --------------------------------------------------------------------------------------- |
-| `id`            | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                                         |
-| `project_id`    | `uuid`        | FK → `projects(id)` ON DELETE CASCADE                                                   |
-| `file_name`     | `text`        | NOT NULL                                                                                |
-| `file_size`     | `bigint`      | NOT NULL (bytes)                                                                        |
-| `mime_type`     | `text`        | NOT NULL                                                                                |
-| `file_type`     | `text`        | NOT NULL, DEFAULT `'stem'`, CHECK in (`stem`, `master_ref`, `deliverable`)              |
-| `storage_path`  | `text`        | NOT NULL                                                                                |
-| `samply_file_id`| `text`        | nullable                                                                                |
-| `upload_status` | `text`        | NOT NULL, DEFAULT `'pending'`, CHECK in (`pending`, `uploading`, `uploaded`, `syncing`, `synced`, `failed`) |
-| `uploaded_by`   | `uuid`        | FK → `profiles(id)`                                                                     |
-| `created_at`    | `timestamptz` | DEFAULT `now()`                                                                         |
+| Column           | Type          | Constraints                                                                                                 |
+| ---------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`             | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                                                             |
+| `project_id`     | `uuid`        | FK → `projects(id)` ON DELETE CASCADE                                                                       |
+| `file_name`      | `text`        | NOT NULL                                                                                                    |
+| `file_size`      | `bigint`      | NOT NULL (bytes)                                                                                            |
+| `mime_type`      | `text`        | NOT NULL                                                                                                    |
+| `file_type`      | `text`        | NOT NULL, DEFAULT `'stem'`, CHECK in (`stem`, `master_ref`, `deliverable`)                                  |
+| `storage_path`   | `text`        | NOT NULL                                                                                                    |
+| `samply_file_id` | `text`        | nullable                                                                                                    |
+| `upload_status`  | `text`        | NOT NULL, DEFAULT `'pending'`, CHECK in (`pending`, `uploading`, `uploaded`, `syncing`, `synced`, `failed`) |
+| `uploaded_by`    | `uuid`        | FK → `profiles(id)`                                                                                         |
+| `created_at`     | `timestamptz` | DEFAULT `now()`                                                                                             |
 
 #### Schema: `public.project_comments`
 
-| Column              | Type          | Constraints                               |
-| ------------------- | ------------- | ----------------------------------------- |
-| `id`                | `uuid`        | PK, DEFAULT `gen_random_uuid()`           |
-| `project_id`        | `uuid`        | FK → `projects(id)` ON DELETE CASCADE     |
-| `samply_comment_id` | `text`        | nullable                                  |
-| `author_id`         | `uuid`        | FK → `profiles(id)`                       |
-| `body`              | `text`        | NOT NULL                                  |
-| `timestamp_ms`      | `integer`     | nullable — position on timeline           |
-| `parent_id`         | `uuid`        | nullable, FK → `project_comments(id)`     |
-| `created_at`        | `timestamptz` | DEFAULT `now()`                           |
+| Column              | Type          | Constraints                           |
+| ------------------- | ------------- | ------------------------------------- |
+| `id`                | `uuid`        | PK, DEFAULT `gen_random_uuid()`       |
+| `project_id`        | `uuid`        | FK → `projects(id)` ON DELETE CASCADE |
+| `samply_comment_id` | `text`        | nullable                              |
+| `author_id`         | `uuid`        | FK → `profiles(id)`                   |
+| `body`              | `text`        | NOT NULL                              |
+| `timestamp_ms`      | `integer`     | nullable — position on timeline       |
+| `parent_id`         | `uuid`        | nullable, FK → `project_comments(id)` |
+| `created_at`        | `timestamptz` | DEFAULT `now()`                       |
 
 #### Schema: `public.deliverables`
 
-| Column        | Type          | Constraints                                                            |
-| ------------- | ------------- | ---------------------------------------------------------------------- |
-| `id`          | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                        |
-| `project_id`  | `uuid`        | FK → `projects(id)` ON DELETE CASCADE                                  |
-| `file_name`   | `text`        | NOT NULL                                                               |
-| `file_size`   | `bigint`      | NOT NULL                                                               |
-| `storage_path`| `text`        | NOT NULL                                                               |
-| `format`      | `text`        | NOT NULL, CHECK in (`adm_bwf`, `binaural_wav`, `dolby_atmos_adm`)     |
-| `approved_at` | `timestamptz` | nullable                                                               |
-| `approved_by` | `uuid`        | nullable, FK → `profiles(id)`                                          |
-| `created_at`  | `timestamptz` | DEFAULT `now()`                                                        |
+| Column         | Type          | Constraints                                                       |
+| -------------- | ------------- | ----------------------------------------------------------------- |
+| `id`           | `uuid`        | PK, DEFAULT `gen_random_uuid()`                                   |
+| `project_id`   | `uuid`        | FK → `projects(id)` ON DELETE CASCADE                             |
+| `file_name`    | `text`        | NOT NULL                                                          |
+| `file_size`    | `bigint`      | NOT NULL                                                          |
+| `storage_path` | `text`        | NOT NULL                                                          |
+| `format`       | `text`        | NOT NULL, CHECK in (`adm_bwf`, `binaural_wav`, `dolby_atmos_adm`) |
+| `approved_at`  | `timestamptz` | nullable                                                          |
+| `approved_by`  | `uuid`        | nullable, FK → `profiles(id)`                                     |
+| `created_at`   | `timestamptz` | DEFAULT `now()`                                                   |
 
 #### Row Level Security (RLS)
 
-| Table              | Policy                                         | Operation | Rule                                    |
-| ------------------ | ---------------------------------------------- | --------- | --------------------------------------- |
-| `profiles`         | "Public profiles are viewable by everyone"     | SELECT    | `true` (public read)                    |
-| `profiles`         | "Users can update their own profile"           | UPDATE    | `auth.uid() = id`                       |
-| `projects`         | "Clients see own projects, studio sees all"    | SELECT    | Owner or studio role                    |
-| `projects`         | "Clients create own projects"                  | INSERT    | `auth.uid() = owner_id`                |
-| `projects`         | "Studio can update any project"                | UPDATE    | Studio role                             |
-| `project_files`    | "Project members see files"                    | SELECT    | Project owner or studio role            |
-| `project_files`    | "Project members upload files"                 | INSERT    | Uploader + project member               |
-| `project_files`    | "Project members update own files"             | UPDATE    | Project owner or studio role            |
-| `project_comments` | "Project members see comments"                 | SELECT    | Project owner or studio role            |
-| `project_comments` | "Project members create comments"              | INSERT    | `auth.uid() = author_id`               |
-| `deliverables`     | "Project members see deliverables"             | SELECT    | Project owner or studio role            |
-| `deliverables`     | "Studio creates deliverables"                  | INSERT    | Studio role                             |
+| Table              | Policy                                      | Operation | Rule                         |
+| ------------------ | ------------------------------------------- | --------- | ---------------------------- |
+| `profiles`         | "Public profiles are viewable by everyone"  | SELECT    | `true` (public read)         |
+| `profiles`         | "Users can update their own profile"        | UPDATE    | `auth.uid() = id`            |
+| `projects`         | "Clients see own projects, studio sees all" | SELECT    | Owner or studio role         |
+| `projects`         | "Clients create own projects"               | INSERT    | `auth.uid() = owner_id`      |
+| `projects`         | "Studio can update any project"             | UPDATE    | Studio role                  |
+| `project_files`    | "Project members see files"                 | SELECT    | Project owner or studio role |
+| `project_files`    | "Project members upload files"              | INSERT    | Uploader + project member    |
+| `project_files`    | "Project members update own files"          | UPDATE    | Project owner or studio role |
+| `project_comments` | "Project members see comments"              | SELECT    | Project owner or studio role |
+| `project_comments` | "Project members create comments"           | INSERT    | `auth.uid() = author_id`     |
+| `deliverables`     | "Project members see deliverables"          | SELECT    | Project owner or studio role |
+| `deliverables`     | "Studio creates deliverables"               | INSERT    | Studio role                  |
 
 #### Supabase Storage Buckets
 
-| Bucket                  | Purpose                    | Path Pattern                          |
-| ----------------------- | -------------------------- | ------------------------------------- |
-| `project-uploads`       | Client stems + master refs | `{owner_id}/{project_id}/{filename}`  |
-| `project-deliverables`  | Final approved masters     | `{project_id}/{filename}`             |
+| Bucket                 | Purpose                    | Path Pattern                         |
+| ---------------------- | -------------------------- | ------------------------------------ |
+| `project-uploads`      | Client stems + master refs | `{owner_id}/{project_id}/{filename}` |
+| `project-deliverables` | Final approved masters     | `{project_id}/{filename}`            |
 
 #### Trigger
 
@@ -508,10 +508,10 @@ Client Components
 
 ### 7.5 External Services & APIs
 
-| Service      | Purpose                                                   |
-| ------------ | --------------------------------------------------------- |
+| Service      | Purpose                                                    |
+| ------------ | ---------------------------------------------------------- |
 | **Supabase** | Database, authentication, row-level security, file storage |
-| **Samply**   | Audio hosting, playback, timestamped comments (via API)   |
+| **Samply**   | Audio hosting, playback, timestamped comments (via API)    |
 
 #### Samply API Integration
 
@@ -523,11 +523,11 @@ Client Components
 
 #### Environment Variables
 
-| Variable                               | Scope           | Purpose                           |
-| -------------------------------------- | --------------- | --------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Client + Server | Supabase project URL              |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client + Server | Supabase anon/public key          |
-| `SAMPLY_API_TOKEN`                     | Server-only     | Samply API bearer token           |
+| Variable                               | Scope           | Purpose                               |
+| -------------------------------------- | --------------- | ------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Client + Server | Supabase project URL                  |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client + Server | Supabase anon/public key              |
+| `SAMPLY_API_TOKEN`                     | Server-only     | Samply API bearer token               |
 | `SAMPLY_WEBHOOK_SECRET`                | Server-only     | Samply webhook signature verification |
 
 ---
@@ -626,15 +626,15 @@ No explicit `.eslintrc` file. Uses `eslint-config-next` via the `eslint` and `es
 
 ### Framework & Configuration
 
-| Property         | Value                                            |
-| ---------------- | ------------------------------------------------ |
-| **Test Runner**  | Vitest `^4.0.18`                                 |
-| **Environment**  | JSDOM (`jsdom ^28.1.0`)                          |
-| **React Utils**  | `@testing-library/react` + `@testing-library/jest-dom` |
-| **Globals**      | `true` (test/expect/describe available globally) |
-| **Config File**  | `vitest.config.ts`                               |
-| **Setup File**   | `vitest.setup.ts`                                |
-| **Run Command**  | `npm test` (`vitest`)                            |
+| Property        | Value                                                  |
+| --------------- | ------------------------------------------------------ |
+| **Test Runner** | Vitest `^4.0.18`                                       |
+| **Environment** | JSDOM (`jsdom ^28.1.0`)                                |
+| **React Utils** | `@testing-library/react` + `@testing-library/jest-dom` |
+| **Globals**     | `true` (test/expect/describe available globally)       |
+| **Config File** | `vitest.config.ts`                                     |
+| **Setup File**  | `vitest.setup.ts`                                      |
+| **Run Command** | `npm test` (`vitest`)                                  |
 
 ### Setup (`vitest.setup.ts`)
 
@@ -645,24 +645,24 @@ No explicit `.eslintrc` file. Uses `eslint-config-next` via the `eslint` and `es
 
 Shared mock factory for testing API routes that interact with Supabase. Provides:
 
-| Export                  | Purpose                                                                           |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| `createChainMock()`     | Creates a chainable mock mimicking the Supabase query builder (`.select().eq().single()`) |
-| `createSupabaseMock()`  | Full Supabase client mock with `auth`, `from()`, and `storage` — accepts `user`, `fromMocks`, and `storageMocks` overrides |
-| `createMockRequest()`   | Creates a `Request` object for testing Next.js API route handlers                 |
+| Export                 | Purpose                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `createChainMock()`    | Creates a chainable mock mimicking the Supabase query builder (`.select().eq().single()`)                                  |
+| `createSupabaseMock()` | Full Supabase client mock with `auth`, `from()`, and `storage` — accepts `user`, `fromMocks`, and `storageMocks` overrides |
+| `createMockRequest()`  | Creates a `Request` object for testing Next.js API route handlers                                                          |
 
 ### Test Files
 
-| Test File | Route/Module Under Test | Tests | Coverage |
-| --------- | ----------------------- | ----- | -------- |
-| `src/components/Button.test.tsx` | `Button` component | 2 | Renders with children, renders as link with href |
-| `src/lib/samply.test.ts` | `src/lib/samply.ts` | 4 | Auth header, missing token error, custom options passthrough, non-ok response error |
-| `src/app/api/portal/projects/route.test.ts` | `GET/POST /api/portal/projects` | 9 | Auth gates, client/studio role filtering, title validation, Samply sync, graceful Samply failure |
-| `src/app/api/portal/projects/[id]/route.test.ts` | `GET/PATCH /api/portal/projects/[id]` | 7 | Auth, 404, related data fetching, studio role gating, status validation (all 7 values), invalid status rejection |
-| `src/app/api/portal/projects/[id]/files/route.test.ts` | `POST /api/portal/projects/[id]/files` | 5 | Auth, project 404, field validation, signed URL generation, storage path format `{owner}/{project}/{file}` |
-| `src/app/api/portal/projects/[id]/comments/route.test.ts` | `GET/POST /api/portal/projects/[id]/comments` | 7 | Auth, ordering, body validation, project 404, timestamp and null-timestamp creation |
-| `src/app/api/portal/projects/[id]/deliverables/route.test.ts` | `GET/POST /api/portal/projects/[id]/deliverables` | 5 | Auth, list retrieval, studio role gating, field validation, deliverable creation with approval |
-| `src/app/api/portal/webhooks/samply/route.test.ts` | `POST /api/portal/webhooks/samply` | 8 | Signature validation (valid/invalid/missing), `upload.completed` → synced, `upload.failed` → failed, `comment.created` → cache + deduplication, unknown events ignored |
+| Test File                                                     | Route/Module Under Test                           | Tests | Coverage                                                                                                                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/Button.test.tsx`                              | `Button` component                                | 2     | Renders with children, renders as link with href                                                                                                                       |
+| `src/lib/samply.test.ts`                                      | `src/lib/samply.ts`                               | 4     | Auth header, missing token error, custom options passthrough, non-ok response error                                                                                    |
+| `src/app/api/portal/projects/route.test.ts`                   | `GET/POST /api/portal/projects`                   | 9     | Auth gates, client/studio role filtering, title validation, Samply sync, graceful Samply failure                                                                       |
+| `src/app/api/portal/projects/[id]/route.test.ts`              | `GET/PATCH /api/portal/projects/[id]`             | 7     | Auth, 404, related data fetching, studio role gating, status validation (all 7 values), invalid status rejection                                                       |
+| `src/app/api/portal/projects/[id]/files/route.test.ts`        | `POST /api/portal/projects/[id]/files`            | 5     | Auth, project 404, field validation, signed URL generation, storage path format `{owner}/{project}/{file}`                                                             |
+| `src/app/api/portal/projects/[id]/comments/route.test.ts`     | `GET/POST /api/portal/projects/[id]/comments`     | 7     | Auth, ordering, body validation, project 404, timestamp and null-timestamp creation                                                                                    |
+| `src/app/api/portal/projects/[id]/deliverables/route.test.ts` | `GET/POST /api/portal/projects/[id]/deliverables` | 5     | Auth, list retrieval, studio role gating, field validation, deliverable creation with approval                                                                         |
+| `src/app/api/portal/webhooks/samply/route.test.ts`            | `POST /api/portal/webhooks/samply`                | 8     | Signature validation (valid/invalid/missing), `upload.completed` → synced, `upload.failed` → failed, `comment.created` → cache + deduplication, unknown events ignored |
 
 **Total: 47 tests across 8 files**
 
