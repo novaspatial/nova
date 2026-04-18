@@ -13,7 +13,7 @@ export const PROJECT_STATUSES = [
 
 export type { ProjectStatus }
 
-export type PortalStep = 'upload' | 'listen' | 'comments' | 'deliver'
+export type PortalStep = 'upload' | 'listen' | 'deliver'
 
 export type ProgressStage = 'uploaded' | 'in_progress' | 'mixed' | 'complete'
 
@@ -26,7 +26,7 @@ export function getStepForStatus(status: ProjectStatus): PortalStep {
       return 'upload'
     case 'review':
     case 'revision':
-      return 'comments'
+      return 'listen'
     case 'approved':
     case 'delivered':
       return 'deliver'

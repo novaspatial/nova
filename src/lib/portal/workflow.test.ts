@@ -28,8 +28,8 @@ describe('getStepForStatus', () => {
     ['in_review', 'upload'],
     ['processing', 'upload'],
     ['mixing', 'upload'],
-    ['review', 'comments'],
-    ['revision', 'comments'],
+    ['review', 'listen'],
+    ['revision', 'listen'],
     ['approved', 'deliver'],
     ['delivered', 'deliver'],
   ] as const)('%s → %s', (status, expected) => {

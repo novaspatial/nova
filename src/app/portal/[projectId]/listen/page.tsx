@@ -57,10 +57,20 @@ export default async function ListenPage({
 
   const audioFiles = await Promise.all(
     (files || []).map(async (file) => {
-      const { data: urlData } = await supabase.storage
-        .from('project-uploads')
-        .createSignedUrl(file.storage_path, 3600)
-      return { ...file, signedUrl: urlData?.signedUrl ?? null }
+      const [streamResult, downloadResult] = await Promise.all([
+        supabase.storage
+          .from('project-uploads')
+          .createSignedUrl(file.storage_path, 3600),
+        supabase.storage
+          .from('project-uploads')
+          .createSignedUrl(file.storage_path, 3600, { download: file.file_name }),
+      ])
+
+      return {
+        ...file,
+        signedUrl: streamResult.data?.signedUrl ?? null,
+        downloadUrl: downloadResult.data?.signedUrl ?? null,
+      }
     }),
   )
 

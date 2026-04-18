@@ -717,7 +717,7 @@ export function ReviewTimeline({
         mimeType: string
       }>
     }): Promise<ProjectComment> => {
-      const res = await fetch(`/api/portal/projects/${projectId}/comments`, {
+      const res = await fetch(`/api/portal/projects/${projectId}/listen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -17,7 +17,7 @@ function makeParams(id: string) {
   return { params: Promise.resolve({ id }) }
 }
 
-describe('GET /api/portal/projects/[id]/comments', () => {
+describe('GET /api/portal/projects/[id]/listen', () => {
   beforeEach(() => vi.clearAllMocks())
 
   test('returns 401 when not authenticated', async () => {
@@ -31,6 +31,10 @@ describe('GET /api/portal/projects/[id]/comments', () => {
   })
 
   test('returns comments list for authenticated user', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
     const commentsData = [
       { id: 'c1', body: 'Great mix', timestamp_ms: 30000 },
       { id: 'c2', body: 'Lower the bass', timestamp_ms: 45000 },
@@ -40,7 +44,10 @@ describe('GET /api/portal/projects/[id]/comments', () => {
       error: null,
     })
     const supabase = createSupabaseMock({
-      fromMocks: { project_comments: commentsChain },
+      fromMocks: {
+        projects: projectsChain,
+        project_comments: commentsChain,
+      },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
@@ -48,19 +55,25 @@ describe('GET /api/portal/projects/[id]/comments', () => {
     const res = await GET(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(200)
 
-    // Verify query was ordered by created_at ascending
     expect(commentsChain.order).toHaveBeenCalledWith('created_at', {
       ascending: true,
     })
   })
 
   test('returns 500 when comment lookup fails', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
     const commentsChain = createChainMock({
       data: null,
       error: { message: 'Database error' },
     })
     const supabase = createSupabaseMock({
-      fromMocks: { project_comments: commentsChain },
+      fromMocks: {
+        projects: projectsChain,
+        project_comments: commentsChain,
+      },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
@@ -72,7 +85,7 @@ describe('GET /api/portal/projects/[id]/comments', () => {
   })
 })
 
-describe('POST /api/portal/projects/[id]/comments', () => {
+describe('POST /api/portal/projects/[id]/listen', () => {
   beforeEach(() => vi.clearAllMocks())
 
   test('returns 400 when comment body is missing', async () => {
@@ -218,7 +231,6 @@ describe('POST /api/portal/projects/[id]/comments', () => {
     const res = await POST(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(200)
 
-    // Insert should pass null for timestamp_ms
     expect(commentsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         timestamp_ms: null,

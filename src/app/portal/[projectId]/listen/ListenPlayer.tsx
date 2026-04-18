@@ -5,6 +5,7 @@ import {
   MusicalNoteIcon,
   PlayIcon,
   PauseIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 
@@ -21,6 +22,7 @@ type AudioFile = {
   file_name: string
   mime_type: string
   signedUrl: string | null
+  downloadUrl?: string | null
 }
 
 function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
@@ -36,22 +38,33 @@ function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
   const player = useAudioPlayer(mixedMusicFile)
 
   return (
-    <button
-      onClick={() => player.toggle()}
-      className={clsx(
-        'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition',
-        isActive
-          ? 'bg-violet-600/20 text-violet-300 ring-1 ring-violet-500/30'
-          : 'text-zinc-400 hover:bg-white/5 hover:text-white',
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => player.toggle()}
+        className={clsx(
+          'flex w-full flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition',
+          isActive
+            ? 'bg-violet-600/20 text-violet-300 ring-1 ring-violet-500/30'
+            : 'text-zinc-400 hover:bg-white/5 hover:text-white',
+        )}
+      >
+        {player.playing ? (
+          <PauseIcon className="size-4 shrink-0" />
+        ) : (
+          <PlayIcon className="size-4 shrink-0" />
+        )}
+        <span className="truncate">{file.file_name}</span>
+      </button>
+      {file.downloadUrl && (
+        <a
+          href={file.downloadUrl}
+          aria-label={`Download ${file.file_name}`}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
+        >
+          <ArrowDownTrayIcon className="size-4" aria-hidden="true" />
+        </a>
       )}
-    >
-      {player.playing ? (
-        <PauseIcon className="size-4 shrink-0" />
-      ) : (
-        <PlayIcon className="size-4 shrink-0" />
-      )}
-      <span className="truncate">{file.file_name}</span>
-    </button>
+    </div>
   )
 }
 
