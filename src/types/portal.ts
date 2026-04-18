@@ -50,11 +50,24 @@ export interface ProjectFile {
   created_at: string
 }
 
+export interface ProjectCommentAttachment {
+  id: string
+  comment_id: string
+  project_id: string
+  file_name: string
+  file_size: number
+  mime_type: string
+  storage_path: string
+  created_at: string
+  view_url?: string | null
+  download_url?: string | null
+}
+
 export interface ProjectComment {
   id: string
   project_id: string
   author_id: string
-  body: string
+  body: string | null
   timestamp_ms: number | null
   parent_id: string | null
   created_at: string
@@ -63,6 +76,7 @@ export interface ProjectComment {
     avatar_url: string | null
     role: UserRole
   }
+  attachments?: ProjectCommentAttachment[]
 }
 
 export interface Deliverable {

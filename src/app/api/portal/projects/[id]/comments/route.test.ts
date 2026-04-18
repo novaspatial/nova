@@ -90,7 +90,7 @@ describe('POST /api/portal/projects/[id]/comments', () => {
     expect(res.status).toBe(400)
 
     const body = await res.json()
-    expect(body.error).toBe('Comment body is required')
+    expect(body.error).toBe('Comment must have a body or at least one attachment')
   })
 
   test('returns 400 when body is empty string', async () => {

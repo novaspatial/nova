@@ -2,19 +2,145 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { ProjectComment } from '@/types/portal'
+import type { ProjectComment, ProjectCommentAttachment } from '@/types/portal'
 import {
+  ArrowDownTrayIcon,
+  ArrowPathIcon,
   ArrowUturnLeftIcon,
   ChatBubbleLeftRightIcon,
   ChevronDownIcon,
   ClockIcon,
+  DocumentIcon,
+  ExclamationCircleIcon,
   MagnifyingGlassIcon,
   PaperAirplaneIcon,
+  PaperClipIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useAudioPlayer } from '@/components/audio/AudioProvider'
+import { uploadFile } from '@/lib/portal/uploadFile'
 
 const COLLAPSE_REPLY_THRESHOLD = 3
+
+type PendingAttachmentStatus = 'uploading' | 'uploaded' | 'failed'
+
+interface PendingAttachment {
+  id: string
+  file: File
+  previewUrl: string | null
+  status: PendingAttachmentStatus
+  progress: number
+  storagePath?: string
+  error?: string
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function createPendingAttachment(file: File): PendingAttachment {
+  const isImage = file.type.startsWith('image/')
+  return {
+    id:
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    file,
+    previewUrl: isImage ? URL.createObjectURL(file) : null,
+    status: 'uploading',
+    progress: 0,
+  }
+}
+
+function CommentAttachmentList({
+  attachments,
+  className,
+}: {
+  attachments: ProjectCommentAttachment[]
+  className?: string
+}) {
+  if (attachments.length === 0) return null
+  return (
+    <ul
+      role="list"
+      className={`flex flex-wrap gap-2 ${className ?? ''}`.trim()}
+    >
+      {attachments.map((attachment) => {
+        const label = `${attachment.file_name}, ${formatFileSize(attachment.file_size)}`
+        const isImage = attachment.mime_type.startsWith('image/')
+        const viewHref = attachment.view_url ?? undefined
+        const downloadHref =
+          attachment.download_url ?? attachment.view_url ?? undefined
+        if (isImage && viewHref) {
+          return (
+            <li key={attachment.id} className="group relative">
+              <a
+                href={viewHref}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Open ${label} in a new tab`}
+                className="block overflow-hidden rounded-lg border border-white/10 bg-white/5 transition hover:border-violet-500/40 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
+              >
+                {/* next/image is unsuitable for short-lived signed storage URLs */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={viewHref}
+                  alt={attachment.file_name}
+                  className="size-20 object-cover"
+                />
+              </a>
+              {downloadHref && (
+                <a
+                  href={downloadHref}
+                  aria-label={`Download ${attachment.file_name}`}
+                  className="absolute top-1 right-1 inline-flex size-6 items-center justify-center rounded-md bg-black/70 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-violet-600 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+                >
+                  <ArrowDownTrayIcon
+                    className="size-3.5"
+                    aria-hidden="true"
+                  />
+                </a>
+              )}
+            </li>
+          )
+        }
+        return (
+          <li key={attachment.id}>
+            <div
+              className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 py-1.5 pr-1 pl-2.5 text-xs text-zinc-300"
+              aria-label={label}
+            >
+              <DocumentIcon
+                className="size-4 shrink-0 text-zinc-400"
+                aria-hidden="true"
+              />
+              <span className="max-w-40 truncate">{attachment.file_name}</span>
+              <span className="shrink-0 text-zinc-500">
+                {formatFileSize(attachment.file_size)}
+              </span>
+              {downloadHref && (
+                <a
+                  href={downloadHref}
+                  aria-label={`Download ${attachment.file_name}`}
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
+                >
+                  <ArrowDownTrayIcon
+                    className="size-3.5"
+                    aria-hidden="true"
+                  />
+                </a>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 function formatTimestamp(ms: number | null): string {
   if (ms === null) return ''
@@ -91,6 +217,8 @@ function CommentBubble({
   const isStudio = comment.author?.role === 'studio'
   const initial = (comment.author?.display_name?.[0] || '?').toUpperCase()
   const authorName = comment.author?.display_name || 'Anonymous'
+  const attachments = comment.attachments ?? []
+  const body = comment.body?.trim() ?? ''
 
   return (
     <div className="flex gap-3 sm:gap-4" data-comment-id={comment.id}>
@@ -124,7 +252,12 @@ function CommentBubble({
             </button>
           )}
         </div>
-        <p className="mt-1 text-sm text-zinc-300">{comment.body}</p>
+        {body.length > 0 && (
+          <p className="mt-1 text-sm text-zinc-300">{body}</p>
+        )}
+        {attachments.length > 0 && (
+          <CommentAttachmentList attachments={attachments} className="mt-2" />
+        )}
         <div className="mt-1 flex items-center gap-3 text-xs text-zinc-600">
           <span>{formatRelativeTime(comment.created_at)}</span>
           {onReply && (
@@ -311,11 +444,146 @@ export function ReviewTimeline({
   const [submitting, setSubmitting] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [pendingAttachments, setPendingAttachments] = useState<
+    PendingAttachment[]
+  >([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewUrlsRef = useRef<Set<string>>(new Set())
   const searchInputRef = useRef<HTMLInputElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [scrollRequest, setScrollRequest] = useState<
     { kind: 'bottom' } | { kind: 'comment'; id: string } | null
   >(null)
+
+  useEffect(() => {
+    const urls = previewUrlsRef.current
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+      urls.clear()
+    }
+  }, [])
+
+  const uploadPendingAttachment = useCallback(
+    async (attachment: PendingAttachment) => {
+      try {
+        const registerRes = await fetch(
+          `/api/portal/projects/${projectId}/comment-attachments/register`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: attachment.file.name,
+              fileSize: attachment.file.size,
+              mimeType: attachment.file.type || 'application/octet-stream',
+            }),
+          },
+        )
+        if (!registerRes.ok) {
+          const data = (await registerRes.json().catch(() => ({}))) as {
+            error?: string
+          }
+          throw new Error(data.error || 'Failed to register attachment')
+        }
+        const { storagePath, uploadUrl } = (await registerRes.json()) as {
+          storagePath: string
+          uploadUrl: string
+        }
+
+        await uploadFile(attachment.file, uploadUrl, (progress) => {
+          setPendingAttachments((prev) =>
+            prev.map((entry) =>
+              entry.id === attachment.id ? { ...entry, progress } : entry,
+            ),
+          )
+        })
+
+        setPendingAttachments((prev) =>
+          prev.map((entry) =>
+            entry.id === attachment.id
+              ? {
+                  ...entry,
+                  status: 'uploaded',
+                  progress: 100,
+                  storagePath,
+                }
+              : entry,
+          ),
+        )
+      } catch (err) {
+        setPendingAttachments((prev) =>
+          prev.map((entry) =>
+            entry.id === attachment.id
+              ? {
+                  ...entry,
+                  status: 'failed',
+                  error:
+                    err instanceof Error ? err.message : 'Upload failed',
+                }
+              : entry,
+          ),
+        )
+      }
+    },
+    [projectId],
+  )
+
+  const handleFilesSelected = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selected = Array.from(event.target.files ?? [])
+      event.target.value = ''
+      if (selected.length === 0) return
+      const next = selected.map((file) => {
+        const pending = createPendingAttachment(file)
+        if (pending.previewUrl) {
+          previewUrlsRef.current.add(pending.previewUrl)
+        }
+        return pending
+      })
+      setPendingAttachments((prev) => [...prev, ...next])
+      next.forEach((pending) => {
+        void uploadPendingAttachment(pending)
+      })
+    },
+    [uploadPendingAttachment],
+  )
+
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((attachment) => attachment.id === id)
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl)
+        previewUrlsRef.current.delete(target.previewUrl)
+      }
+      return prev.filter((attachment) => attachment.id !== id)
+    })
+  }, [])
+
+  const handleRetryAttachment = useCallback(
+    (id: string) => {
+      setPendingAttachments((prev) =>
+        prev.map((entry) =>
+          entry.id === id
+            ? {
+                ...entry,
+                status: 'uploading',
+                progress: 0,
+                error: undefined,
+              }
+            : entry,
+        ),
+      )
+      const target = pendingAttachments.find((entry) => entry.id === id)
+      if (target) {
+        void uploadPendingAttachment({
+          ...target,
+          status: 'uploading',
+          progress: 0,
+          error: undefined,
+        })
+      }
+    },
+    [pendingAttachments, uploadPendingAttachment],
+  )
 
   useEffect(() => {
     setComments((currentComments) => {
@@ -339,9 +607,11 @@ export function ReviewTimeline({
     if (!isSearching) return threads
     return threads
       .map(({ parent, replies }) => {
-        const parentMatches = parent.body.toLowerCase().includes(trimmedQuery)
+        const parentMatches = (parent.body ?? '')
+          .toLowerCase()
+          .includes(trimmedQuery)
         const matchedReplies = replies.filter((reply) =>
-          reply.body.toLowerCase().includes(trimmedQuery),
+          (reply.body ?? '').toLowerCase().includes(trimmedQuery),
         )
         if (parentMatches) return { parent, replies }
         if (matchedReplies.length > 0)
@@ -402,6 +672,12 @@ export function ReviewTimeline({
       body: string
       timestampMs: number | null
       parentId?: string
+      attachments?: Array<{
+        storagePath: string
+        fileName: string
+        fileSize: number
+        mimeType: string
+      }>
     }): Promise<ProjectComment> => {
       const res = await fetch(`/api/portal/projects/${projectId}/comments`, {
         method: 'POST',
@@ -432,10 +708,23 @@ export function ReviewTimeline({
     [postComment, router],
   )
 
+  const uploadedAttachments = pendingAttachments.filter(
+    (attachment) => attachment.status === 'uploaded',
+  )
+  const hasUploading = pendingAttachments.some(
+    (attachment) => attachment.status === 'uploading',
+  )
+  const canPost =
+    !submitting &&
+    !hasUploading &&
+    (body.trim().length > 0 || uploadedAttachments.length > 0)
+
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault()
-      if (!body.trim() || submitting) return
+      if (submitting || hasUploading) return
+      const trimmedBody = body.trim()
+      if (trimmedBody.length === 0 && uploadedAttachments.length === 0) return
 
       setSubmitting(true)
 
@@ -443,10 +732,25 @@ export function ReviewTimeline({
 
       try {
         const newComment = await postComment({
-          body: body.trim(),
+          body: trimmedBody,
           timestampMs,
+          attachments: uploadedAttachments.map((attachment) => ({
+            storagePath: attachment.storagePath!,
+            fileName: attachment.file.name,
+            fileSize: attachment.file.size,
+            mimeType: attachment.file.type || 'application/octet-stream',
+          })),
         })
         setComments((prev) => [...prev, newComment])
+        setPendingAttachments((prev) => {
+          prev.forEach((entry) => {
+            if (entry.previewUrl) {
+              URL.revokeObjectURL(entry.previewUrl)
+              previewUrlsRef.current.delete(entry.previewUrl)
+            }
+          })
+          return []
+        })
         setBody('')
         setTimestampInput('')
         setScrollRequest({ kind: 'bottom' })
@@ -457,7 +761,15 @@ export function ReviewTimeline({
         setSubmitting(false)
       }
     },
-    [body, timestampInput, postComment, router, submitting],
+    [
+      body,
+      hasUploading,
+      postComment,
+      router,
+      submitting,
+      timestampInput,
+      uploadedAttachments,
+    ],
   )
 
   const hasAnyComments = threads.length > 0
@@ -578,6 +890,89 @@ export function ReviewTimeline({
               rows={3}
               className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
             />
+            {pendingAttachments.length > 0 && (
+              <ul
+                role="list"
+                aria-label="Pending attachments"
+                className="flex flex-wrap gap-2"
+              >
+                {pendingAttachments.map((attachment) => {
+                  const statusLabel =
+                    attachment.status === 'uploading'
+                      ? `Uploading ${attachment.progress}%`
+                      : attachment.status === 'failed'
+                        ? `Upload failed${attachment.error ? `: ${attachment.error}` : ''}`
+                        : 'Uploaded'
+                  return (
+                    <li key={attachment.id}>
+                      <div
+                        className={`group flex items-center gap-2 rounded-lg border py-1.5 pr-1 pl-2 text-xs text-zinc-300 ${
+                          attachment.status === 'failed'
+                            ? 'border-rose-500/30 bg-rose-500/5'
+                            : 'border-white/10 bg-white/5'
+                        }`}
+                        aria-label={`${attachment.file.name}, ${formatFileSize(attachment.file.size)}, ${statusLabel}`}
+                      >
+                        {attachment.previewUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={attachment.previewUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="size-6 shrink-0 rounded object-cover"
+                          />
+                        ) : (
+                          <DocumentIcon
+                            className="size-4 shrink-0 text-zinc-400"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="max-w-40 truncate">
+                          {attachment.file.name}
+                        </span>
+                        <span className="shrink-0 text-zinc-500">
+                          {formatFileSize(attachment.file.size)}
+                        </span>
+                        {attachment.status === 'uploading' && (
+                          <span className="shrink-0 font-mono text-[10px] text-violet-300">
+                            {attachment.progress}%
+                          </span>
+                        )}
+                        {attachment.status === 'failed' && (
+                          <>
+                            <ExclamationCircleIcon
+                              className="size-4 shrink-0 text-rose-400"
+                              aria-hidden="true"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRetryAttachment(attachment.id)
+                              }
+                              aria-label={`Retry upload of ${attachment.file.name}`}
+                              className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
+                            >
+                              <ArrowPathIcon
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(attachment.id)}
+                          aria-label={`Remove ${attachment.file.name}`}
+                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
+                        >
+                          <XMarkIcon className="size-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <ClockIcon className="size-4 text-zinc-500" />
@@ -590,14 +985,37 @@ export function ReviewTimeline({
                 />
                 <span className="text-xs text-zinc-500">(optional)</span>
               </div>
-              <button
-                type="submit"
-                disabled={!body.trim() || submitting}
-                className="ml-auto flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <PaperAirplaneIcon className="size-4" />
-                {submitting ? 'Posting...' : 'Post'}
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFilesSelected}
+                  className="hidden"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach files"
+                  className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
+                >
+                  <PaperClipIcon className="size-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canPost}
+                  className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PaperAirplaneIcon className="size-4" />
+                  {submitting
+                    ? 'Posting...'
+                    : hasUploading
+                      ? 'Uploading...'
+                      : 'Post'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
