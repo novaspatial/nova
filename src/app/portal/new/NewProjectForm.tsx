@@ -8,6 +8,17 @@ import { uploadFile } from '@/lib/portal/uploadFile'
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
 
+function findDuplicateFileNames(items: FileUploadItem[]): string[] {
+  const seen = new Set<string>()
+  const dups = new Set<string>()
+  for (const item of items) {
+    const name = item.file.name
+    if (seen.has(name)) dups.add(name)
+    else seen.add(name)
+  }
+  return Array.from(dups)
+}
+
 export function NewProjectForm() {
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
@@ -41,8 +52,42 @@ export function NewProjectForm() {
         return
       }
 
+      const duplicates = findDuplicateFileNames(files)
+      if (duplicates.length > 0) {
+        setError(
+          `Duplicate file names: ${duplicates.join(', ')}. Remove duplicates before submitting.`,
+        )
+        return
+      }
+
       setSubmitting(true)
       setError(null)
+
+      let createdProjectId: string | null = null
+      // Best-effort cleanup so a partial failure doesn't leave an orphan
+      // "uploading" project row on the dashboard.
+      const rollbackProject = async () => {
+        if (!createdProjectId) return
+        try {
+          await fetch(`/api/portal/projects/${createdProjectId}`, {
+            method: 'DELETE',
+          })
+        } catch (rollbackErr) {
+          console.error('[NewProjectForm] project rollback failed', rollbackErr)
+        }
+        createdProjectId = null
+        // Reset file state so the next submit re-uploads every file to the
+        // freshly-created project (the previous storage objects were cascaded
+        // away by the project delete).
+        setFiles((prev) =>
+          prev.map((f) => ({
+            ...f,
+            status: 'pending' as const,
+            progress: 0,
+            error: undefined,
+          })),
+        )
+      }
 
       try {
         // 1. Create project
@@ -62,11 +107,20 @@ export function NewProjectForm() {
         }
 
         const { id: projectId } = await projectRes.json() as { id: string }
+        createdProjectId = projectId
 
         // 2. Upload each file (continue on per-file errors, collect failures)
+        // NOTE: keep this loop's skip/state logic in sync with
+        // src/hooks/useFileUpload.ts — the two paths intentionally stay separate.
         let failureCount = 0
 
         for (const item of files) {
+          // Skip items that already finished in a prior submit attempt so retries
+          // only re-upload what actually failed.
+          if (item.status === 'uploaded' || item.status === 'synced') {
+            continue
+          }
+
           setFiles((prev) =>
             prev.map((f) =>
               f.id === item.id ? { ...f, status: 'uploading' as const } : f,
@@ -142,8 +196,9 @@ export function NewProjectForm() {
         }
 
         if (failureCount > 0) {
+          await rollbackProject()
           setError(
-            `${failureCount} file${failureCount > 1 ? 's' : ''} failed to upload. Check the list above and try again.`,
+            `${failureCount} file${failureCount > 1 ? 's' : ''} failed to upload. The draft project was discarded — please try again.`,
           )
           setSubmitting(false)
           return
@@ -153,6 +208,7 @@ export function NewProjectForm() {
         // the new project page renders with the latest server data immediately.
         window.location.assign(`/portal/${projectId}/upload`)
       } catch (err) {
+        await rollbackProject()
         setError(err instanceof Error ? err.message : 'Something went wrong')
         setSubmitting(false)
       }

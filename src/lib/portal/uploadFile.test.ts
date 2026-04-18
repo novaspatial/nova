@@ -6,6 +6,7 @@ interface MockXhr {
   onload: (() => void) | null
   onerror: (() => void) | null
   status: number
+  responseText: string
   open: ReturnType<typeof vi.fn>
   setRequestHeader: ReturnType<typeof vi.fn>
   send: ReturnType<typeof vi.fn>
@@ -20,6 +21,7 @@ describe('uploadFile', () => {
       onload: null,
       onerror: null,
       status: 200,
+      responseText: '',
       open: vi.fn(),
       setRequestHeader: vi.fn(),
       send: vi.fn(),
@@ -35,6 +37,8 @@ describe('uploadFile', () => {
         set onerror(v) { captured.onerror = v }
         get status() { return captured.status }
         set status(v) { captured.status = v }
+        get responseText() { return captured.responseText }
+        set responseText(v) { captured.responseText = v }
         open = captured.open
         setRequestHeader = captured.setRequestHeader
         send = captured.send
@@ -58,6 +62,20 @@ describe('uploadFile', () => {
     const p = uploadFile(new File(['a'], 'f.wav'), 'https://example.com/up', vi.fn())
     xhr.onload!()
     await expect(p).rejects.toThrow('Upload failed with status 403')
+  })
+
+  it('includes the response body in the error when the server returns one', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    xhr.status = 409
+    xhr.responseText = '{"error":"Duplicate","message":"The resource already exists"}'
+    const p = uploadFile(new File(['a'], 'f.wav'), 'https://example.com/up', vi.fn())
+    xhr.onload!()
+    await expect(p).rejects.toThrow('The resource already exists')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[uploadFile] storage PUT failed',
+      expect.objectContaining({ status: 409 }),
+    )
+    consoleSpy.mockRestore()
   })
 
   it('rejects on network error', async () => {

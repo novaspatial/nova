@@ -151,6 +151,45 @@ describe('POST /api/portal/projects/[id]/files', () => {
     )
   })
 
+  test('does not insert a project_files row when the signed URL call fails', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'owner-1' },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: { id: 'file-1' },
+      error: null,
+    })
+    const signedUploadMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'The resource already exists' },
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_files: filesChain,
+      },
+      storageMocks: {
+        'project-uploads': {
+          createSignedUploadUrl: signedUploadMock,
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      fileName: 'dup.wav',
+      fileSize: 2048,
+      mimeType: 'audio/wav',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body.error).toBe('The resource already exists')
+    expect(filesChain.insert).not.toHaveBeenCalled()
+  })
+
   test('returns 403 when a client tries to upload a mix file', async () => {
     const projectsChain = createChainMock({
       data: { id: 'proj-1', owner_id: 'owner-1', status: 'mixing' },

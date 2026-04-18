@@ -56,7 +56,22 @@ export async function POST(
     ? `${project.owner_id}/${projectId}/mixes/${fileName}`
     : `${project.owner_id}/${projectId}/${fileName}`
 
-  // 1. Insert file record
+  // 1. Create signed upload URL first so a storage collision (e.g. duplicate
+  // filename) doesn't leave a dangling project_files row behind.
+  // Use upsert for mix files so studio can re-upload updated mixes.
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('project-uploads')
+    .createSignedUploadUrl(storagePath, { upsert: fileType === 'mix' })
+
+  if (uploadError || !uploadData) {
+    console.error('[API /files POST] Storage Signed URL Error:', uploadError)
+    return NextResponse.json(
+      { error: uploadError?.message || 'Failed to create upload URL', details: uploadError },
+      { status: 500 },
+    )
+  }
+
+  // 2. Insert file record
   const { data: file, error: insertError } = await supabase
     .from('project_files')
     .insert({
@@ -76,20 +91,6 @@ export async function POST(
     console.error('[API /files POST] Insert Error:', insertError)
     return NextResponse.json(
       { error: insertError?.message || 'Failed to register file', details: insertError },
-      { status: 500 },
-    )
-  }
-
-  // 2. Create signed upload URL for Supabase Storage
-  // Use upsert for mix files so studio can re-upload updated mixes
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('project-uploads')
-    .createSignedUploadUrl(storagePath, { upsert: fileType === 'mix' })
-
-  if (uploadError || !uploadData) {
-    console.error('[API /files POST] Storage Signed URL Error:', uploadError)
-    return NextResponse.json(
-      { error: uploadError?.message || 'Failed to create upload URL', details: uploadError },
       { status: 500 },
     )
   }

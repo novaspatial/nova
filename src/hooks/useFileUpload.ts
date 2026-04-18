@@ -49,6 +49,10 @@ export function useFileUpload({
     setUploading(true)
     const syncedIds: string[] = []
 
+    // NOTE: keep this loop's skip/state logic in sync with the handleSubmit loop
+    // in src/app/portal/new/NewProjectForm.tsx — the two paths intentionally
+    // stay separate (one uploads to an existing project, the other creates one
+    // and rolls back on failure), but drift between them has caused bugs.
     for (const item of files) {
       if (item.status !== 'pending') continue
 

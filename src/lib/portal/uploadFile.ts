@@ -14,7 +14,13 @@ export function uploadFile(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve()
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`))
+        const body = xhr.responseText?.trim() ?? ''
+        console.error('[uploadFile] storage PUT failed', {
+          status: xhr.status,
+          body,
+        })
+        const detail = body ? ` — ${body}` : ''
+        reject(new Error(`Upload failed with status ${xhr.status}${detail}`))
       }
     }
     xhr.onerror = () => reject(new Error('Network error during upload'))
