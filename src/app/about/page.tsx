@@ -44,7 +44,7 @@ const team = [
         name: 'Daniel Byrne',
         role: 'Pop, Folk, Rock',
         image: { src: imageDanielByrne },
-        bio: 'Daniel combines a deep academic engineering background with commercial music industry and audio post expertise, stemming from studies from Queen\'s University, electroacoustics Simon Fraser University, and The Trebas Institute.',
+        bio: 'Daniel combines a deep academic background with commercial music industry and audio post expertise, stemming from studies at Queen\'s University, electroacoustics at Simon Fraser University, and audio engineering at The Trebas Institute.',
       },
       {
         name: 'Doug Fury',
