@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireApiUser } from '@/lib/auth/server'
+import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params
@@ -12,7 +13,6 @@ export async function POST(
   }
   const { supabase, user } = auth
 
-  // Hand the project off to the studio and begin mixing immediately.
   const { error } = await supabase
     .from('projects')
     .update({ status: 'in_review' })
@@ -26,6 +26,8 @@ export async function POST(
       { status: 500 },
     )
   }
+
+  await sendProjectStatusEmail(supabase, projectId, 'in_review', new URL(request.url).origin)
 
   return NextResponse.json({ success: true })
 }

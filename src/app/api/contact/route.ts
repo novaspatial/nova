@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/supabaseServer'
-import { resend } from '@/lib/resend'
+import { resend, RESEND_FROM } from '@/lib/resend'
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const { error: emailError } = await resend.emails.send({
-    from: 'Atmos <onboarding@resend.dev>',
+    from: RESEND_FROM,
     to: '6f6e7572@pm.me',
     subject: subject || `New inquiry from ${name}`,
     replyTo: email,

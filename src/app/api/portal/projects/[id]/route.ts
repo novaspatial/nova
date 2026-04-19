@@ -6,6 +6,7 @@ import {
   requireApiProfile,
   requireApiStudioUser,
 } from '@/lib/auth/server'
+import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
 
 export async function GET(
   _request: NextRequest,
@@ -117,6 +118,8 @@ export async function PATCH(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await sendProjectStatusEmail(supabase, id, status, new URL(request.url).origin)
 
   return NextResponse.json(project)
 }
