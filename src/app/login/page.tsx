@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 
-type AuthMode = 'login' | 'signup'
+type AuthMode = 'login' | 'signup' | 'reset'
 
 function getAuthErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -25,7 +25,7 @@ function getAuthErrorMessage(error: unknown) {
 }
 
 async function submitAuthRequest(
-  path: '/api/auth/login' | '/api/auth/signup',
+  path: '/api/auth/login' | '/api/auth/signup' | '/api/auth/reset-password',
   body: Record<string, unknown>,
 ): Promise<{ error: string | null }> {
   const response = await fetch(path, {
@@ -87,7 +87,7 @@ function LoginForm() {
           router.push(nextPath)
           router.refresh()
         }
-      } else {
+      } else if (mode === 'signup') {
         const { error } = await submitAuthRequest('/api/auth/signup', {
           email,
           password,
@@ -98,6 +98,17 @@ function LoginForm() {
           setError(error)
         } else {
           setMessage('Check your email for a confirmation link.')
+        }
+      } else {
+        const { error } = await submitAuthRequest('/api/auth/reset-password', {
+          email,
+        })
+        if (error) {
+          setError(error)
+        } else {
+          setMessage(
+            "If an account exists for that email, we've sent a reset link.",
+          )
         }
       }
     } catch (error) {
@@ -134,12 +145,18 @@ function LoginForm() {
               />
               <div className="relative rounded-2xl bg-zinc-900 p-8">
                 <h1 className="mt-4 text-center text-2xl font-bold text-white">
-                  {mode === 'login' ? 'Welcome back' : 'Create your account'}
+                  {mode === 'login'
+                    ? 'Welcome back'
+                    : mode === 'signup'
+                      ? 'Create your account'
+                      : 'Reset your password'}
                 </h1>
                 <p className="mt-2 text-center text-sm text-zinc-400">
                   {mode === 'login'
                     ? 'Sign in to your account'
-                    : 'Get started with NovaSpatial'}
+                    : mode === 'signup'
+                      ? 'Get started with NovaSpatial'
+                      : "Enter your email and we'll send you a reset link"}
                 </p>
 
                 {hasPromo && mode === 'signup' && (
@@ -169,24 +186,41 @@ function LoginForm() {
                     />
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="password"
-                      className="block text-sm font-medium text-zinc-300"
-                    >
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none"
-                      placeholder="••••••••"
-                    />
-                  </div>
+                  {mode !== 'reset' && (
+                    <div>
+                      <label
+                        htmlFor="password"
+                        className="block text-sm font-medium text-zinc-300"
+                      >
+                        Password
+                      </label>
+                      <input
+                        id="password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none"
+                        placeholder="••••••••"
+                      />
+                      {mode === 'login' && (
+                        <div className="mt-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMode('reset')
+                              setError(null)
+                              setMessage(null)
+                            }}
+                            className="text-xs font-medium text-violet-400 transition hover:text-violet-300"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {error && (
                     <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
@@ -209,7 +243,9 @@ function LoginForm() {
                       ? 'Loading...'
                       : mode === 'login'
                         ? 'Sign in'
-                        : 'Create account'}
+                        : mode === 'signup'
+                          ? 'Create account'
+                          : 'Send reset link'}
                   </button>
                 </form>
 
@@ -229,7 +265,7 @@ function LoginForm() {
                         Sign up
                       </button>
                     </>
-                  ) : (
+                  ) : mode === 'signup' ? (
                     <>
                       Already have an account?{' '}
                       <button
@@ -244,6 +280,18 @@ function LoginForm() {
                         Sign in
                       </button>
                     </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('login')
+                        setError(null)
+                        setMessage(null)
+                      }}
+                      className="font-medium text-violet-400 transition hover:text-violet-300"
+                    >
+                      Back to sign in
+                    </button>
                   )}
                 </p>
               </div>
