@@ -141,10 +141,15 @@ describe('POST /api/portal/projects/[id]/listen', () => {
       data: { id: 'proj-1' },
       error: null,
     })
+    const filesChain = createChainMock({
+      data: { id: 'track-1' },
+      error: null,
+    })
     const commentData = {
       id: 'c-new',
       body: 'Lower the bass here',
       timestamp_ms: 42000,
+      track_id: 'track-1',
       author: { display_name: 'Test User', avatar_url: null, role: 'client' },
     }
     const commentsChain = createChainMock({
@@ -154,6 +159,7 @@ describe('POST /api/portal/projects/[id]/listen', () => {
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
+        project_files: filesChain,
         project_comments: commentsChain,
       },
     })
@@ -162,6 +168,7 @@ describe('POST /api/portal/projects/[id]/listen', () => {
     const req = createMockRequest({
       body: 'Lower the bass here',
       timestampMs: 42000,
+      trackId: 'track-1',
     })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(200)
@@ -171,23 +178,70 @@ describe('POST /api/portal/projects/[id]/listen', () => {
     expect(resBody.timestamp_ms).toBe(42000)
   })
 
+  test('returns 400 when trackId is missing', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ body: 'Lower the bass' })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(400)
+    await expect(res.json()).resolves.toEqual({ error: 'trackId is required' })
+  })
+
+  test('returns 404 when trackId does not belong to the project', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    const filesChain = createChainMock({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_files: filesChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      body: 'Lower the bass',
+      trackId: 'other-project-track',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(404)
+  })
+
   test('trims body and forwards parentId when creating threaded comments', async () => {
     const projectsChain = createChainMock({
       data: { id: 'proj-1' },
       error: null,
     })
+    const filesChain = createChainMock({
+      data: { id: 'track-1' },
+      error: null,
+    })
+    // The parent lookup and the insert-select-single both resolve to the same
+    // chain; the shape satisfies both (parent reads track_id, insert returns
+    // the comment body/timestamp/parent_id).
     const commentsChain = createChainMock({
       data: {
         id: 'c-reply',
         body: 'Thanks for the note',
         timestamp_ms: 15000,
         parent_id: 'comment-1',
+        track_id: 'track-1',
       },
       error: null,
     })
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
+        project_files: filesChain,
         project_comments: commentsChain,
       },
     })
@@ -197,6 +251,7 @@ describe('POST /api/portal/projects/[id]/listen', () => {
       body: '  Thanks for the note  ',
       timestampMs: 15000,
       parentId: 'comment-1',
+      trackId: 'track-1',
     })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
 
@@ -206,8 +261,40 @@ describe('POST /api/portal/projects/[id]/listen', () => {
         body: 'Thanks for the note',
         parent_id: 'comment-1',
         timestamp_ms: 15000,
+        track_id: 'track-1',
       }),
     )
+  })
+
+  test('rejects reply whose trackId differs from the parent', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: { id: 'track-2' },
+      error: null,
+    })
+    const commentsChain = createChainMock({
+      data: { track_id: 'track-1' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_files: filesChain,
+        project_comments: commentsChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      body: 'Cross-track reply',
+      parentId: 'comment-1',
+      trackId: 'track-2',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(400)
   })
 
   test('creates comment without timestamp', async () => {
@@ -215,25 +302,39 @@ describe('POST /api/portal/projects/[id]/listen', () => {
       data: { id: 'proj-1' },
       error: null,
     })
+    const filesChain = createChainMock({
+      data: { id: 'track-1' },
+      error: null,
+    })
     const commentsChain = createChainMock({
-      data: { id: 'c-new', body: 'Overall great', timestamp_ms: null },
+      data: {
+        id: 'c-new',
+        body: 'Overall great',
+        timestamp_ms: null,
+        track_id: 'track-1',
+      },
       error: null,
     })
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
+        project_files: filesChain,
         project_comments: commentsChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
-    const req = createMockRequest({ body: 'Overall great' })
+    const req = createMockRequest({
+      body: 'Overall great',
+      trackId: 'track-1',
+    })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(200)
 
     expect(commentsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         timestamp_ms: null,
+        track_id: 'track-1',
       }),
     )
   })
@@ -243,6 +344,10 @@ describe('POST /api/portal/projects/[id]/listen', () => {
       data: { id: 'proj-1' },
       error: null,
     })
+    const filesChain = createChainMock({
+      data: { id: 'track-1' },
+      error: null,
+    })
     const commentsChain = createChainMock({
       data: null,
       error: { message: 'Insert failed' },
@@ -250,12 +355,16 @@ describe('POST /api/portal/projects/[id]/listen', () => {
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
+        project_files: filesChain,
         project_comments: commentsChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
-    const req = createMockRequest({ body: 'Needs revision' })
+    const req = createMockRequest({
+      body: 'Needs revision',
+      trackId: 'track-1',
+    })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
 
     expect(res.status).toBe(500)

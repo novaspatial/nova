@@ -69,10 +69,11 @@ export async function POST(
   }
 
   const reqBody = await request.json()
-  const { body, timestampMs, parentId, attachments } = reqBody as {
+  const { body, timestampMs, parentId, trackId, attachments } = reqBody as {
     body?: string
     timestampMs?: number | null
     parentId?: string | null
+    trackId?: string
     attachments?: IncomingAttachment[]
   }
 
@@ -84,6 +85,53 @@ export async function POST(
       { error: 'Comment must have a body or at least one attachment' },
       { status: 400 },
     )
+  }
+
+  if (typeof trackId !== 'string' || trackId.length === 0) {
+    return NextResponse.json(
+      { error: 'trackId is required' },
+      { status: 400 },
+    )
+  }
+
+  const { data: track, error: trackError } = await supabase
+    .from('project_files')
+    .select('id')
+    .eq('id', trackId)
+    .eq('project_id', projectId)
+    .eq('file_type', 'mix')
+    .maybeSingle()
+
+  if (trackError) {
+    return NextResponse.json({ error: trackError.message }, { status: 500 })
+  }
+  if (!track) {
+    return NextResponse.json({ error: 'Track not found' }, { status: 404 })
+  }
+
+  if (parentId) {
+    const { data: parent, error: parentError } = await supabase
+      .from('project_comments')
+      .select('track_id')
+      .eq('id', parentId)
+      .eq('project_id', projectId)
+      .maybeSingle()
+
+    if (parentError) {
+      return NextResponse.json({ error: parentError.message }, { status: 500 })
+    }
+    if (!parent) {
+      return NextResponse.json(
+        { error: 'Parent comment not found' },
+        { status: 404 },
+      )
+    }
+    if (parent.track_id !== trackId) {
+      return NextResponse.json(
+        { error: 'Reply must belong to the same track as its parent' },
+        { status: 400 },
+      )
+    }
   }
 
   for (const attachment of attachmentList) {
@@ -105,6 +153,7 @@ export async function POST(
     .from('project_comments')
     .insert({
       project_id: projectId,
+      track_id: trackId,
       author_id: user.id,
       body: trimmedBody.length > 0 ? trimmedBody : null,
       timestamp_ms: timestampMs ?? null,

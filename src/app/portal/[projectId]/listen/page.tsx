@@ -1,11 +1,10 @@
 import { unstable_noStore as noStore } from 'next/cache'
 import { FadeIn } from '@/components/ui/FadeIn'
-import { ReviewTimeline } from '@/components/portal'
 import {
   getProjectOrNotFound,
   requirePageProfile,
 } from '@/lib/auth/server'
-import { ListenPlayer } from './ListenPlayer'
+import { ListenView } from './ListenView'
 import type { ProjectComment, ProjectCommentAttachment } from '@/types/portal'
 
 export default async function ListenPage({
@@ -103,34 +102,15 @@ export default async function ListenPage({
 
   return (
     <FadeIn>
-      <div className="space-y-8">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-white sm:text-xl">
-              Interactive Listening
-            </h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Experience your spatial mix with high-fidelity Binaural and Dolby
-              Atmos playback.
-            </p>
-          </div>
-
-          <ListenPlayer
-            key={audioFiles.map((file) => `${file.id}:${file.signedUrl ?? 'missing'}`).join('|')}
-            projectId={project.id}
-            format={project.format}
-            audioFiles={audioFiles}
-          />
-        </div>
-
-        <ReviewTimeline
-          key={commentsWithAttachments.map((comment) => comment.id).join('|') || 'empty'}
-          projectId={projectId}
-          initialComments={commentsWithAttachments}
-          currentUserId={profile?.id ?? null}
-          currentRole={profile?.role ?? null}
-        />
-      </div>
+      <ListenView
+        key={audioFiles.map((file) => file.id).join('|')}
+        projectId={project.id}
+        format={project.format}
+        audioFiles={audioFiles}
+        initialComments={commentsWithAttachments}
+        currentUserId={profile?.id ?? null}
+        currentRole={profile?.role ?? null}
+      />
     </FadeIn>
   )
 }

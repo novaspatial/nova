@@ -25,7 +25,17 @@ type AudioFile = {
   downloadUrl?: string | null
 }
 
-function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
+function FileRow({
+  file,
+  isSelected,
+  commentCount,
+  onSelect,
+}: {
+  file: AudioFile
+  isSelected: boolean
+  commentCount: number
+  onSelect: () => void
+}) {
   const mixedMusicFile: MixedMusicFile = useMemo(
     () => ({
       id: file.id,
@@ -36,14 +46,20 @@ function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
   )
 
   const player = useAudioPlayer(mixedMusicFile)
+  const commentCountLabel =
+    commentCount === 1 ? '1 comment' : `${commentCount} comments`
 
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={() => player.toggle()}
+        onClick={() => {
+          onSelect()
+          player.toggle()
+        }}
+        aria-pressed={isSelected}
         className={clsx(
           'flex w-full flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition',
-          isActive
+          isSelected
             ? 'bg-violet-600/20 text-violet-300 ring-1 ring-violet-500/30'
             : 'text-zinc-400 hover:bg-white/5 hover:text-white',
         )}
@@ -54,6 +70,19 @@ function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
           <PlayIcon className="size-4 shrink-0" />
         )}
         <span className="truncate">{file.file_name}</span>
+        {commentCount > 0 && (
+          <span
+            aria-label={commentCountLabel}
+            className={clsx(
+              'ml-auto inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+              isSelected
+                ? 'bg-violet-500/20 text-violet-200'
+                : 'bg-white/5 text-zinc-400',
+            )}
+          >
+            {commentCount}
+          </span>
+        )}
       </button>
       {file.downloadUrl && (
         <a
@@ -71,10 +100,16 @@ function FileRow({ file, isActive }: { file: AudioFile; isActive: boolean }) {
 export function ListenPlayer({
   format,
   audioFiles,
+  selectedTrackId,
+  onSelectTrack,
+  commentCountByTrackId,
 }: {
   projectId: string
   format: Format
   audioFiles: AudioFile[]
+  selectedTrackId: string | null
+  onSelectTrack: (trackId: string) => void
+  commentCountByTrackId: Record<string, number>
 }) {
   const player = useAudioPlayer()
   const playableFiles = audioFiles.filter((f) => f.signedUrl)
@@ -124,7 +159,9 @@ export function ListenPlayer({
           <FileRow
             key={file.id}
             file={file}
-            isActive={player.mixedMusicFile?.id === file.id}
+            isSelected={selectedTrackId === file.id}
+            commentCount={commentCountByTrackId[file.id] ?? 0}
+            onSelect={() => onSelectTrack(file.id)}
           />
         ))}
       </div>

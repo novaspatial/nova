@@ -9,6 +9,7 @@ type ChainableMock = {
   is: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
   single: ReturnType<typeof vi.fn>
+  maybeSingle: ReturnType<typeof vi.fn>
 }
 
 /**
@@ -30,13 +31,15 @@ export function createChainMock(
     is: vi.fn(),
     order: vi.fn(),
     single: vi.fn(),
+    maybeSingle: vi.fn(),
   }
 
-  // Every method returns the chain itself, except single() which resolves
+  // Every method returns the chain itself, except terminal resolvers
   for (const key of Object.keys(chain) as (keyof ChainableMock)[]) {
     chain[key].mockReturnValue(chain)
   }
   chain.single.mockResolvedValue(resolvedValue)
+  chain.maybeSingle.mockResolvedValue(resolvedValue)
   // Also make the chain itself thenable for queries without .single()
   Object.assign(chain, {
     then: (resolve: (val: unknown) => void) =>

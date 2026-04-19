@@ -66,6 +66,7 @@ export interface ProjectCommentAttachment {
 export interface ProjectComment {
   id: string
   project_id: string
+  track_id: string
   author_id: string
   body: string | null
   timestamp_ms: number | null

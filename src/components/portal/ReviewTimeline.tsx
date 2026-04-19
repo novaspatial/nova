@@ -462,18 +462,26 @@ function CommentThread({
 
 export function ReviewTimeline({
   projectId,
-  initialComments,
+  comments,
+  onCommentsChange,
+  selectedTrackId,
+  selectedTrackName,
   currentUserId,
   currentRole,
 }: {
   projectId: string
-  initialComments: ProjectComment[]
+  comments: ProjectComment[]
+  onCommentsChange: (
+    updater: (prev: ProjectComment[]) => ProjectComment[],
+  ) => void
+  selectedTrackId: string | null
+  selectedTrackName: string | null
   currentUserId: string | null
   currentRole: UserRole | null
 }) {
   const router = useRouter()
   const player = useAudioPlayer()
-  const [comments, setComments] = useState(initialComments)
+  const setComments = onCommentsChange
   const [body, setBody] = useState('')
   const [timestampInput, setTimestampInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -623,19 +631,6 @@ export function ReviewTimeline({
     [pendingAttachments, uploadPendingAttachment],
   )
 
-  useEffect(() => {
-    setComments((currentComments) => {
-      const optimisticComments = currentComments.filter(
-        (currentComment) =>
-          !initialComments.some(
-            (serverComment) => serverComment.id === currentComment.id,
-          ),
-      )
-
-      return [...initialComments, ...optimisticComments]
-    })
-  }, [initialComments])
-
   const threads = useMemo(() => groupIntoThreads(comments), [comments])
 
   const trimmedQuery = searchQuery.trim().toLowerCase()
@@ -709,6 +704,7 @@ export function ReviewTimeline({
     async (payload: {
       body: string
       timestampMs: number | null
+      trackId: string
       parentId?: string
       attachments?: Array<{
         storagePath: string
@@ -730,10 +726,12 @@ export function ReviewTimeline({
 
   const handleReply = useCallback(
     async (parentId: string, replyBody: string) => {
+      if (!selectedTrackId) return
       try {
         const newComment = await postComment({
           body: replyBody,
           timestampMs: null,
+          trackId: selectedTrackId,
           parentId,
         })
         setComments((prev) => [...prev, newComment])
@@ -743,7 +741,7 @@ export function ReviewTimeline({
         // Error handled silently — could add toast notification
       }
     },
-    [postComment, router],
+    [postComment, router, selectedTrackId, setComments],
   )
 
   const canDelete = useCallback(
@@ -792,7 +790,7 @@ export function ReviewTimeline({
     } finally {
       setIsDeleting(false)
     }
-  }, [deleteTarget, projectId, router])
+  }, [deleteTarget, projectId, router, setComments])
 
   const uploadedAttachments = pendingAttachments.filter(
     (attachment) => attachment.status === 'uploaded',
@@ -803,12 +801,13 @@ export function ReviewTimeline({
   const canPost =
     !submitting &&
     !hasUploading &&
+    selectedTrackId !== null &&
     (body.trim().length > 0 || uploadedAttachments.length > 0)
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault()
-      if (submitting || hasUploading) return
+      if (submitting || hasUploading || !selectedTrackId) return
       const trimmedBody = body.trim()
       if (trimmedBody.length === 0 && uploadedAttachments.length === 0) return
 
@@ -820,6 +819,7 @@ export function ReviewTimeline({
         const newComment = await postComment({
           body: trimmedBody,
           timestampMs,
+          trackId: selectedTrackId,
           attachments: uploadedAttachments.map((attachment) => ({
             storagePath: attachment.storagePath!,
             fileName: attachment.file.name,
@@ -852,6 +852,8 @@ export function ReviewTimeline({
       hasUploading,
       postComment,
       router,
+      selectedTrackId,
+      setComments,
       submitting,
       timestampInput,
       uploadedAttachments,
@@ -864,10 +866,20 @@ export function ReviewTimeline({
     <div data-listen-comments className="space-y-6">
       {/* Section header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">
-            Timestamped Revisions
-          </h2>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-white sm:text-xl">
+              Timestamped Revisions
+            </h2>
+            {selectedTrackName && (
+              <span
+                className="inline-flex max-w-full items-center truncate rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-300"
+                aria-label={`Viewing comments for ${selectedTrackName}`}
+              >
+                {selectedTrackName}
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-zinc-400">
             Drop precise mix notes directly on the track timeline.
           </p>
