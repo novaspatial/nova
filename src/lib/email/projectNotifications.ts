@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resend, RESEND_FROM } from '@/lib/resend'
 
-type NotifiableStatus = 'in_review' | 'processing' | 'mixing' | 'review'
+type NotifiableStatus =
+  | 'in_review'
+  | 'processing'
+  | 'mixing'
+  | 'review'
+  | 'delivered'
 
 function buildEmail(
   status: NotifiableStatus,
@@ -25,6 +30,11 @@ function buildEmail(
         subject: `Your mix is ready to listen: "${projectTitle}"`,
         text: `Your mix for "${projectTitle}" is ready. Give it a listen and leave timestamped comments if you'd like any tweaks.\n\nListen: ${projectUrl}/listen`,
       }
+    case 'delivered':
+      return {
+        subject: `"${projectTitle}" has been delivered`,
+        text: `Your final mix for "${projectTitle}" has been delivered. Thanks for mixing with us — we hope you love how it turned out.\n\nProject: ${projectUrl}`,
+      }
     default:
       return null
   }
@@ -36,7 +46,13 @@ export async function sendProjectStatusEmail(
   status: string,
   origin: string,
 ): Promise<void> {
-  const notifiable: NotifiableStatus[] = ['in_review', 'processing', 'mixing', 'review']
+  const notifiable: NotifiableStatus[] = [
+    'in_review',
+    'processing',
+    'mixing',
+    'review',
+    'delivered',
+  ]
   if (!notifiable.includes(status as NotifiableStatus)) {
     return
   }

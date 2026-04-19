@@ -4,6 +4,7 @@ import {
   ArrowUpTrayIcon,
   CogIcon,
   MusicalNoteIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline'
 import { CheckIcon } from '@heroicons/react/24/solid'
 import clsx from 'clsx'
@@ -14,6 +15,7 @@ const timelineSteps = [
   { key: 'uploaded', label: 'Uploaded', icon: ArrowUpTrayIcon },
   { key: 'in_progress', label: 'In Progress', icon: CogIcon },
   { key: 'mixed', label: 'Mixed', icon: MusicalNoteIcon },
+  { key: 'complete', label: 'Delivered', icon: PaperAirplaneIcon },
 ] as const
 
 type TimelineStep = (typeof timelineSteps)[number]['key']

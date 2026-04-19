@@ -1,9 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
 
-import { ReviewTimeline } from '@/components/portal'
-import type { ProjectComment, UserRole } from '@/types/portal'
+import { PortalConfirmDialog, ReviewTimeline } from '@/components/portal'
+import type { ProjectComment, ProjectStatus, UserRole } from '@/types/portal'
 
 import { ListenPlayer } from './ListenPlayer'
 
@@ -20,6 +22,7 @@ type AudioFile = {
 export function ListenView({
   projectId,
   format,
+  status,
   audioFiles,
   initialComments,
   currentUserId,
@@ -27,12 +30,46 @@ export function ListenView({
 }: {
   projectId: string
   format: Format
+  status: ProjectStatus
   audioFiles: AudioFile[]
   initialComments: ProjectComment[]
   currentUserId: string | null
   currentRole: UserRole | null
 }) {
+  const router = useRouter()
   const [comments, setComments] = useState<ProjectComment[]>(initialComments)
+  const [deliverDialogOpen, setDeliverDialogOpen] = useState(false)
+  const [delivering, setDelivering] = useState(false)
+  const [deliverError, setDeliverError] = useState<string | null>(null)
+
+  const isStudio = currentRole === 'studio'
+  const canDeliver = isStudio && status !== 'delivered'
+
+  const handleDeliver = useCallback(async () => {
+    setDelivering(true)
+    setDeliverError(null)
+    try {
+      const res = await fetch(`/api/portal/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'delivered' }),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(data.error || 'Failed to deliver project.')
+      }
+      setDeliverDialogOpen(false)
+      router.refresh()
+    } catch (error) {
+      setDeliverError(
+        error instanceof Error
+          ? error.message
+          : 'Network error while delivering the project.',
+      )
+    } finally {
+      setDelivering(false)
+    }
+  }, [projectId, router])
 
   const firstPlayableTrackId = useMemo(
     () => audioFiles.find((file) => file.signedUrl)?.id ?? null,
@@ -124,6 +161,58 @@ export function ListenView({
         selectedTrackName={selectedTrackName}
         currentUserId={currentUserId}
         currentRole={currentRole}
+      />
+
+      {canDeliver && (
+        <div className="flex flex-col items-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-6 text-center backdrop-blur-sm">
+          <span className="flex size-10 items-center justify-center rounded-full bg-emerald-500/12 ring-1 ring-emerald-400/20">
+            <PaperAirplaneIcon className="size-5 text-emerald-300" />
+          </span>
+          <p className="mt-3 text-sm font-semibold text-emerald-300">
+            Ready to deliver?
+          </p>
+          <p className="mt-1 text-sm text-emerald-300/60">
+            Finalize this project and notify the client that their mix has been
+            delivered.
+          </p>
+          {deliverError && (
+            <p className="mt-3 w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {deliverError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setDeliverError(null)
+              setDeliverDialogOpen(true)
+            }}
+            disabled={delivering}
+            className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-500/80 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 backdrop-blur-sm transition hover:bg-emerald-500/90 hover:shadow-emerald-500/35 disabled:opacity-50"
+          >
+            Deliver
+          </button>
+        </div>
+      )}
+
+      <PortalConfirmDialog
+        isOpen={deliverDialogOpen}
+        tone="success"
+        eyebrow="Deliver"
+        title="Deliver this project?"
+        description="This will mark the project as delivered and email the client that their mix is ready."
+        noteTitle="Delivery is the final step."
+        noteBody="Make sure any outstanding revisions are resolved before delivering."
+        confirmLabel="Deliver"
+        busyLabel="Delivering..."
+        cancelLabel="Not Yet"
+        isBusy={delivering}
+        errorMessage={deliverError}
+        onClose={() => {
+          if (!delivering) {
+            setDeliverDialogOpen(false)
+          }
+        }}
+        onConfirm={() => void handleDeliver()}
       />
     </div>
   )
