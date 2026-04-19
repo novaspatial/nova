@@ -4,7 +4,6 @@ import {
   ArrowUpTrayIcon,
   CogIcon,
   MusicalNoteIcon,
-  CheckCircleIcon,
 } from '@heroicons/react/24/outline'
 import { CheckIcon } from '@heroicons/react/24/solid'
 import clsx from 'clsx'
@@ -15,7 +14,6 @@ const timelineSteps = [
   { key: 'uploaded', label: 'Uploaded', icon: ArrowUpTrayIcon },
   { key: 'in_progress', label: 'In Progress', icon: CogIcon },
   { key: 'mixed', label: 'Mixed', icon: MusicalNoteIcon },
-  { key: 'complete', label: 'Complete', icon: CheckCircleIcon },
 ] as const
 
 type TimelineStep = (typeof timelineSteps)[number]['key']
@@ -26,7 +24,8 @@ function getStepIndex(step: TimelineStep) {
 
 export function ProgressTimeline({ status }: { status: ProjectStatus }) {
   const currentStep = getProgressStage(status)
-  const currentIndex = getStepIndex(currentStep)
+  const rawIndex = getStepIndex(currentStep as TimelineStep)
+  const currentIndex = rawIndex === -1 ? timelineSteps.length : rawIndex
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/2 px-4 py-5 backdrop-blur-sm sm:px-6 sm:py-6">

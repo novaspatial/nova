@@ -147,25 +147,6 @@ function ListenTracksSkeleton() {
   )
 }
 
-function DeliverableCardSkeleton() {
-  return (
-    <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm sm:p-5">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20 sm:size-12">
-        <SkeletonBlock className="size-5 rounded-md sm:size-6" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <SkeletonBlock className="h-4 w-2/5 rounded-md" />
-        <div className="mt-1.5 flex items-center gap-2">
-          <SkeletonBlock className="h-4 w-16 rounded" />
-          <SkeletonBlock className="h-3 w-12 rounded-md" />
-          <SkeletonBlock className="h-3 w-16 rounded-md" />
-        </div>
-      </div>
-      <SkeletonBlock className="h-9 w-24 rounded-xl" />
-    </div>
-  )
-}
-
 function PaginationSkeleton() {
   return (
     <div className="mt-16 flex items-center justify-center gap-2">
@@ -290,46 +271,3 @@ export function ListenPageLoading() {
   )
 }
 
-export function DeliverPageLoading() {
-  return (
-    <div className="animate-pulse space-y-4">
-      <SectionIntroSkeleton titleWidth="w-52 sm:w-64" bodyWidth="max-w-2xl" />
-
-      {/* Deliverable cards */}
-      <div className="space-y-3">
-        <DeliverableCardSkeleton />
-        <DeliverableCardSkeleton />
-      </div>
-
-      {/* Studio upload section */}
-      <div className="space-y-3 border-t border-white/10 pt-4">
-        <div>
-          <SkeletonBlock className="h-4 w-36 rounded-md" />
-          <SkeletonBlock className="mt-1.5 h-3 w-64 rounded-md" />
-        </div>
-        <div className="space-y-4">
-          <div>
-            <SkeletonBlock className="mb-2 h-3 w-28 rounded-md" />
-            <div className="inline-flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
-              <SkeletonBlock className="h-7 w-16 rounded-lg" />
-              <SkeletonBlock className="h-7 w-20 rounded-lg" />
-              <SkeletonBlock className="h-7 w-24 rounded-lg" />
-            </div>
-          </div>
-          <UploadDropzoneSkeleton />
-        </div>
-      </div>
-
-      {/* Approval banner */}
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <SkeletonBlock className="h-4 w-32 rounded-md" />
-            <SkeletonBlock className="mt-1.5 h-3 w-64 rounded-md" />
-          </div>
-          <SkeletonBlock className="h-9 w-28 shrink-0 rounded-xl" />
-        </div>
-      </div>
-    </div>
-  )
-}

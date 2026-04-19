@@ -13,7 +13,7 @@ export const PROJECT_STATUSES = [
 
 export type { ProjectStatus }
 
-export type PortalStep = 'upload' | 'listen' | 'deliver'
+export type PortalStep = 'upload' | 'listen'
 
 export type ProgressStage = 'uploaded' | 'in_progress' | 'mixed' | 'complete'
 
@@ -26,10 +26,9 @@ export function getStepForStatus(status: ProjectStatus): PortalStep {
       return 'upload'
     case 'review':
     case 'revision':
-      return 'listen'
     case 'approved':
     case 'delivered':
-      return 'deliver'
+      return 'listen'
   }
 }
 
@@ -40,8 +39,8 @@ const clientUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
   mixing: ['upload'],
   review: ['upload', 'listen'],
   revision: ['upload', 'listen'],
-  approved: ['upload', 'listen', 'deliver'],
-  delivered: ['upload', 'listen', 'deliver'],
+  approved: ['upload', 'listen'],
+  delivered: ['upload', 'listen'],
 }
 
 const studioUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
@@ -49,10 +48,10 @@ const studioUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
   in_review: ['upload'],
   processing: ['upload'],
   mixing: ['upload'],
-  review: ['upload', 'listen', 'deliver'],
-  revision: ['upload', 'listen', 'deliver'],
-  approved: ['upload', 'listen', 'deliver'],
-  delivered: ['upload', 'listen', 'deliver'],
+  review: ['upload', 'listen'],
+  revision: ['upload', 'listen'],
+  approved: ['upload', 'listen'],
+  delivered: ['upload', 'listen'],
 }
 
 export function getUnlockedSteps(

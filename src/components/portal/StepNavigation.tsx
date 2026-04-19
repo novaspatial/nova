@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowUpTrayIcon,
   MusicalNoteIcon,
-  ArrowDownTrayIcon,
   CheckIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline'
@@ -23,11 +22,6 @@ const steps = [
     key: 'listen',
     label: 'Listen',
     icon: MusicalNoteIcon,
-  },
-  {
-    key: 'deliver',
-    label: 'Deliver',
-    icon: ArrowDownTrayIcon,
   },
 ] as const
 

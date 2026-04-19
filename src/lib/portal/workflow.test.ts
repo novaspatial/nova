@@ -30,8 +30,8 @@ describe('getStepForStatus', () => {
     ['mixing', 'upload'],
     ['review', 'listen'],
     ['revision', 'listen'],
-    ['approved', 'deliver'],
-    ['delivered', 'deliver'],
+    ['approved', 'listen'],
+    ['delivered', 'listen'],
   ] as const)('%s → %s', (status, expected) => {
     expect(getStepForStatus(status)).toBe(expected)
   })
@@ -46,8 +46,8 @@ describe('getUnlockedSteps', () => {
       ['mixing', ['upload']],
       ['review', ['upload', 'listen']],
       ['revision', ['upload', 'listen']],
-      ['approved', ['upload', 'listen', 'deliver']],
-      ['delivered', ['upload', 'listen', 'deliver']],
+      ['approved', ['upload', 'listen']],
+      ['delivered', ['upload', 'listen']],
     ] as const)('%s', (status, expected) => {
       expect(getUnlockedSteps(status, 'client')).toEqual(expected)
     })
@@ -59,20 +59,13 @@ describe('getUnlockedSteps', () => {
       ['in_review', ['upload']],
       ['processing', ['upload']],
       ['mixing', ['upload']],
-      ['review', ['upload', 'listen', 'deliver']],
-      ['revision', ['upload', 'listen', 'deliver']],
-      ['approved', ['upload', 'listen', 'deliver']],
-      ['delivered', ['upload', 'listen', 'deliver']],
+      ['review', ['upload', 'listen']],
+      ['revision', ['upload', 'listen']],
+      ['approved', ['upload', 'listen']],
+      ['delivered', ['upload', 'listen']],
     ] as const)('%s', (status, expected) => {
       expect(getUnlockedSteps(status, 'studio')).toEqual(expected)
     })
-  })
-
-  test('studio unlocks deliver during review/revision, client does not', () => {
-    expect(getUnlockedSteps('review', 'studio')).toContain('deliver')
-    expect(getUnlockedSteps('review', 'client')).not.toContain('deliver')
-    expect(getUnlockedSteps('revision', 'studio')).toContain('deliver')
-    expect(getUnlockedSteps('revision', 'client')).not.toContain('deliver')
   })
 
   test('upload is always unlocked for every status and role', () => {
