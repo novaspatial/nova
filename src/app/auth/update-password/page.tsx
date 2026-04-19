@@ -56,7 +56,7 @@ export default function UpdatePasswordPage() {
       return
     }
 
-    router.push('/portal')
+    router.push('/')
     router.refresh()
   }
 
