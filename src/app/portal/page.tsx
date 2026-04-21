@@ -1,6 +1,6 @@
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
-import { ProjectList } from '@/components/portal'
+import { ProjectList, UploadPrep } from '@/components/portal'
 import { requirePageProfile } from '@/lib/auth/server'
 import type { Project } from '@/types/portal'
 
@@ -51,20 +51,24 @@ export default async function PortalDashboard() {
             isStudio={isStudio}
             userId={user.id}
           />
-        ) : (
+        ) : isStudio ? (
           <FadeIn>
             <div className="rounded-2xl border border-white/10 bg-white/2 p-8 text-center shadow-2xl shadow-violet-500/5 backdrop-blur-sm sm:p-12">
-              <p className="text-base text-zinc-400">
-                No projects yet.
-              </p>
-              {!isStudio && (
-                <div className="mt-6">
-                  <Button href="/portal/new">
-                    Start Your First Project
-                  </Button>
-                </div>
-              )}
+              <p className="text-base text-zinc-400">No projects yet.</p>
             </div>
+          </FadeIn>
+        ) : (
+          <FadeIn>
+            <UploadPrep
+              footer={
+                <div className="text-center">
+                  <p className="text-base text-zinc-400">No projects yet.</p>
+                  <div className="mt-6">
+                    <Button href="/portal/new">Start Your First Project</Button>
+                  </div>
+                </div>
+              }
+            />
           </FadeIn>
         )}
       </div>
