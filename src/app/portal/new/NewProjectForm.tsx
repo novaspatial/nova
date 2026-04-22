@@ -1,12 +1,23 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { FileUploader } from '@/components/portal'
+import { useState, useCallback, useEffect } from 'react'
+import { FileUploader, PaymentStep } from '@/components/portal'
 import type { FileUploadItem } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
+
+type Phase = 'form' | 'payment' | 'uploading'
+
+type CheckoutResponse = {
+  projectId: string
+  clientSecret: string | null
+  amountCents: number
+  currency: string
+  discountApplied: boolean
+  devBypass?: boolean
+}
 
 function findDuplicateFileNames(items: FileUploadItem[]): string[] {
   const seen = new Set<string>()
@@ -19,12 +30,44 @@ function findDuplicateFileNames(items: FileUploadItem[]): string[] {
   return Array.from(dups)
 }
 
+async function waitForPaymentConfirmation(
+  projectId: string,
+  timeoutMs = 30_000,
+  intervalMs = 1_500,
+) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const res = await fetch(
+      `/api/portal/projects/${projectId}/payment-status`,
+      { cache: 'no-store' },
+    )
+    if (res.ok) {
+      const data = (await res.json()) as { paid?: boolean }
+      if (data.paid) return true
+    }
+    await new Promise((r) => setTimeout(r, intervalMs))
+  }
+  return false
+}
+
 export function NewProjectForm() {
+  const [phase, setPhase] = useState<Phase>('form')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
+
+  useEffect(() => {
+    if (phase !== 'payment') return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [phase])
 
   const handleFilesAdded = useCallback((newFiles: File[]) => {
     const items: FileUploadItem[] = newFiles.map((file) => ({
@@ -40,6 +83,139 @@ export function NewProjectForm() {
     setFiles((prev) => prev.filter((f) => f.id !== id))
   }, [])
 
+  const rollbackProject = useCallback(async (projectId: string) => {
+    try {
+      await fetch(`/api/portal/projects/${projectId}`, { method: 'DELETE' })
+    } catch (rollbackErr) {
+      console.error('[NewProjectForm] project rollback failed', rollbackErr)
+    }
+    setFiles((prev) =>
+      prev.map((f) => ({
+        ...f,
+        status: 'pending' as const,
+        progress: 0,
+        error: undefined,
+      })),
+    )
+  }, [])
+
+  const runUploadLoop = useCallback(
+    async (projectId: string) => {
+      let failureCount = 0
+      for (const item of files) {
+        if (item.status === 'uploaded' || item.status === 'synced') continue
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === item.id ? { ...f, status: 'uploading' as const } : f,
+          ),
+        )
+
+        try {
+          const registerRes = await fetch(
+            `/api/portal/projects/${projectId}/files`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fileName: item.file.name,
+                fileSize: item.file.size,
+                mimeType: item.file.type || 'audio/x-wav',
+                fileType: 'stem',
+              }),
+            },
+          )
+          if (!registerRes.ok) {
+            const data = (await registerRes.json().catch(() => ({}))) as {
+              error?: string
+            }
+            throw new Error(data.error || 'Failed to register file')
+          }
+          const { fileId, uploadUrl } = (await registerRes.json()) as {
+            fileId: string
+            uploadUrl: string
+          }
+
+          await uploadFile(item.file, uploadUrl, (progress) => {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === item.id ? { ...f, progress } : f,
+              ),
+            )
+          })
+
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === item.id
+                ? { ...f, status: 'uploaded' as const, progress: 100 }
+                : f,
+            ),
+          )
+
+          const confirmRes = await fetch(
+            `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
+            { method: 'POST' },
+          )
+          if (!confirmRes.ok) {
+            throw new Error('Failed to confirm file upload')
+          }
+
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === item.id ? { ...f, status: 'synced' as const } : f,
+            ),
+          )
+        } catch (fileErr) {
+          failureCount++
+          const message =
+            fileErr instanceof Error ? fileErr.message : 'Upload failed'
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === item.id
+                ? {
+                    ...f,
+                    status: 'failed' as const,
+                    error: message,
+                    progress: 0,
+                  }
+                : f,
+            ),
+          )
+        }
+      }
+      return failureCount
+    },
+    [files],
+  )
+
+  const uploadAndNavigate = useCallback(
+    async (projectId: string, skipConfirmation = false) => {
+      setPhase('uploading')
+      setError(null)
+
+      if (!skipConfirmation) {
+        const confirmed = await waitForPaymentConfirmation(projectId)
+        if (!confirmed) {
+          setError(
+            "We couldn't confirm your payment in time. If you were charged, your project is preserved — please refresh or contact support.",
+          )
+          return
+        }
+      }
+
+      const failureCount = await runUploadLoop(projectId)
+      if (failureCount > 0) {
+        setError(
+          `${failureCount} file${failureCount > 1 ? 's' : ''} failed to upload. Your payment went through — visit the project page to retry.`,
+        )
+        return
+      }
+
+      window.location.assign(`/portal/${projectId}/upload`)
+    },
+    [runUploadLoop],
+  )
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
@@ -51,7 +227,6 @@ export function NewProjectForm() {
         setError('Please add at least one file.')
         return
       }
-
       const duplicates = findDuplicateFileNames(files)
       if (duplicates.length > 0) {
         setError(
@@ -63,35 +238,8 @@ export function NewProjectForm() {
       setSubmitting(true)
       setError(null)
 
-      let createdProjectId: string | null = null
-      // Best-effort cleanup so a partial failure doesn't leave an orphan
-      // "uploading" project row on the dashboard.
-      const rollbackProject = async () => {
-        if (!createdProjectId) return
-        try {
-          await fetch(`/api/portal/projects/${createdProjectId}`, {
-            method: 'DELETE',
-          })
-        } catch (rollbackErr) {
-          console.error('[NewProjectForm] project rollback failed', rollbackErr)
-        }
-        createdProjectId = null
-        // Reset file state so the next submit re-uploads every file to the
-        // freshly-created project (the previous storage objects were cascaded
-        // away by the project delete).
-        setFiles((prev) =>
-          prev.map((f) => ({
-            ...f,
-            status: 'pending' as const,
-            progress: 0,
-            error: undefined,
-          })),
-        )
-      }
-
       try {
-        // 1. Create project
-        const projectRes = await fetch('/api/portal/projects', {
+        const res = await fetch('/api/portal/projects/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -100,121 +248,66 @@ export function NewProjectForm() {
             notes: notes.trim() || null,
           }),
         })
-
-        if (!projectRes.ok) {
-          const data = await projectRes.json() as { error?: string }
-          throw new Error(data.error || 'Failed to create project')
-        }
-
-        const { id: projectId } = await projectRes.json() as { id: string }
-        createdProjectId = projectId
-
-        // 2. Upload each file (continue on per-file errors, collect failures)
-        // NOTE: keep this loop's skip/state logic in sync with
-        // src/hooks/useFileUpload.ts — the two paths intentionally stay separate.
-        let failureCount = 0
-
-        for (const item of files) {
-          // Skip items that already finished in a prior submit attempt so retries
-          // only re-upload what actually failed.
-          if (item.status === 'uploaded' || item.status === 'synced') {
-            continue
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string
           }
-
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id ? { ...f, status: 'uploading' as const } : f,
-            ),
-          )
-
-          try {
-            // Register file
-            const registerRes = await fetch(
-              `/api/portal/projects/${projectId}/files`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  fileName: item.file.name,
-                  fileSize: item.file.size,
-                  mimeType: item.file.type || 'audio/x-wav',
-                  fileType: 'stem',
-                }),
-              },
-            )
-
-            if (!registerRes.ok) {
-              const data = await registerRes.json().catch(() => ({})) as { error?: string }
-              throw new Error(data.error || 'Failed to register file')
-            }
-            const { fileId, uploadUrl } = await registerRes.json() as { fileId: string; uploadUrl: string }
-
-            // Upload to storage
-            await uploadFile(item.file, uploadUrl, (progress) => {
-              setFiles((prev) =>
-                prev.map((f) =>
-                  f.id === item.id ? { ...f, progress } : f,
-                ),
-              )
-            })
-
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === item.id
-                  ? { ...f, status: 'uploaded' as const, progress: 100 }
-                  : f,
-              ),
-            )
-
-            // Confirm & sync
-            const confirmRes = await fetch(
-              `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
-              { method: 'POST' },
-            )
-
-            if (!confirmRes.ok) {
-              throw new Error('Failed to confirm file upload')
-            }
-
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === item.id ? { ...f, status: 'synced' as const } : f,
-              ),
-            )
-          } catch (fileErr) {
-            failureCount++
-            const message =
-              fileErr instanceof Error ? fileErr.message : 'Upload failed'
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === item.id
-                  ? { ...f, status: 'failed' as const, error: message, progress: 0 }
-                  : f,
-              ),
-            )
-          }
+          throw new Error(data.error || 'Failed to start checkout')
         }
+        const data = (await res.json()) as CheckoutResponse
 
-        if (failureCount > 0) {
-          await rollbackProject()
-          setError(
-            `${failureCount} file${failureCount > 1 ? 's' : ''} failed to upload. The draft project was discarded — please try again.`,
-          )
-          setSubmitting(false)
+        if (data.devBypass) {
+          setCheckout(data)
+          await uploadAndNavigate(data.projectId, true)
           return
         }
 
-        // Force a fresh document navigation after the initial upload flow so
-        // the new project page renders with the latest server data immediately.
-        window.location.assign(`/portal/${projectId}/upload`)
+        setCheckout(data)
+        setPhase('payment')
       } catch (err) {
-        await rollbackProject()
         setError(err instanceof Error ? err.message : 'Something went wrong')
+      } finally {
         setSubmitting(false)
       }
     },
-    [title, notes, files],
+    [title, notes, files, uploadAndNavigate],
   )
+
+  const handlePaymentSucceeded = useCallback(async () => {
+    if (!checkout) return
+    await uploadAndNavigate(checkout.projectId)
+  }, [checkout, uploadAndNavigate])
+
+  const handlePaymentCancel = useCallback(async () => {
+    if (!checkout) return
+    await rollbackProject(checkout.projectId)
+    setCheckout(null)
+    setPhase('form')
+  }, [checkout, rollbackProject])
+
+  if (phase === 'payment' && checkout && checkout.clientSecret) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="text-xs font-medium text-zinc-300 sm:text-sm">
+            Complete payment
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">
+            Your project <span className="text-zinc-300">{title}</span> is
+            reserved. Pay to start uploading.
+          </div>
+        </div>
+        <PaymentStep
+          clientSecret={checkout.clientSecret}
+          amountCents={checkout.amountCents}
+          currency={checkout.currency}
+          discountApplied={checkout.discountApplied}
+          onSucceeded={handlePaymentSucceeded}
+          onCancel={handlePaymentCancel}
+        />
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -224,7 +317,12 @@ export function NewProjectForm() {
         </div>
       )}
 
-      {/* Title */}
+      {checkout?.devBypass && phase === 'uploading' && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200 sm:text-sm">
+          Dev mode — payment bypassed ($0). Uploading directly.
+        </div>
+      )}
+
       <div>
         <label
           htmlFor="title"
@@ -239,11 +337,10 @@ export function NewProjectForm() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Album Name — Dolby Atmos Mix"
           className={`mt-2 ${inputClassName}`}
-          disabled={submitting}
+          disabled={submitting || phase === 'uploading'}
         />
       </div>
 
-      {/* Notes */}
       <div>
         <label
           htmlFor="notes"
@@ -259,11 +356,10 @@ export function NewProjectForm() {
           placeholder="Any references, preferences, or instructions for the mix engineer..."
           rows={4}
           className={`mt-2 resize-none ${inputClassName}`}
-          disabled={submitting}
+          disabled={submitting || phase === 'uploading'}
         />
       </div>
 
-      {/* File Upload */}
       <div>
         <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
           Upload Files
@@ -273,18 +369,21 @@ export function NewProjectForm() {
             files={files}
             onFilesAdded={handleFilesAdded}
             onRemove={handleRemove}
-            disabled={submitting}
+            disabled={submitting || phase === 'uploading'}
           />
         </div>
       </div>
 
-      {/* Submit */}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || phase === 'uploading'}
         className="w-full rounded-xl bg-violet-600 px-6 py-3 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
       >
-        {submitting ? 'Creating Project & Uploading...' : 'Create Project & Upload'}
+        {submitting
+          ? 'Creating Project & Uploading...'
+          : phase === 'uploading'
+            ? 'Uploading files…'
+            : 'Create Project & Upload'}
       </button>
     </form>
   )

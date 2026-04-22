@@ -52,7 +52,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
 
   test('returns 400 when required fields are missing', async () => {
     const projectsChain = createChainMock({
-      data: { id: 'proj-1', owner_id: 'user-1' },
+      data: { id: 'proj-1', owner_id: 'user-1', status: 'uploading' },
       error: null,
     })
     const supabase = createSupabaseMock({
@@ -71,7 +71,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
 
   test('registers file and returns signed upload URL', async () => {
     const projectsChain = createChainMock({
-      data: { id: 'proj-1', owner_id: 'user-1' },
+      data: { id: 'proj-1', owner_id: 'user-1', status: 'uploading' },
       error: null,
     })
     const filesChain = createChainMock({
@@ -113,7 +113,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
 
   test('constructs storage path from owner_id/project_id/filename', async () => {
     const projectsChain = createChainMock({
-      data: { id: 'proj-42', owner_id: 'owner-99' },
+      data: { id: 'proj-42', owner_id: 'owner-99', status: 'uploading' },
       error: null,
     })
     const filesChain = createChainMock({
@@ -153,7 +153,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
 
   test('does not insert a project_files row when the signed URL call fails', async () => {
     const projectsChain = createChainMock({
-      data: { id: 'proj-1', owner_id: 'owner-1' },
+      data: { id: 'proj-1', owner_id: 'owner-1', status: 'uploading' },
       error: null,
     })
     const filesChain = createChainMock({
@@ -188,6 +188,37 @@ describe('POST /api/portal/projects/[id]/files', () => {
     const body = await res.json()
     expect(body.error).toBe('The resource already exists')
     expect(filesChain.insert).not.toHaveBeenCalled()
+  })
+
+  test('returns 402 when stem upload is attempted on a pending_payment project', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'user-1', status: 'pending_payment' },
+      error: null,
+    })
+    const filesChain = createChainMock({ data: null, error: null })
+    const signedUploadMock = vi.fn()
+    const supabase = createSupabaseMock({
+      fromMocks: {
+        projects: projectsChain,
+        project_files: filesChain,
+      },
+      storageMocks: {
+        'project-uploads': { createSignedUploadUrl: signedUploadMock },
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({
+      fileName: 'track.wav',
+      fileSize: 1024,
+      mimeType: 'audio/wav',
+      fileType: 'stem',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(402)
+    expect(filesChain.insert).not.toHaveBeenCalled()
+    expect(signedUploadMock).not.toHaveBeenCalled()
   })
 
   test('returns 403 when a client tries to upload a mix file', async () => {

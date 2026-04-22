@@ -137,7 +137,9 @@ export async function DELETE(
 
   const { data: project } = await supabase
     .from('projects')
-    .select('id, owner_id, client_deleted_at, studio_deleted_at')
+    .select(
+      'id, owner_id, client_deleted_at, studio_deleted_at, discount_applied, paid_at',
+    )
     .eq('id', id)
     .single()
 
@@ -149,6 +151,21 @@ export async function DELETE(
 
   if (!canDelete) {
     return forbiddenResponse()
+  }
+
+  // If this project reserved the first-mix discount but was never paid,
+  // return the reservation to the user's pool so they can retry later.
+  if (project.discount_applied && !project.paid_at) {
+    const { error: restoreError } = await supabase.rpc(
+      'restore_first_mix_discount',
+      { p_user_id: project.owner_id },
+    )
+    if (restoreError) {
+      console.error(
+        '[DELETE /projects/:id] discount restore failed',
+        restoreError,
+      )
+    }
   }
 
   const [filesResult, deliverablesResult] = await Promise.all([

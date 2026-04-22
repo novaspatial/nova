@@ -7,6 +7,8 @@ type ChainableMock = {
   delete: ReturnType<typeof vi.fn>
   eq: ReturnType<typeof vi.fn>
   is: ReturnType<typeof vi.fn>
+  gte: ReturnType<typeof vi.fn>
+  lte: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
   single: ReturnType<typeof vi.fn>
   maybeSingle: ReturnType<typeof vi.fn>
@@ -17,7 +19,7 @@ type ChainableMock = {
  * Call `mockResolvedData(data)` to set the final result of the chain.
  */
 export function createChainMock(
-  resolvedValue: { data: unknown; error: unknown } = {
+  resolvedValue: Record<string, unknown> = {
     data: null,
     error: null,
   },
@@ -29,6 +31,8 @@ export function createChainMock(
     delete: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    gte: vi.fn(),
+    lte: vi.fn(),
     order: vi.fn(),
     single: vi.fn(),
     maybeSingle: vi.fn(),
@@ -64,6 +68,7 @@ export function createSupabaseMock({
       remove?: ReturnType<typeof vi.fn>
     }
   >,
+  rpc = vi.fn().mockResolvedValue({ data: null, error: null }),
 }: {
   user?: { id: string; email: string } | null
   fromMocks?: Record<string, ChainableMock>
@@ -76,6 +81,7 @@ export function createSupabaseMock({
       remove?: ReturnType<typeof vi.fn>
     }
   >
+  rpc?: ReturnType<typeof vi.fn>
 } = {}) {
   return {
     auth: {
@@ -83,6 +89,7 @@ export function createSupabaseMock({
         data: { user },
       }),
     },
+    rpc,
     from: vi.fn((table: string) => {
       if (fromMocks[table]) return fromMocks[table]
       // Default chain that returns null

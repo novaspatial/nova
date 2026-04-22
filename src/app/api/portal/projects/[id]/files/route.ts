@@ -49,6 +49,14 @@ export async function POST(
         { status: 400 },
       )
     }
+  } else {
+    // Stem uploads require a paid project.
+    if (project.status !== 'uploading') {
+      return NextResponse.json(
+        { error: 'Payment required before uploading files' },
+        { status: 402 },
+      )
+    }
   }
 
   const storagePath =
