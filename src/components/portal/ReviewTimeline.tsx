@@ -1,5 +1,15 @@
 'use client'
 
+// Comment/review surface for a mix. Threads top-level comments with replies
+// and lets the author anchor a comment to either a single timestamp or a
+// waveform range (anchorAMs/anchorBMs from AudioProvider). Attachments are
+// uploaded optimistically: the UI shows a local "pending" row while the
+// `/comment-attachments/register` endpoint exchanges a signed upload URL,
+// then the row is replaced by the server-backed record once the comment is
+// posted. Parent deletion is blocked while replies exist — the DELETE route
+// surfaces that as 409 and we show it as an inline error rather than
+// removing the comment optimistically.
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type {

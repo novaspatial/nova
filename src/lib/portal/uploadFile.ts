@@ -1,3 +1,7 @@
+// Raw XHR PUT so we get `upload.onprogress` events (fetch doesn't expose
+// upload progress yet). Retries, aborts, and timeouts are the caller's
+// responsibility — on unmount the XHR is garbage-collected and the request
+// is implicitly cancelled.
 export function uploadFile(
   file: File,
   uploadUrl: string,

@@ -1,5 +1,14 @@
 'use client'
 
+// Auto-uploading upload queue for an existing project. Adds are idempotent:
+// each item goes through `pending → uploading → (uploaded →) synced` once
+// and is then dropped from the list by `onComplete`. Stems / mixes use the
+// two-phase register → PUT → confirm flow against `/api/portal/projects/
+// [id]/files`; deliverables use a single-phase register → PUT to
+// `/api/portal/projects/[id]/deliverables`. There is no abort controller —
+// XHRs are implicitly cancelled when the component unmounts, and failures
+// leave the item in `failed` state for the user to retry or remove.
+
 import { useState, useCallback, useEffect } from 'react'
 import type { FileType, FileUploadItem } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'

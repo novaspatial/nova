@@ -34,6 +34,10 @@ export function getStepForStatus(status: ProjectStatus): PortalStep {
   }
 }
 
+// The client and studio tables are intentionally identical today (both
+// roles see the same steps once payment clears). Keeping them separate
+// means the two roles can diverge later — e.g. giving studio early access
+// to `listen` during `processing` — without restructuring callers.
 const clientUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
   pending_payment: [],
   uploading: ['upload'],

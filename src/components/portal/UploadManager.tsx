@@ -1,5 +1,12 @@
 'use client'
 
+// Post-creation upload surface: attached to an existing project, stem files
+// go through useFileUpload's two-phase flow (register → PUT → confirm) and
+// mix files (studio-only) use the same route with `fileType: 'mix'`. A
+// separate pre-creation flow lives in NewProjectForm and is intentionally
+// independent — see useFileUpload.ts for the note about why they mirror
+// each other instead of sharing code.
+
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { FileUploader } from '@/components/portal/FileUploader'

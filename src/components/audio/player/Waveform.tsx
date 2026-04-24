@@ -37,6 +37,12 @@ function formatTime(
     .join(':')
 }
 
+// Module-level caches survive component unmount on purpose: navigating away
+// and back to the same mix should not re-decode the audio. `peakPromises`
+// dedupes concurrent fetches for the same URL so parallel Waveform mounts
+// share a single decode. HIGH_RES_BINS = 4096 is the bucket count for the
+// decoded peaks — high enough that zooming in stays crisp without blowing
+// up memory for long tracks.
 const peakCache = new Map<string, number[]>()
 const peakPromises = new Map<string, Promise<number[]>>()
 

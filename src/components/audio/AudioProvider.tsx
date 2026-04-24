@@ -1,5 +1,12 @@
 'use client'
 
+// Centralised audio playback state for the portal. Owns the playing track
+// plus a `queue` used by NextButton/PreviousButton. `anchorAMs`/`anchorBMs`
+// are the two endpoints of a time-range selection used to attach timestamped
+// comments to a mix; `CommentSelection` normalises them into ordered
+// start/end milliseconds. The selection is cleared whenever the active track
+// changes so a selection can never straddle two mixes.
+
 import {
   createContext,
   useCallback,
