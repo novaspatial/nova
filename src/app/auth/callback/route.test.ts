@@ -11,7 +11,7 @@ import { GET } from './route'
 describe('GET /auth/callback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.NODE_ENV = 'test'
+    vi.stubEnv('NODE_ENV', 'test')
   })
 
   test('redirects to login when auth code is missing', async () => {
@@ -64,7 +64,7 @@ describe('GET /auth/callback', () => {
   })
 
   test('redirects to the origin during development', async () => {
-    process.env.NODE_ENV = 'development'
+    vi.stubEnv('NODE_ENV', 'development')
     mockCreateClient.mockResolvedValue({
       auth: {
         exchangeCodeForSession: vi.fn().mockResolvedValue({

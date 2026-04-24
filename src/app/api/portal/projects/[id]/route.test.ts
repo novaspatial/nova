@@ -309,7 +309,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
     await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
   })
 
-  test('hides an owned project from the client view', async () => {
+  test('owner (client role) fully deletes the project', async () => {
     const profileChain = createChainMock({
       data: { role: 'client' },
       error: null,
@@ -320,6 +320,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
         owner_id: 'user-1',
         client_deleted_at: null,
         studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: '2026-04-01T00:00:00.000Z',
       },
       error: null,
     })
@@ -330,6 +332,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
           owner_id: 'user-1',
           client_deleted_at: null,
           studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: '2026-04-01T00:00:00.000Z',
         },
         error: null,
       })
@@ -337,6 +341,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
         data: { id: 'proj-1' },
         error: null,
       })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
     const uploadsBucket = {
       remove: vi.fn().mockResolvedValue({ data: null, error: null }),
     }
@@ -348,6 +354,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
       fromMocks: {
         profiles: profileChain,
         projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
       },
       storageMocks: {
         'project-uploads': uploadsBucket,
@@ -362,16 +370,13 @@ describe('DELETE /api/portal/projects/[id]', () => {
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({
       success: true,
-      hidden: true,
-      deleted: false,
+      hidden: false,
+      deleted: true,
     })
-    expect(projectsChain.update).toHaveBeenCalledTimes(1)
-    expect(projectsChain.delete).not.toHaveBeenCalled()
-    expect(uploadsBucket.remove).not.toHaveBeenCalled()
-    expect(deliverablesBucket.remove).not.toHaveBeenCalled()
+    expect(projectsChain.delete).toHaveBeenCalledTimes(1)
   })
 
-  test('allows studio users to hide any project from their own view', async () => {
+  test('studio role can delete any project', async () => {
     const profileChain = createChainMock({
       data: { role: 'studio' },
       error: null,
@@ -382,6 +387,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
         owner_id: 'client-1',
         client_deleted_at: null,
         studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: '2026-04-01T00:00:00.000Z',
       },
       error: null,
     })
@@ -392,6 +399,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
           owner_id: 'client-1',
           client_deleted_at: null,
           studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: '2026-04-01T00:00:00.000Z',
         },
         error: null,
       })
@@ -399,11 +408,15 @@ describe('DELETE /api/portal/projects/[id]', () => {
         data: { id: 'proj-1' },
         error: null,
       })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: {
         profiles: profileChain,
         projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -414,11 +427,65 @@ describe('DELETE /api/portal/projects/[id]', () => {
     expect(res.status).toBe(200)
     await expect(res.json()).resolves.toEqual({
       success: true,
-      hidden: true,
-      deleted: false,
+      hidden: false,
+      deleted: true,
     })
-    expect(projectsChain.update).toHaveBeenCalledTimes(1)
-    expect(projectsChain.delete).not.toHaveBeenCalled()
+    expect(projectsChain.delete).toHaveBeenCalledTimes(1)
+  })
+
+  test('restores first-mix discount when the project was reserved but never paid', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: true,
+        paid_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: true,
+          paid_at: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'proj-1' }, error: null })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
+    const rpcMock = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+      rpc: rpcMock,
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(rpcMock).toHaveBeenCalledWith('restore_first_mix_discount', {
+      p_user_id: 'user-1',
+    })
   })
 
   test('fully deletes a project when both sides have removed it', async () => {

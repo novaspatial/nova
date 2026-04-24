@@ -8,8 +8,9 @@ import {
 } from './workflow'
 
 describe('PROJECT_STATUSES', () => {
-  test('contains all 8 valid statuses in order', () => {
+  test('contains all valid statuses in lifecycle order', () => {
     expect(PROJECT_STATUSES).toEqual([
+      'pending_payment',
       'uploading',
       'in_review',
       'processing',
@@ -24,6 +25,7 @@ describe('PROJECT_STATUSES', () => {
 
 describe('getStepForStatus', () => {
   test.each([
+    ['pending_payment', 'upload'],
     ['uploading', 'upload'],
     ['in_review', 'upload'],
     ['processing', 'upload'],
@@ -40,6 +42,7 @@ describe('getStepForStatus', () => {
 describe('getUnlockedSteps', () => {
   describe('client role', () => {
     test.each([
+      ['pending_payment', []],
       ['uploading', ['upload']],
       ['in_review', ['upload']],
       ['processing', ['upload']],
@@ -55,6 +58,7 @@ describe('getUnlockedSteps', () => {
 
   describe('studio role', () => {
     test.each([
+      ['pending_payment', []],
       ['uploading', ['upload']],
       ['in_review', ['upload']],
       ['processing', ['upload']],
@@ -68,8 +72,14 @@ describe('getUnlockedSteps', () => {
     })
   })
 
-  test('upload is always unlocked for every status and role', () => {
+  test('no steps are unlocked while payment is pending', () => {
+    expect(getUnlockedSteps('pending_payment', 'client')).toEqual([])
+    expect(getUnlockedSteps('pending_payment', 'studio')).toEqual([])
+  })
+
+  test('upload is unlocked for every status once payment clears', () => {
     for (const status of PROJECT_STATUSES) {
+      if (status === 'pending_payment') continue
       expect(getUnlockedSteps(status, 'client')).toContain('upload')
       expect(getUnlockedSteps(status, 'studio')).toContain('upload')
     }
@@ -78,6 +88,7 @@ describe('getUnlockedSteps', () => {
 
 describe('getStatusDisplay', () => {
   test.each([
+    ['pending_payment', 'Pending Payment'],
     ['uploading', 'Uploading'],
     ['in_review', 'In Review'],
     ['processing', 'Mixing'],
@@ -99,6 +110,7 @@ describe('getStatusDisplay', () => {
 
 describe('getProgressStage', () => {
   test.each([
+    ['pending_payment', 'uploaded'],
     ['uploading', 'uploaded'],
     ['in_review', 'uploaded'],
     ['processing', 'in_progress'],

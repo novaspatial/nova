@@ -31,14 +31,19 @@ describe('GET /api/portal/projects/[id]/deliverables', () => {
   })
 
   test('returns deliverables list', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1' },
+      error: null,
+    })
     const deliverablesChain = createChainMock({
-      data: [
-        { id: 'd1', file_name: 'master.wav', format: 'adm_bwf' },
-      ],
+      data: [{ id: 'd1', file_name: 'master.wav', format: 'adm_bwf' }],
       error: null,
     })
     const supabase = createSupabaseMock({
-      fromMocks: { deliverables: deliverablesChain },
+      fromMocks: {
+        projects: projectsChain,
+        deliverables: deliverablesChain,
+      },
     })
     mockCreateClient.mockResolvedValue(supabase)
 
@@ -82,7 +87,7 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
     expect(body.error).toBe('Forbidden')
   })
 
-  test('returns 400 when required fields are missing', async () => {
+  test('returns 400 when fileName or fileSize is missing (format is optional)', async () => {
     const profileChain = createChainMock({
       data: { role: 'studio' },
       error: null,
@@ -97,17 +102,12 @@ describe('POST /api/portal/projects/[id]/deliverables', () => {
     })
     mockCreateClient.mockResolvedValue(supabase)
 
-    const req = createMockRequest({
-      fileName: 'master.wav',
-      fileSize: 50000,
-    })
+    const req = createMockRequest({ fileName: 'master.wav' })
     const res = await POST(req as NextRequest, makeParams('proj-1'))
     expect(res.status).toBe(400)
 
     const body = await res.json()
-    expect(body.error).toBe(
-      'fileName, fileSize, and format are required',
-    )
+    expect(body.error).toBe('fileName and fileSize are required')
   })
 
   test('creates deliverable for studio user', async () => {

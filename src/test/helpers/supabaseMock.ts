@@ -88,6 +88,11 @@ export function createSupabaseMock({
       getUser: vi.fn().mockResolvedValue({
         data: { user },
       }),
+      // Placeholders so tests can override via assignment without TS errors.
+      signInWithPassword: vi.fn(),
+      signUp: vi.fn(),
+      signInWithOtp: vi.fn(),
+      signOut: vi.fn(),
     },
     rpc,
     from: vi.fn((table: string) => {
