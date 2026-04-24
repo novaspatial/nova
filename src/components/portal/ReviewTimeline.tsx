@@ -1083,7 +1083,6 @@ export function ReviewTimeline({
                   placeholder="0:00"
                   className="w-20 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
                 />
-                <span className="text-xs text-zinc-500">(optional)</span>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <input

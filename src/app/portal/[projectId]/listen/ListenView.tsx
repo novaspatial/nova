@@ -109,7 +109,6 @@ export function ListenView({
   const commentCountByTrackId = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const comment of comments) {
-      if (comment.parent_id) continue
       counts[comment.track_id] = (counts[comment.track_id] ?? 0) + 1
     }
     return counts
@@ -165,10 +164,7 @@ export function ListenView({
 
       {canDeliver && (
         <div className="flex flex-col items-center rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-6 text-center backdrop-blur-sm">
-          <span className="flex size-10 items-center justify-center rounded-full bg-emerald-500/12 ring-1 ring-emerald-400/20">
-            <PaperAirplaneIcon className="size-5 text-emerald-300" />
-          </span>
-          <p className="mt-3 text-sm font-semibold text-emerald-300">
+          <p className="text-sm font-semibold text-emerald-300">
             Ready to deliver?
           </p>
           <p className="mt-1 text-sm text-emerald-300/60">

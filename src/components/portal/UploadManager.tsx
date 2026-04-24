@@ -305,10 +305,6 @@ export function UploadManager({
 
           {currentStatus === 'in_review' && (
             <div className="flex flex-col items-center rounded-2xl border border-blue-500/20 bg-blue-500/5 px-5 py-5 text-center backdrop-blur-sm">
-              <span className="relative mb-3 inline-flex">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-50" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-blue-400" />
-              </span>
               <p className="text-sm font-semibold text-blue-300">
                 New project awaiting approval
               </p>
