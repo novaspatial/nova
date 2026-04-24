@@ -19,14 +19,14 @@ function PreviousIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 export function PreviousButton({ player }: { player: AudioPlayerAPI }) {
-  const disabled = player.duration === 0
+  const disabled = !player.hasPrevious
 
   return (
     <button
       type="button"
       className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 disabled:opacity-50 disabled:hover:text-zinc-400"
-      onClick={() => player.seek(0)}
-      aria-label="Restart track"
+      onClick={() => player.previous()}
+      aria-label="Previous track"
       disabled={disabled}
     >
       <div className="absolute -inset-2 md:hidden" />

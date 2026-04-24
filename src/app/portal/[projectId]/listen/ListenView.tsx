@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
 
+import {
+  useAudioPlayer,
+  type MixedMusicFile,
+} from '@/components/audio/AudioProvider'
 import { PortalConfirmDialog, ReviewTimeline } from '@/components/portal'
 import type { ProjectComment, ProjectStatus, UserRole } from '@/types/portal'
 
@@ -80,6 +84,38 @@ export function ListenView({
     firstPlayableTrackId,
   )
 
+  const player = useAudioPlayer()
+  const queueFiles = useMemo<MixedMusicFile[]>(
+    () =>
+      audioFiles
+        .filter((file) => file.signedUrl)
+        .map((file) => ({
+          id: file.id,
+          title: file.file_name,
+          audio: { src: file.signedUrl! },
+        })),
+    [audioFiles],
+  )
+
+  useEffect(() => {
+    player.setQueue(queueFiles)
+    return () => {
+      player.setQueue([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueFiles])
+
+  const playingTrackId = player.mixedMusicFile?.id ?? null
+  useEffect(() => {
+    if (playingTrackId == null) return
+    const id = String(playingTrackId)
+    if (id === selectedTrackId) return
+    if (audioFiles.some((file) => file.id === id)) {
+      setSelectedTrackId(id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playingTrackId])
+
   // Keep optimistic, locally-created comments while syncing the server-refreshed
   // list back in after mutations trigger a router.refresh().
   useEffect(() => {
@@ -132,16 +168,6 @@ export function ListenView({
   return (
     <div className="space-y-8">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-white sm:text-xl">
-            Interactive Listening
-          </h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Experience your spatial mix with high-fidelity Binaural and Dolby
-            Atmos playback.
-          </p>
-        </div>
-
         <ListenPlayer
           projectId={projectId}
           format={format}

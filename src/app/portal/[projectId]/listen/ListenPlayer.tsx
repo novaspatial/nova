@@ -166,12 +166,6 @@ export function ListenPlayer({
         ))}
       </div>
 
-      {player.mixedMusicFile && (
-        <p className="text-xs text-zinc-500">
-          Now playing:{' '}
-          <span className="text-zinc-300">{player.mixedMusicFile.title}</span>
-        </p>
-      )}
     </div>
   )
 }

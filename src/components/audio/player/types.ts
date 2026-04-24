@@ -8,6 +8,8 @@ export type AudioPlayerAPI = {
   currentTime: number
   loop: boolean
   mixedMusicFile: MixedMusicFile | null
+  hasNext: boolean
+  hasPrevious: boolean
   play(): void
   pause(): void
   toggle(): void
@@ -19,4 +21,6 @@ export type AudioPlayerAPI = {
   toggleLoop(): void
   isPlaying(file?: MixedMusicFile): boolean
   clear(): void
+  next(): void
+  previous(): void
 }

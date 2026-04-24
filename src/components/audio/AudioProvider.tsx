@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -25,10 +26,13 @@ type AudioPlayerState = {
   currentTime: number
   loop: boolean
   mixedMusicFile: MixedMusicFile | null
+  queue: MixedMusicFile[]
 }
 
 type AudioPlayerAPI = AudioPlayerState & {
   muted: boolean
+  hasNext: boolean
+  hasPrevious: boolean
   play(mixedMusicFile?: MixedMusicFile): void
   pause(): void
   toggle(mixedMusicFile?: MixedMusicFile): void
@@ -40,6 +44,9 @@ type AudioPlayerAPI = AudioPlayerState & {
   toggleLoop(): void
   isPlaying(mixedMusicFile?: MixedMusicFile): boolean
   clear(): void
+  setQueue(files: MixedMusicFile[]): void
+  next(): void
+  previous(): void
 }
 
 type Action =
@@ -50,6 +57,7 @@ type Action =
   | { type: 'SET_CURRENT_TIME'; payload: number }
   | { type: 'SET_DURATION'; payload: number }
   | { type: 'SET_LOOP'; payload: boolean }
+  | { type: 'SET_QUEUE'; payload: MixedMusicFile[] }
 
 const AudioPlayerContext = createContext<AudioPlayerAPI | null>(null)
 
@@ -72,6 +80,8 @@ function audioReducer(
       return { ...state, duration: action.payload }
     case 'SET_LOOP':
       return { ...state, loop: action.payload }
+    case 'SET_QUEUE':
+      return { ...state, queue: action.payload }
   }
 }
 
@@ -107,8 +117,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     currentTime: 0,
     loop: false,
     mixedMusicFile: null,
+    queue: [],
   })
   const playerRef = useRef<HTMLAudioElement>(null)
+
+  const setQueue = useCallback((files: MixedMusicFile[]) => {
+    dispatch({ type: 'SET_QUEUE', payload: files })
+  }, [])
 
   const actions = useMemo(() => {
     const play = (file?: MixedMusicFile) => {
@@ -195,10 +210,34 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         : play(current ?? undefined)
     }
 
+    const findCurrentIndex = () => {
+      const current = state.mixedMusicFile
+      if (!current) return -1
+      return state.queue.findIndex((file) => file.id === current.id)
+    }
+
     return {
       play,
       pause,
       toggle,
+      next() {
+        const idx = findCurrentIndex()
+        if (idx < 0 || idx >= state.queue.length - 1) return
+        play(state.queue[idx + 1])
+      },
+      previous() {
+        const currentTime = playerRef.current?.currentTime ?? 0
+        if (currentTime > 3) {
+          if (playerRef.current) playerRef.current.currentTime = 0
+          return
+        }
+        const idx = findCurrentIndex()
+        if (idx <= 0) {
+          if (playerRef.current) playerRef.current.currentTime = 0
+          return
+        }
+        play(state.queue[idx - 1])
+      },
       seekBy(amount: number) {
         if (playerRef.current) {
           playerRef.current.currentTime += amount
@@ -235,7 +274,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         playerRef.current?.pause()
       },
     }
-  }, [state.playing, state.mixedMusicFile, state.loop])
+  }, [state.playing, state.mixedMusicFile, state.loop, state.queue])
 
   useEffect(() => {
     if (playerRef.current) {
@@ -249,9 +288,27 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [state.loop])
 
+  const currentQueueIndex = useMemo(() => {
+    if (!state.mixedMusicFile) return -1
+    return state.queue.findIndex(
+      (file) => file.id === state.mixedMusicFile!.id,
+    )
+  }, [state.queue, state.mixedMusicFile])
+
+  const hasNext =
+    currentQueueIndex >= 0 && currentQueueIndex < state.queue.length - 1
+  const hasPrevious = state.mixedMusicFile != null
+
   const api = useMemo(
-    () => ({ ...state, muted: state.volume === 0, ...actions }),
-    [state, actions],
+    () => ({
+      ...state,
+      muted: state.volume === 0,
+      hasNext,
+      hasPrevious,
+      setQueue,
+      ...actions,
+    }),
+    [state, actions, hasNext, hasPrevious, setQueue],
   )
 
   return (
