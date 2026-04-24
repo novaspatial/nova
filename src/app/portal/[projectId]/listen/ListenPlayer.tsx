@@ -111,7 +111,6 @@ export function ListenPlayer({
   onSelectTrack: (trackId: string) => void
   commentCountByTrackId: Record<string, number>
 }) {
-  const player = useAudioPlayer()
   const playableFiles = audioFiles.filter((f) => f.signedUrl)
   const prefetchKey = playableFiles.map((f) => f.signedUrl).join('|')
 
