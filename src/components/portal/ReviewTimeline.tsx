@@ -23,6 +23,11 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useAudioPlayer } from '@/components/audio/AudioProvider'
+import { useWaveformBinding } from '@/components/audio/player/useWaveformBinding'
+import {
+  formatTrackTime,
+  Waveform,
+} from '@/components/audio/player/Waveform'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import { uploadFile } from '@/lib/portal/uploadFile'
 
@@ -156,13 +161,52 @@ function formatTimestamp(ms: number | null): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-function parseTimestamp(input: string): number | null {
-  const match = input.match(/^(\d+):(\d{1,2})$/)
-  if (!match) return null
-  const minutes = parseInt(match[1], 10)
-  const seconds = parseInt(match[2], 10)
-  if (seconds >= 60) return null
-  return (minutes * 60 + seconds) * 1000
+function ComposerWaveform({
+  selectedTrackId,
+}: {
+  selectedTrackId: string | null
+}) {
+  const { player, waveformProps, elapsedSeconds, hasDuration } =
+    useWaveformBinding()
+
+  const trackLoadedHere =
+    !!player.mixedMusicFile &&
+    selectedTrackId != null &&
+    String(player.mixedMusicFile.id) === selectedTrackId
+
+  return (
+    <div>
+      {trackLoadedHere ? (
+        <div className="flex items-center gap-3">
+          <span
+            className={`w-12 shrink-0 text-right font-mono text-xs text-zinc-500 tabular-nums ${
+              hasDuration ? '' : 'opacity-0'
+            }`}
+          >
+            {formatTrackTime(elapsedSeconds, player.duration)}
+          </span>
+          <Waveform
+            {...waveformProps}
+            height={96}
+            barWidth={3}
+            barGap={2}
+            barMinHeight={3}
+          />
+          <span
+            className={`w-12 shrink-0 text-left font-mono text-xs text-zinc-500 tabular-nums ${
+              hasDuration ? '' : 'opacity-0'
+            }`}
+          >
+            {formatTrackTime(player.duration, player.duration)}
+          </span>
+        </div>
+      ) : (
+        <p className="py-12 text-center text-sm text-zinc-500">
+          Play the selected track to see the waveform and mark timestamps.
+        </p>
+      )}
+    </div>
+  )
 }
 
 function formatRelativeTime(iso: string): string {
@@ -256,7 +300,9 @@ function CommentBubble({
               className="flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 transition hover:bg-violet-500/10 hover:text-violet-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
             >
               <ClockIcon className="size-3" />
-              {formatTimestamp(comment.timestamp_ms)}
+              {comment.timestamp_end_ms !== null
+                ? `${formatTimestamp(comment.timestamp_ms)} – ${formatTimestamp(comment.timestamp_end_ms)}`
+                : formatTimestamp(comment.timestamp_ms)}
             </button>
           )}
           <div className="ml-auto flex items-center gap-2 text-xs text-zinc-600">
@@ -483,7 +529,6 @@ export function ReviewTimeline({
   const player = useAudioPlayer()
   const setComments = onCommentsChange
   const [body, setBody] = useState('')
-  const [timestampInput, setTimestampInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -704,6 +749,7 @@ export function ReviewTimeline({
     async (payload: {
       body: string
       timestampMs: number | null
+      timestampEndMs?: number | null
       trackId: string
       parentId?: string
       attachments?: Array<{
@@ -804,6 +850,35 @@ export function ReviewTimeline({
     selectedTrackId !== null &&
     (body.trim().length > 0 || uploadedAttachments.length > 0)
 
+  const selection = player.selection
+  const toggleState: 'off' | 'point' | 'range' =
+    selection == null
+      ? 'off'
+      : selection.anchorBMs == null
+        ? 'point'
+        : 'range'
+  const clockDisabled =
+    !player.mixedMusicFile ||
+    String(player.mixedMusicFile.id) !== selectedTrackId
+  const clockAriaLabel =
+    toggleState === 'off'
+      ? 'Capture start timestamp from the playhead'
+      : toggleState === 'point'
+        ? 'Capture end timestamp to create a range'
+        : 'Clear timestamp range'
+
+  const handleToggleClock = useCallback(() => {
+    if (clockDisabled) return
+    const nowMs = Math.round(player.currentTime * 1000)
+    if (toggleState === 'off') {
+      player.setAnchorA(nowMs)
+    } else if (toggleState === 'point') {
+      player.setAnchorB(nowMs)
+    } else {
+      player.clearSelection()
+    }
+  }, [clockDisabled, player, toggleState])
+
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault()
@@ -813,12 +888,18 @@ export function ReviewTimeline({
 
       setSubmitting(true)
 
-      const timestampMs = parseTimestamp(timestampInput)
+      const currentSelection = player.selection
+      const timestampMs = currentSelection?.startMs ?? null
+      const timestampEndMs =
+        currentSelection?.anchorBMs != null
+          ? (currentSelection.endMs ?? null)
+          : null
 
       try {
         const newComment = await postComment({
           body: trimmedBody,
           timestampMs,
+          timestampEndMs,
           trackId: selectedTrackId,
           attachments: uploadedAttachments.map((attachment) => ({
             storagePath: attachment.storagePath!,
@@ -838,7 +919,7 @@ export function ReviewTimeline({
           return []
         })
         setBody('')
-        setTimestampInput('')
+        player.clearSelection()
         setScrollRequest({ kind: 'bottom' })
         router.refresh()
       } catch {
@@ -850,152 +931,121 @@ export function ReviewTimeline({
     [
       body,
       hasUploading,
+      player,
       postComment,
       router,
       selectedTrackId,
       setComments,
       submitting,
-      timestampInput,
       uploadedAttachments,
     ],
   )
 
   const hasAnyComments = threads.length > 0
+  const [sectionOpen, setSectionOpen] = useState(true)
 
   return (
     <div data-listen-comments className="space-y-6">
       {/* Section header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-white sm:text-xl">
-              Timestamped Revisions
-            </h2>
-            {selectedTrackName && (
-              <span
-                className="inline-flex max-w-full items-center truncate rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-300"
-                aria-label={`Viewing comments for ${selectedTrackName}`}
-              >
-                {selectedTrackName}
-              </span>
-            )}
+        <button
+          type="button"
+          onClick={() => setSectionOpen((v) => !v)}
+          aria-expanded={sectionOpen}
+          className="group flex w-full min-w-0 flex-1 items-start justify-between gap-2.5 rounded-lg text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold text-white sm:text-xl">
+                Timestamped Revisions
+              </h2>
+              {selectedTrackName && (
+                <span
+                  className="inline-flex max-w-full items-center truncate rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-300"
+                  aria-label={`Viewing comments for ${selectedTrackName}`}
+                >
+                  {selectedTrackName}
+                </span>
+              )}
+            </div>
           </div>
-          <p className="mt-1 text-sm text-zinc-400">
-            Drop precise mix notes directly on the track timeline.
-          </p>
-        </div>
-        <div className="order-last w-full sm:order-0 sm:w-auto sm:shrink-0">
-          {!searchOpen ? (
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Search comments"
-              aria-expanded={false}
-              disabled={!hasAnyComments}
-              className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/10 disabled:hover:text-zinc-400"
-            >
-              <MagnifyingGlassIcon className="size-4" aria-hidden="true" />
-            </button>
-          ) : (
-            <div className="relative flex w-full items-center sm:w-64">
-              <MagnifyingGlassIcon
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-500"
-                aria-hidden="true"
-              />
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.preventDefault()
-                    closeSearch()
-                  }
-                }}
-                placeholder="Search comments..."
-                aria-label="Search comments"
-                className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pr-9 pl-9 text-sm text-white transition outline-none placeholder:text-zinc-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
-              />
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-400 transition-colors duration-150 group-hover:border-violet-400/50 group-hover:bg-violet-500/20 group-hover:text-violet-300">
+            <ChevronDownIcon
+              className={`size-4 transition-transform duration-200 ${sectionOpen ? '' : '-rotate-90'}`}
+              aria-hidden="true"
+            />
+          </span>
+        </button>
+        {sectionOpen && (
+          <div className="order-last w-full sm:order-0 sm:w-auto sm:shrink-0">
+            {!searchOpen ? (
               <button
                 type="button"
-                onClick={closeSearch}
-                aria-label="Close search"
-                className="absolute top-1/2 right-1.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white focus:outline-none focus-visible:bg-white/5 focus-visible:text-white"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search comments"
+                aria-expanded={false}
+                disabled={!hasAnyComments}
+                className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/10 disabled:hover:text-zinc-400"
               >
-                <XMarkIcon className="size-4" aria-hidden="true" />
+                <MagnifyingGlassIcon className="size-4" aria-hidden="true" />
               </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Comments list — fixed height, internal scroll */}
-      <div className="h-[clamp(20rem,60vh,32rem)] rounded-2xl border border-white/10 bg-white/2 backdrop-blur-sm">
-        {hasAnyComments ? (
-          visibleThreads.length > 0 ? (
-            <div
-              ref={scrollContainerRef}
-              className="nova-scrollbar h-full space-y-6 overflow-y-auto p-4 sm:p-6"
-            >
-              {visibleThreads.map(({ parent, replies }) => (
-                <CommentThread
-                  key={parent.id}
-                  parent={parent}
-                  replies={replies}
-                  onSeek={handleSeek}
-                  onReply={handleReply}
-                  onDelete={handleDeleteRequest}
-                  canDelete={canDelete}
-                  forceExpanded={isSearching}
+            ) : (
+              <div className="relative flex w-full items-center sm:w-64">
+                <MagnifyingGlassIcon
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-500"
+                  aria-hidden="true"
                 />
-              ))}
-            </div>
-          ) : (
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex h-full flex-col items-center justify-center px-6 text-center"
-            >
-              <MagnifyingGlassIcon
-                className="size-10 text-zinc-600"
-                aria-hidden="true"
-              />
-              <p className="mt-3 text-sm text-zinc-400">
-                No comments matching &ldquo;{searchQuery.trim()}&rdquo;
-              </p>
-            </div>
-          )
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-            <ChatBubbleLeftRightIcon className="size-10 text-zinc-600" />
-            <p className="mt-3 text-sm text-zinc-400">
-              No comments yet. Add your first timestamped note below.
-            </p>
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      closeSearch()
+                    }
+                  }}
+                  placeholder="Search comments..."
+                  aria-label="Search comments"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pr-9 pl-9 text-sm text-white transition outline-none placeholder:text-zinc-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50"
+                />
+                <button
+                  type="button"
+                  onClick={closeSearch}
+                  aria-label="Close search"
+                  className="absolute top-1/2 right-1.5 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/5 hover:text-white focus:outline-none focus-visible:bg-white/5 focus-visible:text-white"
+                >
+                  <XMarkIcon className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
+      {sectionOpen && (
+        <>
+
+      {/* Composer waveform — mirrors the dock so users can mark timestamps without looking away */}
+      <ComposerWaveform selectedTrackId={selectedTrackId} />
+
       {/* New comment form */}
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-white/10 bg-white/2 p-4 backdrop-blur-sm sm:p-6"
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex-1 space-y-3">
-            <textarea
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              placeholder="Add a mix note or feedback..."
-              rows={3}
-              className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
-            />
-            {pendingAttachments.length > 0 && (
-              <ul
-                role="list"
-                aria-label="Pending attachments"
-                className="flex flex-wrap gap-2"
-              >
+      <form onSubmit={handleSubmit}>
+        <div className="rounded-xl border border-white/10 bg-white/2 transition focus-within:border-violet-500/50 focus-within:ring-1 focus-within:ring-violet-500/50">
+          <textarea
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Add a mix note or feedback..."
+            rows={2}
+            className="w-full resize-none border-0 bg-transparent px-4 pt-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+          />
+          {pendingAttachments.length > 0 && (
+            <ul
+              role="list"
+              aria-label="Pending attachments"
+              className="flex flex-wrap gap-2 px-3 pt-1"
+            >
                 {pendingAttachments.map((attachment) => {
                   const statusLabel =
                     attachment.status === 'uploading'
@@ -1073,52 +1123,114 @@ export function ReviewTimeline({
                 })}
               </ul>
             )}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <ClockIcon className="size-4 text-zinc-500" />
-                <input
-                  type="text"
-                  value={timestampInput}
-                  onChange={(event) => setTimestampInput(event.target.value)}
-                  placeholder="0:00"
-                  className="w-20 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
-                />
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleFilesSelected}
-                  className="hidden"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="Attach files"
-                  className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
-                >
-                  <PaperClipIcon className="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={!canPost}
-                  className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <PaperAirplaneIcon className="size-4" />
-                  {submitting
-                    ? 'Posting...'
-                    : hasUploading
-                      ? 'Uploading...'
-                      : 'Post'}
-                </button>
-              </div>
+          <div className="flex items-center gap-3 px-3 pt-2 pb-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleClock}
+                disabled={clockDisabled}
+                aria-label={clockAriaLabel}
+                aria-pressed={toggleState !== 'off'}
+                title="Click to mark the start, again to add an end, a third time to clear. Drag the waveform handles to fine-tune."
+                className={`inline-flex size-9 items-center justify-center rounded-xl border transition focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  toggleState === 'off'
+                    ? 'border-white/10 bg-white/5 text-zinc-400 hover:border-violet-500/40 hover:text-violet-300'
+                    : 'border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20'
+                }`}
+              >
+                <ClockIcon className="size-4" aria-hidden="true" />
+              </button>
+              {selection != null && (
+                <span className="flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                  {toggleState === 'range'
+                    ? `${formatTimestamp(selection.startMs)} – ${formatTimestamp(selection.endMs)}`
+                    : formatTimestamp(selection.anchorAMs)}
+                </span>
+              )}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFilesSelected}
+                className="hidden"
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach files"
+                className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
+              >
+                <PaperClipIcon className="size-4" aria-hidden="true" />
+              </button>
+              <button
+                type="submit"
+                disabled={!canPost}
+                className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <PaperAirplaneIcon className="size-4" />
+                {submitting
+                  ? 'Posting...'
+                  : hasUploading
+                    ? 'Uploading...'
+                    : 'Post'}
+              </button>
             </div>
           </div>
         </div>
       </form>
+
+      {/* Comments list — fixed height, internal scroll */}
+      <div className="h-[clamp(14rem,40vh,22rem)]">
+        {hasAnyComments ? (
+          visibleThreads.length > 0 ? (
+            <div
+              ref={scrollContainerRef}
+              className="nova-scrollbar h-full space-y-6 overflow-y-auto p-4 sm:p-6"
+            >
+              {visibleThreads.map(({ parent, replies }) => (
+                <CommentThread
+                  key={parent.id}
+                  parent={parent}
+                  replies={replies}
+                  onSeek={handleSeek}
+                  onReply={handleReply}
+                  onDelete={handleDeleteRequest}
+                  canDelete={canDelete}
+                  forceExpanded={isSearching}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex h-full flex-col items-center justify-center px-6 text-center"
+            >
+              <MagnifyingGlassIcon
+                className="size-10 text-zinc-600"
+                aria-hidden="true"
+              />
+              <p className="mt-3 text-sm text-zinc-400">
+                No comments matching &ldquo;{searchQuery.trim()}&rdquo;
+              </p>
+            </div>
+          )
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <ChatBubbleLeftRightIcon className="size-10 text-zinc-600" />
+            <p className="mt-3 text-sm text-zinc-400">
+              No comments yet. Add your first timestamped note above.
+            </p>
+          </div>
+        )}
+      </div>
+
+        </>
+      )}
 
       <PortalConfirmDialog
         isOpen={deleteTarget !== null}

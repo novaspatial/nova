@@ -18,7 +18,7 @@ export default async function PortalLayout({
   return (
     <ProtectedRootLayout hideFooter>
       <AudioProvider>
-        <Container className="mt-20 sm:mt-24 lg:mt-72 pb-20 sm:pb-32">
+        <Container className="mt-14 sm:mt-16 lg:mt-40 pb-6">
           {children}
         </Container>
         <AudioPlayer />

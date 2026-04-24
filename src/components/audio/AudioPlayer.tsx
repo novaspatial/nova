@@ -1,14 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
-import {
-  ChatBubbleLeftRightIcon,
-  QueueListIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 
-import { useAudioPlayer } from '@/components/audio/AudioProvider'
 import { ForwardButton } from '@/components/audio/player/ForwardButton'
 import { LoopButton } from '@/components/audio/player/LoopButton'
 import { MuteButton } from '@/components/audio/player/MuteButton'
@@ -16,82 +10,20 @@ import { NextButton } from '@/components/audio/player/NextButton'
 import { PlayButton } from '@/components/audio/player/PlayButton'
 import { PreviousButton } from '@/components/audio/player/PreviousButton'
 import { RewindButton } from '@/components/audio/player/RewindButton'
-import { formatHumanTime } from '@/components/audio/player/Slider'
+import { useWaveformBinding } from '@/components/audio/player/useWaveformBinding'
 import { formatTrackTime, Waveform } from '@/components/audio/player/Waveform'
 
-function scrollToSelector(selector: string) {
-  if (typeof document === 'undefined') return
-  const target = document.querySelector(selector)
-  if (target instanceof HTMLElement) {
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-}
-
 export function AudioPlayer() {
-  const player = useAudioPlayer()
-
-  const wasPlayingRef = useRef(false)
-  const [currentTime, setCurrentTime] = useState<number | null>(
-    player.currentTime,
-  )
-  const [smoothTime, setSmoothTime] = useState(player.currentTime)
-
-  useEffect(() => {
-    setCurrentTime(null)
-  }, [player.currentTime])
-
-  useEffect(() => {
-    setSmoothTime(player.currentTime)
-    if (!player.playing) return
-    let rafId = 0
-    const baseTime = player.currentTime
-    const baseWall =
-      typeof performance !== 'undefined' ? performance.now() : Date.now()
-    const tick = () => {
-      const now =
-        typeof performance !== 'undefined' ? performance.now() : Date.now()
-      const elapsed = (now - baseWall) / 1000
-      const next = baseTime + elapsed
-      setSmoothTime(
-        player.duration > 0 ? Math.min(next, player.duration) : next,
-      )
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [player.playing, player.currentTime, player.duration])
+  const { player, waveformProps, elapsedSeconds, hasDuration } =
+    useWaveformBinding()
 
   if (!player.mixedMusicFile) {
     return null
   }
 
-  const elapsedSeconds = currentTime ?? smoothTime
-  const hasDuration = player.duration > 0
-
-  const waveformProps = {
-    label: 'Current time',
-    src: player.mixedMusicFile.audio.src,
-    maxValue: player.duration,
-    step: 0.01,
-    value: [currentTime ?? player.currentTime],
-    progressSeconds: elapsedSeconds,
-    onChange: ([value]: number[]) => setCurrentTime(value),
-    onChangeEnd: ([value]: number[]) => {
-      player.seek(value)
-      if (wasPlayingRef.current) {
-        player.play()
-      }
-    },
-    numberFormatter: { format: formatHumanTime },
-    onChangeStart: () => {
-      wasPlayingRef.current = player.playing
-      player.pause()
-    },
-  }
-
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-      <div className="pointer-events-auto mx-auto rounded-xl bg-zinc-900/95 shadow-lg ring-1 shadow-violet-500/5 ring-white/10 backdrop-blur-sm">
+    <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+      <div className="mx-auto rounded-xl bg-zinc-900/95 shadow-lg ring-1 shadow-violet-500/5 ring-white/10 backdrop-blur-sm">
         {/* Mobile waveform row */}
         <div className="flex items-center gap-2 px-6 pt-3 md:hidden">
           <span
@@ -170,22 +102,6 @@ export function AudioPlayer() {
 
           {/* Utility cluster */}
           <div className="flex shrink-0 items-center gap-1 md:gap-2">
-            <button
-              type="button"
-              onClick={() => scrollToSelector('[data-listen-comments]')}
-              className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
-              aria-label="Jump to comments"
-            >
-              <ChatBubbleLeftRightIcon className="size-5" strokeWidth={1.5} />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSelector('[data-listen-tracks]')}
-              className="group relative rounded-md p-1 text-zinc-400 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
-              aria-label="Jump to track list"
-            >
-              <QueueListIcon className="size-5" strokeWidth={1.5} />
-            </button>
             <MuteButton player={player} />
             <button
               type="button"

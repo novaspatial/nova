@@ -12,11 +12,10 @@ import {
 import { useSliderState } from 'react-stately'
 
 const HIGH_RES_BINS = 4096
-const VIEW_HEIGHT = 40
-const BAR_MIN_HEIGHT = 2
-const BAR_WIDTH = 2
-const BAR_GAP = 1
-const BAR_PITCH = BAR_WIDTH + BAR_GAP
+const DEFAULT_VIEW_HEIGHT = 40
+const DEFAULT_BAR_MIN_HEIGHT = 2
+const DEFAULT_BAR_WIDTH = 2
+const DEFAULT_BAR_GAP = 1
 
 function parseTime(seconds: number): [number, number, number] {
   const hours = Math.floor(seconds / 3600)
@@ -169,9 +168,94 @@ type WaveformProps = {
   onChangeEnd: (value: number[]) => void
   onChangeStart?: () => void
   numberFormatter: Intl.NumberFormat | { format: (value: number) => string }
+  rangeSeconds?: { a: number | null; b: number | null }
+  onDragAnchor?: (which: 'a' | 'b', seconds: number) => void
+  height?: number
+  barWidth?: number
+  barGap?: number
+  barMinHeight?: number
+}
+
+function RangeHandle({
+  which,
+  seconds,
+  maxValue,
+  trackRef,
+  onDragAnchor,
+}: {
+  which: 'a' | 'b'
+  seconds: number
+  maxValue: number
+  trackRef: React.RefObject<HTMLDivElement | null>
+  onDragAnchor: (which: 'a' | 'b', seconds: number) => void
+}) {
+  const percent = maxValue > 0 ? Math.min(1, Math.max(0, seconds / maxValue)) : 0
+
+  const secondsFromClientX = (clientX: number): number => {
+    const rect = trackRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0) return seconds
+    const ratio = (clientX - rect.left) / rect.width
+    return Math.min(maxValue, Math.max(0, ratio * maxValue))
+  }
+
+  return (
+    <div
+      role="slider"
+      tabIndex={0}
+      aria-label={
+        which === 'a' ? 'Range anchor A handle' : 'Range anchor B handle'
+      }
+      aria-valuemin={0}
+      aria-valuemax={maxValue}
+      aria-valuenow={seconds}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+        event.preventDefault()
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }}
+      onPointerMove={(event) => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+        onDragAnchor(which, secondsFromClientX(event.clientX))
+      }}
+      onPointerUp={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId)
+        }
+      }}
+      onKeyDown={(event) => {
+        const big = event.shiftKey ? 1 : 0.1
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+          event.preventDefault()
+          onDragAnchor(which, Math.max(0, seconds - big))
+        } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+          event.preventDefault()
+          onDragAnchor(which, Math.min(maxValue, seconds + big))
+        } else if (event.key === 'Home') {
+          event.preventDefault()
+          onDragAnchor(which, 0)
+        } else if (event.key === 'End') {
+          event.preventDefault()
+          onDragAnchor(which, maxValue)
+        }
+      }}
+      className="pointer-events-auto absolute inset-y-0 z-10 flex w-3 -translate-x-1/2 cursor-ew-resize items-center justify-center touch-none focus:outline-none"
+      style={{ left: `${percent * 100}%` }}
+    >
+      <div className="relative h-[130%] w-0.5 translate-y-[-0%] rounded-full bg-violet-200 shadow-[0_0_6px_var(--color-violet-400)]">
+        <span className="absolute -top-1 left-1/2 block size-1.5 -translate-x-1/2 rounded-full bg-violet-200" />
+        <span className="absolute -bottom-1 left-1/2 block size-1.5 -translate-x-1/2 rounded-full bg-violet-200" />
+      </div>
+    </div>
+  )
 }
 
 export function Waveform(props: WaveformProps) {
+  const viewHeight = props.height ?? DEFAULT_VIEW_HEIGHT
+  const barWidth = props.barWidth ?? DEFAULT_BAR_WIDTH
+  const barGap = props.barGap ?? DEFAULT_BAR_GAP
+  const barMinHeight = props.barMinHeight ?? DEFAULT_BAR_MIN_HEIGHT
+  const barPitch = barWidth + barGap
+
   const trackRef = useRef<HTMLDivElement>(null)
   const state = useSliderState({
     ...props,
@@ -229,7 +313,7 @@ export function Waveform(props: WaveformProps) {
     return () => observer.disconnect()
   }, [])
 
-  const barCount = Math.max(1, Math.floor(trackWidth / BAR_PITCH))
+  const barCount = Math.max(1, Math.floor(trackWidth / barPitch))
 
   const displayPeaks = useMemo(() => {
     if (!peaks || barCount <= 0) return null
@@ -267,29 +351,39 @@ export function Waveform(props: WaveformProps) {
       ? Math.min(1, Math.max(0, props.progressSeconds / props.maxValue))
       : 0
   const playedBars = Math.round(displayProgress * barCount)
-  const viewWidth = trackWidth || barCount * BAR_PITCH
+  const viewWidth = trackWidth || barCount * barPitch
   const isActive = isFocusVisible || isDragging
+
+  const rangeA = props.rangeSeconds?.a ?? null
+  const rangeB = props.rangeSeconds?.b ?? null
+  const hasRange = rangeA != null && rangeB != null && props.maxValue > 0
+  const rangeStartPct = hasRange
+    ? Math.min(1, Math.max(0, Math.min(rangeA, rangeB) / props.maxValue))
+    : 0
+  const rangeEndPct = hasRange
+    ? Math.min(1, Math.max(0, Math.max(rangeA, rangeB) / props.maxValue))
+    : 0
 
   const barsSvg = useMemo(() => {
     if (!displayPeaks) return null
     return (
       <svg
-        viewBox={`0 0 ${viewWidth} ${VIEW_HEIGHT}`}
+        viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         preserveAspectRatio="none"
         className="block h-full w-full"
         aria-hidden="true"
       >
         {displayPeaks.map((peak, i) => {
-          const height = Math.max(BAR_MIN_HEIGHT, peak * VIEW_HEIGHT)
-          const x = i * BAR_PITCH
-          const y = (VIEW_HEIGHT - height) / 2
+          const height = Math.max(barMinHeight, peak * viewHeight)
+          const x = i * barPitch
+          const y = (viewHeight - height) / 2
           const played = i < playedBars
           return (
             <rect
               key={i}
               x={x}
               y={y}
-              width={BAR_WIDTH}
+              width={barWidth}
               height={height}
               rx={0.5}
               className={clsx(
@@ -304,28 +398,37 @@ export function Waveform(props: WaveformProps) {
         })}
       </svg>
     )
-  }, [displayPeaks, viewWidth, playedBars, isActive])
+  }, [
+    displayPeaks,
+    viewWidth,
+    viewHeight,
+    playedBars,
+    isActive,
+    barMinHeight,
+    barPitch,
+    barWidth,
+  ])
 
   const skeletonSvg = useMemo(() => {
     if (!skeletonPeaks) return null
     return (
       <svg
-        viewBox={`0 0 ${viewWidth} ${VIEW_HEIGHT}`}
+        viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         preserveAspectRatio="none"
         className={clsx('block h-full w-full', !peaksError && 'animate-pulse')}
         aria-hidden="true"
       >
         {skeletonPeaks.map((peak, i) => {
-          const height = Math.max(BAR_MIN_HEIGHT, peak * VIEW_HEIGHT)
-          const x = i * BAR_PITCH
-          const y = (VIEW_HEIGHT - height) / 2
+          const height = Math.max(barMinHeight, peak * viewHeight)
+          const x = i * barPitch
+          const y = (viewHeight - height) / 2
           const played = i < playedBars
           return (
             <rect
               key={i}
               x={x}
               y={y}
-              width={BAR_WIDTH}
+              width={barWidth}
               height={height}
               rx={0.5}
               className={clsx(
@@ -340,7 +443,17 @@ export function Waveform(props: WaveformProps) {
         })}
       </svg>
     )
-  }, [skeletonPeaks, viewWidth, playedBars, isActive, peaksError])
+  }, [
+    skeletonPeaks,
+    viewWidth,
+    viewHeight,
+    playedBars,
+    isActive,
+    peaksError,
+    barMinHeight,
+    barPitch,
+    barWidth,
+  ])
 
   return (
     <div
@@ -363,7 +476,8 @@ export function Waveform(props: WaveformProps) {
           props.onChangeStart?.()
         }}
         ref={trackRef}
-        className="relative h-10 w-full cursor-pointer"
+        className="relative w-full cursor-pointer"
+        style={{ height: `${viewHeight}px` }}
       >
         {barsSvg ? (
           barsSvg
@@ -375,6 +489,16 @@ export function Waveform(props: WaveformProps) {
             aria-hidden="true"
           />
         )}
+        {hasRange && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 bg-violet-400/15"
+            style={{
+              left: `${rangeStartPct * 100}%`,
+              width: `${(rangeEndPct - rangeStartPct) * 100}%`,
+            }}
+          />
+        )}
         <Thumb
           index={0}
           state={state}
@@ -384,6 +508,24 @@ export function Waveform(props: WaveformProps) {
           isFocusVisible={isFocusVisible}
           displayPercent={displayProgress}
         />
+        {hasRange && props.onDragAnchor && (
+          <>
+            <RangeHandle
+              which="a"
+              seconds={rangeA!}
+              maxValue={props.maxValue}
+              trackRef={trackRef}
+              onDragAnchor={props.onDragAnchor}
+            />
+            <RangeHandle
+              which="b"
+              seconds={rangeB!}
+              maxValue={props.maxValue}
+              trackRef={trackRef}
+              onDragAnchor={props.onDragAnchor}
+            />
+          </>
+        )}
       </div>
     </div>
   )

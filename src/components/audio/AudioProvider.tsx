@@ -26,11 +26,21 @@ type AudioPlayerState = {
   currentTime: number
   loop: boolean
   mixedMusicFile: MixedMusicFile | null
+  anchorAMs: number | null
+  anchorBMs: number | null
   queue: MixedMusicFile[]
+}
+
+export type CommentSelection = {
+  anchorAMs: number | null
+  anchorBMs: number | null
+  startMs: number
+  endMs: number
 }
 
 type AudioPlayerAPI = AudioPlayerState & {
   muted: boolean
+  selection: CommentSelection | null
   hasNext: boolean
   hasPrevious: boolean
   play(mixedMusicFile?: MixedMusicFile): void
@@ -44,6 +54,10 @@ type AudioPlayerAPI = AudioPlayerState & {
   toggleLoop(): void
   isPlaying(mixedMusicFile?: MixedMusicFile): boolean
   clear(): void
+  setAnchorA(ms: number): void
+  setAnchorB(ms: number): void
+  updateAnchor(which: 'A' | 'B', ms: number): void
+  clearSelection(): void
   setQueue(files: MixedMusicFile[]): void
   next(): void
   previous(): void
@@ -57,6 +71,9 @@ type Action =
   | { type: 'SET_CURRENT_TIME'; payload: number }
   | { type: 'SET_DURATION'; payload: number }
   | { type: 'SET_LOOP'; payload: boolean }
+  | { type: 'SET_ANCHOR_A'; payload: number | null }
+  | { type: 'SET_ANCHOR_B'; payload: number | null }
+  | { type: 'CLEAR_SELECTION' }
   | { type: 'SET_QUEUE'; payload: MixedMusicFile[] }
 
 const AudioPlayerContext = createContext<AudioPlayerAPI | null>(null)
@@ -80,6 +97,12 @@ function audioReducer(
       return { ...state, duration: action.payload }
     case 'SET_LOOP':
       return { ...state, loop: action.payload }
+    case 'SET_ANCHOR_A':
+      return { ...state, anchorAMs: action.payload }
+    case 'SET_ANCHOR_B':
+      return { ...state, anchorBMs: action.payload }
+    case 'CLEAR_SELECTION':
+      return { ...state, anchorAMs: null, anchorBMs: null }
     case 'SET_QUEUE':
       return { ...state, queue: action.payload }
   }
@@ -117,6 +140,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     currentTime: 0,
     loop: false,
     mixedMusicFile: null,
+    anchorAMs: null,
+    anchorBMs: null,
     queue: [],
   })
   const playerRef = useRef<HTMLAudioElement>(null)
@@ -273,6 +298,21 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_META', payload: null })
         playerRef.current?.pause()
       },
+      setAnchorA(ms: number) {
+        dispatch({ type: 'SET_ANCHOR_A', payload: ms })
+      },
+      setAnchorB(ms: number) {
+        dispatch({ type: 'SET_ANCHOR_B', payload: ms })
+      },
+      updateAnchor(which: 'A' | 'B', ms: number) {
+        dispatch({
+          type: which === 'A' ? 'SET_ANCHOR_A' : 'SET_ANCHOR_B',
+          payload: ms,
+        })
+      },
+      clearSelection() {
+        dispatch({ type: 'CLEAR_SELECTION' })
+      },
     }
   }, [state.playing, state.mixedMusicFile, state.loop, state.queue])
 
@@ -287,6 +327,24 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       playerRef.current.loop = state.loop
     }
   }, [state.loop])
+
+  const mixedMusicFileId = state.mixedMusicFile?.id ?? null
+  useEffect(() => {
+    dispatch({ type: 'CLEAR_SELECTION' })
+  }, [mixedMusicFileId])
+
+  const selection = useMemo<CommentSelection | null>(() => {
+    const { anchorAMs, anchorBMs } = state
+    if (anchorAMs == null && anchorBMs == null) return null
+    const a = anchorAMs ?? anchorBMs!
+    const b = anchorBMs ?? anchorAMs!
+    return {
+      anchorAMs,
+      anchorBMs,
+      startMs: Math.min(a, b),
+      endMs: Math.max(a, b),
+    }
+  }, [state])
 
   const currentQueueIndex = useMemo(() => {
     if (!state.mixedMusicFile) return -1
@@ -303,12 +361,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       muted: state.volume === 0,
+      selection,
       hasNext,
       hasPrevious,
       setQueue,
       ...actions,
     }),
-    [state, actions, hasNext, hasPrevious, setQueue],
+    [state, selection, actions, hasNext, hasPrevious, setQueue],
   )
 
   return (
