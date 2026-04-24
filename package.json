@@ -39,7 +39,7 @@
     "rehype-unwrap-images": "^1.0.0",
     "remark-gfm": "^4.0.1",
     "remark-rehype-wrap": "0.0.5",
-    "resend": "^6.10.0",
+    "resend": "^6.12.2",
     "shiki": "^0.11.1",
     "stripe": "^22.0.1",
     "tailwindcss": "^4.1.15",
