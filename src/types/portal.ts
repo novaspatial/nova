@@ -71,6 +71,7 @@ export interface ProjectComment {
   author_id: string
   body: string | null
   timestamp_ms: number | null
+  timestamp_end_ms: number | null
   parent_id: string | null
   created_at: string
   author?: {

@@ -69,13 +69,23 @@ export async function POST(
   }
 
   const reqBody = await request.json()
-  const { body, timestampMs, parentId, trackId, attachments } = reqBody as {
+  const {
+    body,
+    timestampMs,
+    timestampEndMs,
+    parentId,
+    trackId,
+    attachments,
+  } = reqBody as {
     body?: string
     timestampMs?: number | null
+    timestampEndMs?: number | null
     parentId?: string | null
     trackId?: string
     attachments?: IncomingAttachment[]
   }
+
+  const effectiveTimestampEndMs = parentId ? null : (timestampEndMs ?? null)
 
   const trimmedBody = typeof body === 'string' ? body.trim() : ''
   const attachmentList = Array.isArray(attachments) ? attachments : []
@@ -157,6 +167,7 @@ export async function POST(
       author_id: user.id,
       body: trimmedBody.length > 0 ? trimmedBody : null,
       timestamp_ms: timestampMs ?? null,
+      timestamp_end_ms: effectiveTimestampEndMs,
       parent_id: parentId ?? null,
     })
     .select(
