@@ -22,7 +22,7 @@ export function AudioPlayer() {
   }
 
   return (
-    <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+    <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
       <div className="mx-auto rounded-xl bg-zinc-900/95 shadow-lg ring-1 shadow-violet-500/5 ring-white/10 backdrop-blur-sm">
         {/* Mobile waveform row */}
         <div className="flex items-center gap-2 px-6 pt-3 md:hidden">
