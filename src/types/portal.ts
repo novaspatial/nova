@@ -1,4 +1,5 @@
 export type ProjectStatus =
+  | 'pending_payment'
   | 'uploading'
   | 'in_review'
   | 'processing'

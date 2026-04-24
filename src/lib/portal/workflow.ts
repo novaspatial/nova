@@ -1,6 +1,7 @@
 import type { ProjectStatus } from '@/types/portal'
 
 export const PROJECT_STATUSES = [
+  'pending_payment',
   'uploading',
   'in_review',
   'processing',
@@ -19,6 +20,7 @@ export type ProgressStage = 'uploaded' | 'in_progress' | 'mixed' | 'complete'
 
 export function getStepForStatus(status: ProjectStatus): PortalStep {
   switch (status) {
+    case 'pending_payment':
     case 'uploading':
     case 'in_review':
     case 'processing':
@@ -33,6 +35,7 @@ export function getStepForStatus(status: ProjectStatus): PortalStep {
 }
 
 const clientUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
+  pending_payment: [],
   uploading: ['upload'],
   in_review: ['upload'],
   processing: ['upload'],
@@ -44,6 +47,7 @@ const clientUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
 }
 
 const studioUnlockedSteps: Record<ProjectStatus, PortalStep[]> = {
+  pending_payment: [],
   uploading: ['upload'],
   in_review: ['upload'],
   processing: ['upload'],
@@ -64,6 +68,10 @@ export function getUnlockedSteps(
 }
 
 const statusDisplayMap: Record<ProjectStatus, { label: string; color: string }> = {
+  pending_payment: {
+    label: 'Pending Payment',
+    color: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20',
+  },
   uploading: {
     label: 'Uploading',
     color: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
@@ -103,6 +111,7 @@ export function getStatusDisplay(status: ProjectStatus): { label: string; color:
 }
 
 const progressStageMap: Record<ProjectStatus, ProgressStage> = {
+  pending_payment: 'uploaded',
   uploading: 'uploaded',
   in_review: 'uploaded',
   processing: 'in_progress',
