@@ -4,22 +4,26 @@ import { MDXComponents } from '@/components/ui/MDXComponents'
 import { PageLinks } from '@/components/ui/PageLinks'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { formatDate } from '@/lib/formatDate'
-import { type Article, type MDXEntry, loadArticles } from '@/lib/mdx'
+import { loadPublishedPosts } from '@/lib/blog/posts'
+import type { BlogPostWithAuthor } from '@/lib/blog/types'
 
-// Used by the MDX pipeline (remarkMDXLayout in next.config.mjs) for the legacy
-// filesystem-backed posts under src/app/blog/<slug>/page.mdx. DB-backed posts
-// render through src/components/blog/BlogPostView.tsx instead.
-export default async function BlogArticleWrapper({
-  article,
+export async function BlogPostView({
+  post,
   children,
 }: {
-  article: MDXEntry<Article>
+  post: BlogPostWithAuthor
   children: React.ReactNode
 }) {
-  const allArticles = await loadArticles()
-  const moreArticles = allArticles
-    .filter(({ metadata }) => metadata !== article)
+  const allPosts = await loadPublishedPosts()
+  const moreArticles = allPosts
+    .filter((p) => p.id !== post.id)
     .slice(0, 2)
+    .map((p) => ({
+      href: `/blog/${p.slug}`,
+      date: p.post_date,
+      title: p.title,
+      description: p.description,
+    }))
 
   return (
     <RootLayout>
@@ -27,16 +31,16 @@ export default async function BlogArticleWrapper({
         <FadeIn>
           <header className="mx-auto flex max-w-5xl flex-col text-center">
             <h1 className="mt-6 font-display text-5xl font-medium tracking-tight text-balance text-white sm:text-6xl">
-              {article.title}
+              {post.title}
             </h1>
             <time
-              dateTime={article.date}
+              dateTime={post.post_date}
               className="order-first text-sm text-zinc-400"
             >
-              {formatDate(article.date)}
+              {formatDate(post.post_date)}
             </time>
             <p className="mt-6 text-sm font-semibold text-white">
-              by {article.author.name}, {article.author.role}
+              by {post.author.name}, {post.author.role}
             </p>
           </header>
         </FadeIn>
