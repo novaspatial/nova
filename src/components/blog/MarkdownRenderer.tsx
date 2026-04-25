@@ -3,6 +3,7 @@
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import rehypeUnwrapImages from 'rehype-unwrap-images'
 import { isValidElement, type ReactElement } from 'react'
 
 import { GrayscaleTransitionImage } from '@/components/ui/GrayscaleTransitionImage'
@@ -72,7 +73,7 @@ export function MarkdownRenderer({ children }: { children: string }) {
     <div className="typography">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
+        rehypePlugins={[rehypeUnwrapImages, [rehypeSanitize, sanitizeSchema]]}
         components={components}
       >
         {children}
