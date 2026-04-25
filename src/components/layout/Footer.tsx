@@ -61,12 +61,12 @@ function ArrowIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 
 function NewsletterForm() {
   return (
-    <form className="max-w-sm text-center lg:text-left 3xl:max-w-md">
+    <form className="max-w-102 text-center lg:text-left 3xl:max-w-118">
       <h2 className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
         Subscribe
       </h2>
       <p className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base">
-        Subscribe to get a 50% discount on your first Atmos mix.
+        Get a 50% discount on your first Atmos mix.
       </p>
       <div className="relative mt-3 sm:mt-6">
         <input
@@ -100,7 +100,7 @@ export function Footer() {
             <NewsletterForm />
           </div>
         </div>
-        <div className="mt-10 mb-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-3 border-t border-violet-500/20 pt-6 sm:mt-24 sm:mb-20 sm:pt-12 lg:items-end lg:justify-between">
+        <div className="mt-4 mb-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-3 pt-2 sm:mt-10 sm:mb-20 sm:pt-4 lg:items-end lg:justify-between">
           <Link href="/" aria-label="Home">
             <Logo className="h-5 sm:h-8 3xl:h-10" fillOnHover />
           </Link>
