@@ -11,9 +11,30 @@ import rehypeUnwrapImages from 'rehype-unwrap-images'
 import shiki from 'shiki'
 import { unifiedConditional } from 'unified-conditional'
 
+const supabaseHostname = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+      : null
+  } catch {
+    return null
+  }
+})()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+  images: {
+    remotePatterns: supabaseHostname
+      ? [
+          {
+            protocol: 'https',
+            hostname: supabaseHostname,
+            pathname: '/storage/v1/object/public/blog-assets/**',
+          },
+        ]
+      : [],
+  },
   async headers() {
     return [
       {

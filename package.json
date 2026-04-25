@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "seed:blog": "tsx scripts/seed-blog-posts.ts"
   },
   "browserslist": "defaults, not ie <= 11",
   "dependencies": {
@@ -34,8 +35,10 @@
     "react": "^19.2.4",
     "react-aria": "^3.46.0",
     "react-dom": "^19.2.4",
+    "react-markdown": "^9.1.0",
     "react-stately": "^3.44.0",
     "recma-import-images": "0.0.3",
+    "rehype-sanitize": "^6.0.0",
     "rehype-unwrap-images": "^1.0.0",
     "remark-gfm": "^4.0.1",
     "remark-rehype-wrap": "0.0.5",
@@ -61,6 +64,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "sharp": "^0.34.3",
+    "tsx": "^4.21.0",
     "vitest": "^4.0.18"
   }
 }
