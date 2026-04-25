@@ -12,8 +12,12 @@ vi.mock('@/lib/auth/server', async () => {
   }
 })
 
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}))
+
 function makeRequest(body: unknown): Request {
-  return new Request('http://localhost/api/portal/admin/blog/posts', {
+  return new Request('http://localhost/api/blog/admin/blog/posts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -29,7 +33,7 @@ const validPayload = {
   post_date: '2026-04-25',
 }
 
-describe('POST /api/portal/admin/blog/posts', () => {
+describe('POST /api/blog/admin/blog/posts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition, type ChangeEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { MarkdownRenderer } from '@/components/blog/MarkdownRenderer'
@@ -160,14 +161,17 @@ export function BlogPostEditor({
     }
   }
 
-  async function submit(payload: BlogPostInput) {
+  async function submit(
+    payload: BlogPostInput,
+    opts: { redirectTo?: string } = {},
+  ) {
     setError(null)
     setBusy(true)
     try {
       const url =
         mode === 'create'
-          ? '/api/portal/admin/blog/posts'
-          : `/api/portal/admin/blog/posts/${initial!.id}`
+          ? '/api/blog/admin/blog/posts'
+          : `/api/blog/admin/blog/posts/${initial!.id}`
       const res = await fetch(url, {
         method: mode === 'create' ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -178,8 +182,24 @@ export function BlogPostEditor({
         throw new Error(data.error ?? `Request failed (${res.status})`)
       }
       update({ publishedAt: payload.published_at })
+      if (opts.redirectTo) {
+        startTransition(() => {
+          router.push(opts.redirectTo!)
+          router.refresh()
+        })
+        return
+      }
+      if (mode === 'create') {
+        const data = (await res.json().catch(() => ({}))) as { id?: string }
+        if (data.id) {
+          startTransition(() => {
+            router.replace(`/blog/admin/blog/${data.id}/edit`)
+            router.refresh()
+          })
+          return
+        }
+      }
       startTransition(() => {
-        router.push('/portal/admin/blog')
         router.refresh()
       })
     } catch (e) {
@@ -195,7 +215,7 @@ export function BlogPostEditor({
   }
   function onPublish() {
     const payload = buildPayload({ publish: true })
-    if (payload) void submit(payload)
+    if (payload) void submit(payload, { redirectTo: '/blog' })
   }
   function onUnpublish() {
     const payload = buildPayload({ unpublish: true })
@@ -207,7 +227,7 @@ export function BlogPostEditor({
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(`/api/portal/admin/blog/posts/${initial.id}`, {
+      const res = await fetch(`/api/blog/admin/blog/posts/${initial.id}`, {
         method: 'DELETE',
       })
       if (!res.ok) {
@@ -216,7 +236,7 @@ export function BlogPostEditor({
       }
       setConfirmDelete(false)
       startTransition(() => {
-        router.push('/portal/admin/blog')
+        router.push('/blog/admin/blog')
         router.refresh()
       })
     } catch (e) {
@@ -236,14 +256,17 @@ export function BlogPostEditor({
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             {mode === 'create' ? 'New post' : 'Edit post'}
           </h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            {isPublished ? 'Currently published.' : 'Currently a draft.'}
-          </p>
         </div>
+        <Link
+          href={mode === 'edit' ? '/blog/admin/blog' : '/blog'}
+          className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+        >
+          ← {mode === 'edit' ? 'Edit Blog' : 'Blog'}
+        </Link>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Field label="Title">
+      <div className="mt-8 grid gap-4 sm:grid-cols-12">
+        <Field label="Title" className="sm:col-span-6">
           <input
             type="text"
             value={form.title}
@@ -252,25 +275,13 @@ export function BlogPostEditor({
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </Field>
-        <Field label="Slug" hint="URL: /blog/<slug>">
-          <input
-            type="text"
-            value={form.slug}
-            onChange={onSlugChange}
-            disabled={disabled}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white outline-none focus:border-violet-400/40"
+        <Field label="Author" className="sm:col-span-6">
+          <AuthorSelect
+            value={form.author_key}
+            onChange={(slug) => update({ author_key: slug })}
           />
         </Field>
-        <Field label="Description" className="sm:col-span-2">
-          <textarea
-            value={form.description}
-            onChange={(e) => update({ description: e.target.value })}
-            disabled={disabled}
-            rows={2}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-400/40"
-          />
-        </Field>
-        <Field label="Date">
+        <Field label="Date" className="sm:col-span-3">
           <input
             type="date"
             value={form.post_date}
@@ -279,48 +290,60 @@ export function BlogPostEditor({
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </Field>
-        <Field label="Author">
-          <AuthorSelect
-            value={form.author_key}
-            onChange={(slug) => update({ author_key: slug })}
+        <Field label="Markdown tools" className="sm:col-span-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => mdInputRef.current?.click()}
+              disabled={disabled}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+            >
+              Upload .md
+            </button>
+            <input
+              ref={mdInputRef}
+              type="file"
+              accept=".md,text/markdown"
+              onChange={onMarkdownFile}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={disabled}
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+            >
+              Insert image
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              onChange={onImageFile}
+              className="hidden"
+            />
+          </div>
+        </Field>
+        <Field label="Description" className="sm:col-span-6">
+          <textarea
+            value={form.description}
+            onChange={(e) => update({ description: e.target.value })}
+            disabled={disabled}
+            rows={2}
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </Field>
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => mdInputRef.current?.click()}
-          disabled={disabled}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-        >
-          Upload .md
-        </button>
-        <input
-          ref={mdInputRef}
-          type="file"
-          accept=".md,text/markdown"
-          onChange={onMarkdownFile}
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={() => imageInputRef.current?.click()}
-          disabled={disabled}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-        >
-          Insert image
-        </button>
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          onChange={onImageFile}
-          className="hidden"
-        />
-        <span className="text-xs text-zinc-500">
-          Markdown only. For a TOP TIP block, use ```top-tip / ``` fences.
-        </span>
+        {mode === 'create' && (
+          <Field label="Slug" hint="URL: /blog/<slug>" className="sm:col-span-12">
+            <input
+              type="text"
+              value={form.slug}
+              onChange={onSlugChange}
+              disabled={disabled}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono text-sm text-white outline-none focus:border-violet-400/40"
+            />
+          </Field>
+        )}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -360,14 +383,6 @@ export function BlogPostEditor({
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onSaveDraft}
-            disabled={disabled}
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
-          >
-            Save draft
-          </button>
           {isPublished ? (
             <button
               type="button"
@@ -387,6 +402,14 @@ export function BlogPostEditor({
               Publish
             </button>
           )}
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={disabled}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Save draft
+          </button>
         </div>
         {mode === 'edit' && (
           <button

@@ -16,13 +16,16 @@ export default async function AdminBlogList() {
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Blog posts
             </h1>
-            <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-              Publish, edit, and remove articles shown at /blog.
-            </p>
           </div>
-          <Button href="/portal/admin/blog/new" className="shrink-0">
-            New post
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button href="/blog/admin/blog/new">New post</Button>
+            <Link
+              href="/blog"
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+            >
+              ← Blog
+            </Link>
+          </div>
         </div>
       </FadeIn>
 
@@ -81,7 +84,7 @@ export default async function AdminBlogList() {
                       </Link>
                     )}
                     <Link
-                      href={`/portal/admin/blog/${post.id}/edit`}
+                      href={`/blog/admin/blog/${post.id}/edit`}
                       className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
                     >
                       Edit

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { BlogPostEditor } from '@/components/portal/admin/BlogPostEditor'
+import { BlogPostEditor } from '@/components/blog/admin/BlogPostEditor'
 import { loadAdminPostById } from '@/lib/blog/posts'
 
 type Params = Promise<{ id: string }>

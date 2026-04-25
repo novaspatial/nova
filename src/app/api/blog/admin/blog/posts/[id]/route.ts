@@ -1,9 +1,17 @@
+import { revalidatePath } from 'next/cache'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { forbiddenResponse, requireApiProfile } from '@/lib/auth/server'
 import { getAuthor } from '@/lib/team'
 
 type Params = Promise<{ id: string }>
+
+function revalidateBlog(slugs: Array<string | null | undefined>) {
+  revalidatePath('/blog')
+  for (const slug of slugs) {
+    if (slug) revalidatePath(`/blog/${slug}`)
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -35,6 +43,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unknown author_key' }, { status: 400 })
   }
 
+  const { data: existing } = await auth.supabase
+    .from('blog_posts')
+    .select('slug')
+    .eq('id', id)
+    .maybeSingle()
+
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const key of ['title', 'slug', 'description', 'body', 'author_key', 'post_date'] as const) {
     if (typeof body[key] === 'string') update[key] = body[key]
@@ -54,6 +68,8 @@ export async function PATCH(
     )
   }
 
+  revalidateBlog([existing?.slug, body.slug])
+
   return NextResponse.json({ ok: true })
 }
 
@@ -67,11 +83,19 @@ export async function DELETE(
 
   const { id } = await params
 
+  const { data: existing } = await auth.supabase
+    .from('blog_posts')
+    .select('slug')
+    .eq('id', id)
+    .maybeSingle()
+
   const { error } = await auth.supabase.from('blog_posts').delete().eq('id', id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  revalidateBlog([existing?.slug])
 
   return NextResponse.json({ ok: true })
 }

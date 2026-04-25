@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { forbiddenResponse, requireApiProfile } from '@/lib/auth/server'
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
       { status: isUnique ? 409 : 500 },
     )
   }
+
+  revalidatePath('/blog')
+  if (body.published_at) revalidatePath(`/blog/${body.slug!}`)
 
   return NextResponse.json({ id: data.id })
 }

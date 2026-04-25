@@ -109,7 +109,7 @@ export default async function Blog() {
           <Container className="pointer-events-none absolute inset-x-0 top-0 mt-24 sm:mt-32 lg:mt-40">
             <div className="flex justify-end">
               <Link
-                href="/portal/admin/blog"
+                href="/blog/admin/blog"
                 className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-zinc-800/90 px-4 py-1.5 text-sm font-medium text-zinc-200 ring-1 ring-white/10 backdrop-blur-sm transition hover:bg-zinc-700/90 hover:text-white hover:ring-white/25"
               >
                 Edit Blogs
