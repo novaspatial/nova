@@ -1,70 +1,8 @@
 import clsx from 'clsx'
 
-import { Blockquote } from '@/components/ui/Blockquote'
 import { Border } from '@/components/ui/Border'
-import { GrayscaleTransitionImage } from '@/components/ui/GrayscaleTransitionImage'
-import { StatList, StatListItem } from '@/components/ui/StatList'
-import { TagList, TagListItem } from '@/components/ui/TagList'
 
 export const MDXComponents = {
-  Blockquote({
-    className,
-    ...props
-  }: React.ComponentPropsWithoutRef<typeof Blockquote>) {
-    return <Blockquote className={clsx('my-32', className)} {...props} />
-  },
-  img: function Img({
-    className,
-    ...props
-  }: React.ComponentPropsWithoutRef<typeof GrayscaleTransitionImage>) {
-    return (
-      <div
-        className={clsx(
-          'group isolate my-10 overflow-hidden rounded-4xl bg-white/10 max-sm:-mx-6',
-          className,
-        )}
-      >
-        <GrayscaleTransitionImage
-          {...props}
-          sizes="(min-width: 768px) 42rem, 100vw"
-          className="aspect-16/10 w-full object-cover"
-        />
-      </div>
-    )
-  },
-  StatList({
-    className,
-    ...props
-  }: React.ComponentPropsWithoutRef<typeof StatList>) {
-    return (
-      <StatList className={clsx('my-32 max-w-none!', className)} {...props} />
-    )
-  },
-  StatListItem,
-  table: function Table({
-    className,
-    ...props
-  }: React.ComponentPropsWithoutRef<'table'>) {
-    return (
-      <div
-        className={clsx(
-          'my-10 max-sm:-mx-6 max-sm:flex max-sm:overflow-x-auto',
-          className,
-        )}
-      >
-        <div className="max-sm:min-w-full max-sm:flex-none max-sm:px-6">
-          <table {...props} />
-        </div>
-      </div>
-    )
-  },
-  TagList({
-    className,
-    ...props
-  }: React.ComponentPropsWithoutRef<typeof TagList>) {
-    return <TagList className={clsx('my-6', className)} {...props} />
-  },
-  TagListItem,
   TopTip({
     children,
     className,
@@ -80,9 +18,6 @@ export const MDXComponents = {
         <div className="mt-4">{children}</div>
       </Border>
     )
-  },
-  Typography({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
-    return <div className={clsx('typography', className)} {...props} />
   },
   wrapper({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
     return (

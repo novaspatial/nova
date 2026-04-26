@@ -60,8 +60,6 @@ export const TEAM_MEMBERS = [
   },
 ] as const satisfies readonly TeamMember[]
 
-export type AuthorKey = (typeof TEAM_MEMBERS)[number]['slug']
-
 export function getAuthor(slug: string): TeamMember | undefined {
   return TEAM_MEMBERS.find((m) => m.slug === slug)
 }
