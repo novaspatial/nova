@@ -33,16 +33,26 @@ export async function POST(request: Request) {
     )
   }
 
-  const { error: emailError } = await resend.emails.send({
-    from: RESEND_FROM,
-    to: '6f6e7572@pm.me',
-    subject: subject || `New inquiry from ${name}`,
-    replyTo: email,
-    text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\n${message}`,
-  })
+  const recipient =
+    process.env.CONTACT_INBOX_TO ||
+    (process.env.NODE_ENV !== 'production' ? RESEND_FROM : null)
 
-  if (emailError) {
-    console.error('Resend email error:', emailError)
+  if (!recipient) {
+    console.warn(
+      'Contact inquiry stored but not emailed: CONTACT_INBOX_TO is unset in production',
+    )
+  } else {
+    const { error: emailError } = await resend.emails.send({
+      from: RESEND_FROM,
+      to: recipient,
+      subject: subject || `New inquiry from ${name}`,
+      replyTo: email,
+      text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\n${message}`,
+    })
+
+    if (emailError) {
+      console.error('Resend email error:', emailError)
+    }
   }
 
   return NextResponse.json({ success: true })
