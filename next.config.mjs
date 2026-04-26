@@ -8,6 +8,41 @@ const supabaseHostname = (() => {
   }
 })()
 
+const supabaseOrigin = supabaseHostname ? `https://${supabaseHostname}` : ''
+const supabaseSocket = supabaseHostname ? `wss://${supabaseHostname}` : ''
+
+const contentSecurityPolicy = [
+  `default-src 'self'`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com`,
+  `style-src 'self' 'unsafe-inline'`,
+  `img-src 'self' data: blob: ${supabaseOrigin}`.trim(),
+  `font-src 'self' data:`,
+  `media-src 'self' blob: ${supabaseOrigin}`.trim(),
+  `connect-src 'self' https://api.stripe.com ${supabaseOrigin} ${supabaseSocket}`.trim(),
+  `frame-src https://js.stripe.com https://hooks.stripe.com`,
+  `frame-ancestors 'none'`,
+  `base-uri 'self'`,
+  `form-action 'self'`,
+  `object-src 'none'`,
+]
+  .filter(Boolean)
+  .join('; ')
+
+const securityHeaders = [
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload',
+  },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=()',
+  },
+  { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicy },
+]
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -23,6 +58,10 @@ const nextConfig = {
   },
   async headers() {
     return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
       {
         source: '/videos/:path*',
         headers: [
