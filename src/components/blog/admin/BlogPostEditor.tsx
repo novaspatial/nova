@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { MarkdownRenderer } from '@/components/blog/MarkdownRenderer'
 import { PortalConfirmDialog } from '@/components/portal'
 import { AuthorSelect } from './AuthorSelect'
+import { DateField } from './DateField'
 import { uploadBlogImage } from './uploadBlogImage'
 import { slugify } from '@/lib/blog/slug'
 import type { BlogPost, BlogPostInput } from '@/lib/blog/types'
@@ -279,15 +280,14 @@ export function BlogPostEditor({
           <AuthorSelect
             value={form.author_key}
             onChange={(slug) => update({ author_key: slug })}
+            disabled={disabled}
           />
         </Field>
         <Field label="Date" className="sm:col-span-3">
-          <input
-            type="date"
+          <DateField
             value={form.post_date}
-            onChange={(e) => update({ post_date: e.target.value })}
+            onChange={(v) => update({ post_date: v })}
             disabled={disabled}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-violet-400/40"
           />
         </Field>
         <Field label="Markdown tools" className="sm:col-span-3">
