@@ -1,6 +1,7 @@
 import type { StaticImageData } from 'next/image'
 
 import imageJamieKuse from '@/images/team/jamie-kuse.jpg'
+import imageSpencerCheyne from '@/images/team/spencer-cheyne.jpg'
 import imageWillHowie from '@/images/team/will-howie.jpg'
 import imageMikeSouthworth from '@/images/team/mike-southworth.jpg'
 import imageDanielByrne from '@/images/team/daniel-byrne.jpg'
@@ -24,6 +25,13 @@ export const TEAM_MEMBERS = [
     bio: 'With credits on over a billion streams, Juno award winning engineer Jamie Kuse specializes in a radio ready, modern sound with big bass and hard hitting drums.',
   },
   {
+    slug: 'spencer-cheyne',
+    name: 'Spencer Cheyne',
+    role: 'Country, Pop, Rock',
+    image: { src: imageSpencerCheyne },
+    bio: 'Spencer is an award-winning mixer, producer and engineer with credits on numerous multi-platinum, platinum, and gold-certified albums and #1 singles.',
+  },
+  {
     slug: 'will-howie',
     name: 'Will Howie',
     role: 'Classical, Jazz, New Music',
@@ -40,7 +48,7 @@ export const TEAM_MEMBERS = [
   {
     slug: 'daniel-byrne',
     name: 'Daniel Byrne',
-    role: 'Pop, Folk, Rock',
+    role: 'Electronic, Pop, Indie',
     image: { src: imageDanielByrne },
     bio: "Daniel combines a deep academic background with commercial music industry and audio post expertise, stemming from studies at Queen's University, electroacoustics at Simon Fraser University, and audio engineering at The Trebas Institute.",
   },
