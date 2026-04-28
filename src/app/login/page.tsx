@@ -57,9 +57,14 @@ function LoginForm() {
   const [mode, setMode] = useState<AuthMode>(defaultMode)
   const [email, setEmail] = useState(defaultEmail)
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  const passwordsMatch = password.length > 0 && password === confirmPassword
+  const canSubmit =
+    !loading && (mode !== 'signup' || (passwordsMatch && password.length >= 6))
 
   // Update state if URL parameters change after initial render
   useEffect(() => {
@@ -210,6 +215,7 @@ function LoginForm() {
                             type="button"
                             onClick={() => {
                               setMode('reset')
+                              setConfirmPassword('')
                               setError(null)
                               setMessage(null)
                             }}
@@ -218,6 +224,56 @@ function LoginForm() {
                             Forgot password?
                           </button>
                         </div>
+                      )}
+                    </div>
+                  )}
+
+                  {mode === 'signup' && (
+                    <div>
+                      <label
+                        htmlFor="confirm-password"
+                        className="block text-sm font-medium text-zinc-300"
+                      >
+                        Confirm password
+                      </label>
+                      <input
+                        id="confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-zinc-500 transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none"
+                        placeholder="••••••••"
+                      />
+                      {confirmPassword.length > 0 && (
+                        <p
+                          className={`mt-2 flex items-center gap-1.5 text-xs ${
+                            passwordsMatch
+                              ? 'text-emerald-400'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          {passwordsMatch ? (
+                            <>
+                              <svg
+                                className="h-3.5 w-3.5"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.704 5.296a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 111.414-1.414L8.5 12.086l6.79-6.79a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              Passwords match
+                            </>
+                          ) : (
+                            'Passwords do not match'
+                          )}
+                        </p>
                       )}
                     </div>
                   )}
@@ -236,7 +292,7 @@ function LoginForm() {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={!canSubmit}
                     className="mx-auto mt-10 block w-1/2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {loading
@@ -257,6 +313,7 @@ function LoginForm() {
                         type="button"
                         onClick={() => {
                           setMode('signup')
+                          setConfirmPassword('')
                           setError(null)
                           setMessage(null)
                         }}
@@ -272,6 +329,7 @@ function LoginForm() {
                         type="button"
                         onClick={() => {
                           setMode('login')
+                          setConfirmPassword('')
                           setError(null)
                           setMessage(null)
                         }}
@@ -285,6 +343,7 @@ function LoginForm() {
                       type="button"
                       onClick={() => {
                         setMode('login')
+                        setConfirmPassword('')
                         setError(null)
                         setMessage(null)
                       }}
