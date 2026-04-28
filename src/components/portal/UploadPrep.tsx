@@ -121,6 +121,7 @@ export function UploadPrep({
           </CheckRow>
           <CheckRow>Same balance, same tonality, same energy</CheckRow>
           <CheckRow>Include a bounce of that stereo mix as a reference</CheckRow>
+          <CheckRow>The final stereo master</CheckRow>
         </Group>
 
         <Group icon={MicrophoneIcon} title="Vocals">
