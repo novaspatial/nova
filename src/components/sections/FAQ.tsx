@@ -18,8 +18,19 @@ const faqs = [
   },
   {
     question: 'Should my stems be "wet" (with effects) or "dry"?',
-    answer:
-      'We need \u201cwet\u201d stems. Because our goal is to perfectly translate your original vision using our Spatial Tone Lock\u2122 process, your stems should include all your EQ, compression, delays, and reverbs. When all your stems are played together at zero (unity gain), they should sound identical to your final stereo mix.',
+    answer: (
+      <>
+        <p>Your stems should include all your EQ, compression and tonal effects.</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Deliver dry vocal stems &mdash; printed EQ, compression, tuning, and saturation are fine</li>
+          <li>Print those vocal effects on their own separate stems (one per effect when possible)</li>
+          <li>Do NOT bounce reverb, delay, or other spatial effects onto the vocal itself</li>
+        </ul>
+        <p>Printed processing and effects are generally fine on drums, bass, guitars, and synths.</p>
+        <p>Anything you want us to spatialize &mdash; long reverbs, stereo delays, wide pads, ambient textures &mdash; should be delivered on its own stem, not baked into the source instrument.</p>
+        <p>When all your stems are played together at (zero) unity gain, they should sound identical to your final stereo mix.</p>
+      </>
+    ),
   },
   {
     question: 'Do I need to have my song mixed in stereo first?',
@@ -105,9 +116,13 @@ export function FAQ() {
                       as="dd"
                       className="mt-1 pr-6 sm:mt-2 sm:pr-12 3xl:mt-3"
                     >
-                      <p className="text-[10px]/4 text-zinc-300 sm:text-base/7 3xl:text-lg/8">
-                        {faq.answer}
-                      </p>
+                      <div className="space-y-2 text-[10px]/4 text-zinc-300 sm:text-base/7 3xl:text-lg/8">
+                        {typeof faq.answer === 'string' ? (
+                          <p>{faq.answer}</p>
+                        ) : (
+                          faq.answer
+                        )}
+                      </div>
                     </DisclosurePanel>
                   </Disclosure>
                 </div>
