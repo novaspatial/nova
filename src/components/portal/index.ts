@@ -1,6 +1,7 @@
 export { ProjectList } from './ProjectList'
 export { ProjectCard } from './ProjectCard'
 export { StepNavigation } from './StepNavigation'
+export { DeliverBanner } from './DeliverBanner'
 export { UploadManager } from './UploadManager'
 export { UploadPrep } from './UploadPrep'
 export { ReviewTimeline } from './ReviewTimeline'

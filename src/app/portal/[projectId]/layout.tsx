@@ -1,6 +1,10 @@
 import { unstable_noStore as noStore } from 'next/cache'
 import Link from 'next/link'
-import { StepNavigation, ProjectProvider } from '@/components/portal'
+import {
+  DeliverBanner,
+  StepNavigation,
+  ProjectProvider,
+} from '@/components/portal'
 import { FadeIn } from '@/components/ui/FadeIn'
 import {
   getProjectOrNotFound,
@@ -61,6 +65,9 @@ export default async function ProjectDetailLayout({
               </svg>
               <span className="hidden sm:inline">Back to Projects</span>
             </Link>
+          </div>
+          <div className="mt-4 sm:mt-6">
+            <DeliverBanner />
           </div>
           <div className="mt-4 sm:mt-6">
             <StepNavigation

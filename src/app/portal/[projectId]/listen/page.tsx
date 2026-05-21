@@ -8,7 +8,6 @@ import { ListenView } from './ListenView'
 import type {
   ProjectComment,
   ProjectCommentAttachment,
-  ProjectStatus,
 } from '@/types/portal'
 
 export default async function ListenPage({
@@ -23,8 +22,7 @@ export default async function ListenPage({
     id: string
     title: string
     format: 'atmos' | 'binaural' | 'both'
-    status: ProjectStatus
-  }>(supabase, projectId, 'id, title, format, status', profile?.role)
+  }>(supabase, projectId, 'id, title, format', profile?.role)
 
   const [{ data: files }, { data: comments }, { data: attachmentRows }] =
     await Promise.all([
@@ -110,7 +108,6 @@ export default async function ListenPage({
         key={audioFiles.map((file) => file.id).join('|')}
         projectId={project.id}
         format={project.format}
-        status={project.status}
         audioFiles={audioFiles}
         initialComments={commentsWithAttachments}
         currentUserId={profile?.id ?? null}
