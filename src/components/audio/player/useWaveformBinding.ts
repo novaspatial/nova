@@ -39,14 +39,25 @@ export function useWaveformBinding() {
   }, [player.playing, player.currentTime, player.duration])
 
   const elapsedSeconds = currentTime ?? smoothTime
-  const hasDuration = player.duration > 0
+  const safeDuration =
+    Number.isFinite(player.duration) && player.duration > 0
+      ? player.duration
+      : 0
+  const hasDuration = safeDuration > 0
+  const toFinite = (n: number | null | undefined): number => {
+    if (n == null || !Number.isFinite(n)) return 0
+    if (safeDuration > 0) return Math.min(Math.max(n, 0), safeDuration)
+    return Math.max(n, 0)
+  }
+  const sliderValue = toFinite(currentTime ?? player.currentTime)
+  const sliderMax = safeDuration > 0 ? safeDuration : 1
 
   const waveformProps = {
     label: 'Current time',
     src: player.mixedMusicFile?.audio.src ?? null,
-    maxValue: player.duration,
+    maxValue: sliderMax,
     step: 0.01,
-    value: [currentTime ?? player.currentTime],
+    value: [sliderValue],
     progressSeconds: elapsedSeconds,
     onChange: ([value]: number[]) => setCurrentTime(value),
     onChangeEnd: ([value]: number[]) => {
