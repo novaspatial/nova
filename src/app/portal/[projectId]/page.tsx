@@ -3,6 +3,8 @@ import {
   getProjectOrNotFound,
   requirePageProfile,
 } from '@/lib/auth/server'
+import { getStepForStatus } from '@/lib/portal/workflow'
+import type { ProjectStatus } from '@/types/portal'
 
 export default async function ProjectPage({
   params,
@@ -11,12 +13,12 @@ export default async function ProjectPage({
 }) {
   const { projectId } = await params
   const { supabase, profile } = await requirePageProfile()
-  await getProjectOrNotFound<{ id: string }>(
+  const project = await getProjectOrNotFound<{ id: string; status: ProjectStatus }>(
     supabase,
     projectId,
-    'id',
+    'id, status',
     profile?.role,
   )
 
-  redirect(`/portal/${projectId}/upload`)
+  redirect(`/portal/${projectId}/${getStepForStatus(project.status)}`)
 }
