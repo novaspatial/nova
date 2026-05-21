@@ -173,8 +173,10 @@ function formatTimestamp(ms: number | null): string {
 
 function ComposerWaveform({
   selectedTrackId,
+  onAnchorBDrag,
 }: {
   selectedTrackId: string | null
+  onAnchorBDrag?: () => void
 }) {
   const { player, waveformProps, elapsedSeconds, hasDuration } =
     useWaveformBinding()
@@ -183,6 +185,16 @@ function ComposerWaveform({
     !!player.mixedMusicFile &&
     selectedTrackId != null &&
     String(player.mixedMusicFile.id) === selectedTrackId
+
+  const composerWaveformProps = onAnchorBDrag
+    ? {
+        ...waveformProps,
+        onDragAnchor: (which: 'a' | 'b', seconds: number) => {
+          if (which === 'b') onAnchorBDrag()
+          waveformProps.onDragAnchor(which, seconds)
+        },
+      }
+    : waveformProps
 
   return (
     <div>
@@ -196,7 +208,7 @@ function ComposerWaveform({
             {formatTrackTime(elapsedSeconds, player.duration)}
           </span>
           <Waveform
-            {...waveformProps}
+            {...composerWaveformProps}
             height={96}
             barWidth={3}
             barGap={2}
@@ -548,6 +560,9 @@ export function ReviewTimeline({
   const [deleteTarget, setDeleteTarget] = useState<ProjectComment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [clockState, setClockState] = useState<
+    'off' | 'armed' | 'live' | 'locked'
+  >('off')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewUrlsRef = useRef<Set<string>>(new Set())
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -861,33 +876,92 @@ export function ReviewTimeline({
     (body.trim().length > 0 || uploadedAttachments.length > 0)
 
   const selection = player.selection
-  const toggleState: 'off' | 'point' | 'range' =
-    selection == null
-      ? 'off'
-      : selection.anchorBMs == null
-        ? 'point'
-        : 'range'
   const clockDisabled =
     !player.mixedMusicFile ||
     String(player.mixedMusicFile.id) !== selectedTrackId
   const clockAriaLabel =
-    toggleState === 'off'
-      ? 'Capture start timestamp from the playhead'
-      : toggleState === 'point'
-        ? 'Capture end timestamp to create a range'
-        : 'Clear timestamp range'
+    clockState === 'off'
+      ? 'Arm timestamp capture'
+      : clockState === 'armed'
+        ? 'Cancel timestamp capture'
+        : clockState === 'live'
+          ? 'Lock timestamp range'
+          : 'Clear timestamp range'
+  const clockTitle =
+    clockState === 'off'
+      ? 'Click to arm, then type to mark the start. Click again to lock the end. Drag the waveform handles to fine-tune.'
+      : clockState === 'armed'
+        ? 'Start typing to mark the start. Click to cancel.'
+        : clockState === 'live'
+          ? 'Click to lock the end of the range.'
+          : 'Click to clear the timestamp range.'
 
   const handleToggleClock = useCallback(() => {
     if (clockDisabled) return
-    const nowMs = Math.round(player.currentTime * 1000)
-    if (toggleState === 'off') {
-      player.setAnchorA(nowMs)
-    } else if (toggleState === 'point') {
-      player.setAnchorB(nowMs)
+    if (clockState === 'off') {
+      setClockState('armed')
+    } else if (clockState === 'armed') {
+      setClockState('off')
+    } else if (clockState === 'live') {
+      setClockState('locked')
     } else {
       player.clearSelection()
+      setClockState('off')
     }
-  }, [clockDisabled, player, toggleState])
+  }, [clockDisabled, clockState, player])
+
+  const handleTextareaKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (clockState !== 'armed') return
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      const isPrintable = event.key.length === 1
+      const isEditingKey =
+        event.key === 'Backspace' ||
+        event.key === 'Delete' ||
+        event.key === 'Enter'
+      if (!isPrintable && !isEditingKey) return
+      if (!Number.isFinite(player.currentTime)) return
+      const nowMs = Math.round(player.currentTime * 1000)
+      player.setAnchorA(nowMs)
+      player.setAnchorB(nowMs)
+      setClockState('live')
+    },
+    [clockState, player],
+  )
+
+  const handleComposerAnchorBDrag = useCallback(() => {
+    setClockState((s) => (s === 'live' ? 'locked' : s))
+  }, [])
+
+  useEffect(() => {
+    if (clockDisabled) setClockState('off')
+  }, [clockDisabled])
+
+  useEffect(() => {
+    if (clockState !== 'live' || !player.playing) return
+    if (!Number.isFinite(player.currentTime)) return
+    let rafId = 0
+    const baseTime = player.currentTime
+    const baseWall =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const tick = () => {
+      const now =
+        typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const elapsed = (now - baseWall) / 1000
+      const next = baseTime + elapsed
+      const clamped =
+        Number.isFinite(player.duration) && player.duration > 0
+          ? Math.min(next, player.duration)
+          : next
+      if (Number.isFinite(clamped)) {
+        player.setAnchorB(Math.round(clamped * 1000))
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clockState, player.playing, player.currentTime, player.duration])
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
@@ -930,6 +1004,7 @@ export function ReviewTimeline({
         })
         setBody('')
         player.clearSelection()
+        setClockState('off')
         setScrollRequest({ kind: 'bottom' })
         router.refresh()
       } catch {
@@ -1038,7 +1113,10 @@ export function ReviewTimeline({
         <>
 
       {/* Composer waveform — mirrors the dock so users can mark timestamps without looking away */}
-      <ComposerWaveform selectedTrackId={selectedTrackId} />
+      <ComposerWaveform
+        selectedTrackId={selectedTrackId}
+        onAnchorBDrag={handleComposerAnchorBDrag}
+      />
 
       {/* New comment form */}
       <form onSubmit={handleSubmit}>
@@ -1046,6 +1124,7 @@ export function ReviewTimeline({
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
+            onKeyDown={handleTextareaKeyDown}
             placeholder="Add a mix note or feedback..."
             rows={2}
             className="w-full resize-none border-0 bg-transparent px-4 pt-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
@@ -1140,19 +1219,22 @@ export function ReviewTimeline({
                 onClick={handleToggleClock}
                 disabled={clockDisabled}
                 aria-label={clockAriaLabel}
-                aria-pressed={toggleState !== 'off'}
-                title="Click to mark the start, again to add an end, a third time to clear. Drag the waveform handles to fine-tune."
+                aria-pressed={clockState !== 'off'}
+                title={clockTitle}
                 className={`inline-flex size-9 items-center justify-center rounded-xl border transition focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  toggleState === 'off'
+                  clockState === 'off'
                     ? 'border-white/10 bg-white/5 text-zinc-400 hover:border-violet-500/40 hover:text-violet-300'
-                    : 'border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20'
+                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
                 }`}
               >
-                <ClockIcon className="size-4" aria-hidden="true" />
+                <ClockIcon
+                  className={`size-4 ${clockState === 'live' ? 'animate-pulse' : ''}`}
+                  aria-hidden="true"
+                />
               </button>
-              {selection != null && (
+              {selection != null && clockState !== 'armed' && (
                 <span className="flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-                  {toggleState === 'range'
+                  {selection.anchorBMs != null
                     ? `${formatTimestamp(selection.startMs)} – ${formatTimestamp(selection.endMs)}`
                     : formatTimestamp(selection.anchorAMs)}
                 </span>
