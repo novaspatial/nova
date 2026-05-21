@@ -3,9 +3,10 @@ import { describe, expect, test } from 'vitest'
 import { TEAM_MEMBERS, getAuthor } from './team'
 
 describe('team registry', () => {
-  test('all six team members are exposed with kebab-case slugs', () => {
+  test('all team members are exposed with kebab-case slugs', () => {
     expect(TEAM_MEMBERS.map((m) => m.slug)).toEqual([
       'jamie-kuse',
+      'spencer-cheyne',
       'will-howie',
       'mike-southworth',
       'daniel-byrne',
