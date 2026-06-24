@@ -34,6 +34,7 @@ export interface Project {
   notes: string | null
   client_deleted_at: string | null
   studio_deleted_at: string | null
+  archived_at: string | null
   created_at: string
   updated_at: string
 }

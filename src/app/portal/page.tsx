@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { ArchiveBoxIcon } from '@heroicons/react/24/outline'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
 import { ProjectList, UploadPrep } from '@/components/portal'
@@ -14,6 +16,7 @@ export default async function PortalDashboard() {
         .from('projects')
         .select('*, owner:profiles!projects_owner_id_fkey(display_name, email)')
         .is('studio_deleted_at', null)
+        .is('archived_at', null)
         .order('created_at', { ascending: false })
     : supabase
         .from('projects')
@@ -21,6 +24,16 @@ export default async function PortalDashboard() {
         .eq('owner_id', user.id)
         .is('client_deleted_at', null)
         .order('created_at', { ascending: false }))
+
+  let archivedCount = 0
+  if (isStudio) {
+    const { count } = await supabase
+      .from('projects')
+      .select('id', { count: 'exact', head: true })
+      .is('studio_deleted_at', null)
+      .not('archived_at', 'is', null)
+    archivedCount = count ?? 0
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -36,7 +49,20 @@ export default async function PortalDashboard() {
                 : 'Track your Dolby Atmos mixing projects.'}
             </p>
           </div>
-          {!isStudio && (
+          {isStudio ? (
+            <Link
+              href="/portal/archived"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium text-zinc-300 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+            >
+              <ArchiveBoxIcon className="size-4" />
+              Archived
+              {archivedCount > 0 && (
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-semibold text-zinc-200">
+                  {archivedCount}
+                </span>
+              )}
+            </Link>
+          ) : (
             <Button href="/portal/new" className="shrink-0">
               New Project
             </Button>

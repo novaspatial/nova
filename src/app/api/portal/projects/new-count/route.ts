@@ -15,7 +15,10 @@ export async function GET() {
     .select('id, status')
 
   if (isStudio) {
-    query = query.eq('status', 'in_review').is('studio_deleted_at', null)
+    query = query
+      .eq('status', 'in_review')
+      .is('studio_deleted_at', null)
+      .is('archived_at', null)
   } else {
     query = query.eq('owner_id', user.id).is('client_deleted_at', null)
   }

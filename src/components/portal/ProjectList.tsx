@@ -55,14 +55,16 @@ export function ProjectList({
   projects,
   isStudio,
   userId,
+  archivedView = false,
 }: {
   projects: ProjectWithOwner[]
   isStudio: boolean
   userId: string
+  archivedView?: boolean
 }) {
   const router = useRouter()
   const perPage = useProjectsPerPage()
-  const [showSuccess, setShowSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
@@ -105,17 +107,29 @@ export function ProjectList({
   }
 
   useEffect(() => {
-    if (!showSuccess) return
+    if (!successMessage) return
     const timer = setTimeout(() => {
-      setShowSuccess(false)
+      setSuccessMessage(null)
       router.refresh()
     }, 2000)
     return () => clearTimeout(timer)
-  }, [showSuccess, router])
+  }, [successMessage, router])
+
+  function removeFromView(id: string, message: string) {
+    setDeletedIds((prev) => new Set([...prev, id]))
+    setSuccessMessage(message)
+  }
 
   function handleDeleted(id: string) {
-    setDeletedIds((prev) => new Set([...prev, id]))
-    setShowSuccess(true)
+    removeFromView(id, 'Project removed successfully')
+  }
+
+  function handleArchived(id: string) {
+    removeFromView(id, 'Project archived')
+  }
+
+  function handleUnarchived(id: string) {
+    removeFromView(id, 'Project restored')
   }
 
   function handleSearch(value: string) {
@@ -139,7 +153,7 @@ export function ProjectList({
       )}
 
       <AnimatePresence>
-        {showSuccess && (
+        {successMessage && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -150,7 +164,7 @@ export function ProjectList({
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/8 px-5 py-3.5">
               <CheckCircleIcon className="size-5 shrink-0 text-emerald-400" />
               <p className="text-sm font-medium text-emerald-100">
-                Project removed successfully
+                {successMessage}
               </p>
             </div>
           </motion.div>
@@ -162,7 +176,9 @@ export function ProjectList({
           <p className="text-sm text-zinc-400">
             {isStudio && searchQuery.trim()
               ? <>No projects matching &ldquo;{searchQuery.trim()}&rdquo;</>
-              : 'No projects'}
+              : archivedView
+                ? 'No archived projects'
+                : 'No projects'}
           </p>
         </div>
       )}
@@ -179,10 +195,14 @@ export function ProjectList({
                   project={project}
                   canDelete={isStudio || project.owner_id === userId}
                   onDeleted={handleDeleted}
-                  isNewProject={isStudio && isInReview && !seenIds.has(project.id)}
-                  isInReview={isInReview && (!isStudio || seenIds.has(project.id))}
-                  isInProgress={isMixing && (!isStudio || seenIds.has(project.id))}
-                  isMixAvailable={isMixAvailable}
+                  canArchive={isStudio}
+                  isArchived={archivedView}
+                  onArchived={handleArchived}
+                  onUnarchived={handleUnarchived}
+                  isNewProject={!archivedView && isStudio && isInReview && !seenIds.has(project.id)}
+                  isInReview={!archivedView && isInReview && (!isStudio || seenIds.has(project.id))}
+                  isInProgress={!archivedView && isMixing && (!isStudio || seenIds.has(project.id))}
+                  isMixAvailable={!archivedView && isMixAvailable}
                   onOpened={isStudio ? handleOpened : undefined}
                 />
               </FadeIn>

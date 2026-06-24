@@ -2,7 +2,12 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { TrashIcon, UserCircleIcon } from '@heroicons/react/24/outline'
+import {
+  ArchiveBoxArrowDownIcon,
+  ArchiveBoxXMarkIcon,
+  TrashIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline'
 import type { Project } from '@/types/portal'
 import { StatusBadge } from './StatusBadge'
 import { PortalConfirmDialog } from './PortalConfirmDialog'
@@ -21,6 +26,10 @@ export function ProjectCard({
   project,
   canDelete = false,
   onDeleted,
+  canArchive = false,
+  isArchived = false,
+  onArchived,
+  onUnarchived,
   isNewProject = false,
   isInProgress = false,
   isInReview = false,
@@ -30,6 +39,10 @@ export function ProjectCard({
   project: ProjectWithOwner
   canDelete?: boolean
   onDeleted?: (id: string) => void
+  canArchive?: boolean
+  isArchived?: boolean
+  onArchived?: (id: string) => void
+  onUnarchived?: (id: string) => void
   isNewProject?: boolean
   isInProgress?: boolean
   isInReview?: boolean
@@ -39,6 +52,12 @@ export function ProjectCard({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isArchiving, setIsArchiving] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const actionCount = (canArchive ? 1 : 0) + (canDelete ? 1 : 0)
+  const contentPadding =
+    actionCount >= 2 ? 'pr-20' : actionCount === 1 ? 'pr-12' : ''
 
   const date = new Date(project.created_at).toLocaleDateString('en-US', {
     month: 'short',
@@ -71,6 +90,35 @@ export function ProjectCard({
       )
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  async function handleArchiveToggle() {
+    setIsArchiving(true)
+    setActionError(null)
+
+    try {
+      const response = await fetch(
+        `/api/portal/projects/${project.id}/archive`,
+        { method: isArchived ? 'DELETE' : 'POST' },
+      )
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to update project')
+      }
+
+      if (isArchived) {
+        onUnarchived?.(project.id)
+      } else {
+        onArchived?.(project.id)
+      }
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Failed to update project',
+      )
+    } finally {
+      setIsArchiving(false)
     }
   }
 
@@ -134,22 +182,44 @@ export function ProjectCard({
             </span>
           </div>
         )}
-        {canDelete && (
-          <button
-            type="button"
-            onClick={() => {
-              setErrorMessage(null)
-              setIsDialogOpen(true)
-            }}
-            className={`absolute right-4 z-10 inline-flex items-center justify-center rounded-xl border border-rose-400/15 bg-rose-500/10 p-2 text-rose-200 transition hover:border-rose-300/30 hover:bg-rose-500/15 hover:text-white ${isNewProject || isInReview || isInProgress || isMixAvailable ? 'top-13' : 'top-4'}`}
-            aria-label={`Remove ${project.title}`}
+        {(canArchive || canDelete) && (
+          <div
+            className={`absolute right-4 z-10 flex items-center gap-2 ${isNewProject || isInReview || isInProgress || isMixAvailable ? 'top-13' : 'top-4'}`}
           >
-            <TrashIcon className="size-4" />
-          </button>
+            {canArchive && (
+              <button
+                type="button"
+                onClick={handleArchiveToggle}
+                disabled={isArchiving}
+                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-50"
+                aria-label={`${isArchived ? 'Unarchive' : 'Archive'} ${project.title}`}
+                title={isArchived ? 'Restore project' : 'Archive project'}
+              >
+                {isArchived ? (
+                  <ArchiveBoxXMarkIcon className="size-4" />
+                ) : (
+                  <ArchiveBoxArrowDownIcon className="size-4" />
+                )}
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage(null)
+                  setIsDialogOpen(true)
+                }}
+                className="inline-flex items-center justify-center rounded-xl border border-rose-400/15 bg-rose-500/10 p-2 text-rose-200 transition hover:border-rose-300/30 hover:bg-rose-500/15 hover:text-white"
+                aria-label={`Remove ${project.title}`}
+              >
+                <TrashIcon className="size-4" />
+              </button>
+            )}
+          </div>
         )}
 
         <Link href={href} className="block p-4 sm:p-6" onClick={() => onOpened?.(project.id)}>
-          <div className="flex items-start gap-3 pr-12">
+          <div className={`flex items-start gap-3 ${contentPadding}`}>
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-display text-base font-semibold text-white sm:text-lg">
                 {project.title}
@@ -182,6 +252,11 @@ export function ProjectCard({
             </span>
           </div>
         </Link>
+        {actionError && (
+          <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+            {actionError}
+          </div>
+        )}
       </div>
       <DeleteProjectDialog
         projectTitle={project.title}
