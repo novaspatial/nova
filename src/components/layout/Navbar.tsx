@@ -12,10 +12,16 @@ import {
 } from '@headlessui/react'
 import type { User } from '@supabase/supabase-js'
 import clsx from 'clsx'
+import {
+  motion,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+} from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Container } from '@/components/layout/Container'
 import { Logo, Logomark } from '@/components/ui/Logo'
@@ -471,6 +477,18 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
   const loading = authAware ? authLoading : publicLoading
   const isAuthenticated = Boolean(user) || hasSessionHint
 
+  // Hide the floating bar on scroll-down so it stops overlapping article
+  // content; reveal it on scroll-up. Reduced-motion users get an instant snap.
+  const { scrollY } = useScroll()
+  const reduceMotion = useReducedMotion()
+  const [hidden, setHidden] = useState(false)
+  const lastScrollY = useRef(0)
+
+  useMotionValueEvent(scrollY, 'change', (y) => {
+    setHidden(y > lastScrollY.current && y > 96)
+    lastScrollY.current = y
+  })
+
   useEffect(() => {
     setHasSessionHint(hasSupabaseSessionCookie())
   }, [pathname, authUser])
@@ -581,7 +599,13 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
   }
 
   return (
-    <header className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex pt-4 sm:pt-6">
+    <motion.header
+      animate={{ y: hidden ? '-100%' : '0%' }}
+      transition={
+        reduceMotion ? { duration: 0 } : { duration: 0.25, ease: 'easeInOut' }
+      }
+      className="pointer-events-none fixed top-0 right-0 left-0 z-50 flex pt-4 sm:pt-6"
+    >
       <Container className="w-full">
         <div className="relative flex items-center gap-3 sm:gap-4">
           <div className="flex flex-1">
@@ -619,6 +643,6 @@ export function Navbar({ authAware = false }: { authAware?: boolean }) {
           </div>
         </div>
       </Container>
-    </header>
+    </motion.header>
   )
 }
