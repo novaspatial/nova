@@ -10,6 +10,7 @@ import { GrayscaleTransitionImage } from '@/components/ui/GrayscaleTransitionIma
 import { MDXComponents } from '@/components/ui/MDXComponents'
 
 const TopTip = MDXComponents.TopTip
+const AppleMusicCallout = MDXComponents.AppleMusicCallout
 
 // Allow language-* classNames on <code> so we can detect the `top-tip` shortcode
 // after rehype-sanitize runs (the default schema strips unknown attributes).
@@ -45,24 +46,29 @@ const components: Components = {
           alt={alt ?? ''}
           width={1280}
           height={800}
-          sizes="(min-width: 768px) 42rem, 100vw"
+          sizes="(min-width: 768px) 41.25rem, 100vw"
           className="aspect-16/10 w-full object-cover"
         />
       </div>
     )
   },
   pre({ children }) {
-    if (
-      isValidElement(children) &&
-      typeof (children.props as { className?: string }).className === 'string' &&
-      (children.props as { className: string }).className.includes(
-        'language-top-tip',
-      )
-    ) {
-      const text = extractText(
-        (children.props as { children?: unknown }).children,
-      ).replace(/\n$/, '')
-      return <TopTip>{text}</TopTip>
+    if (isValidElement(children)) {
+      const childProps = children.props as {
+        className?: string
+        children?: unknown
+      }
+      const className =
+        typeof childProps.className === 'string' ? childProps.className : ''
+
+      if (className.includes('language-apple-music')) {
+        const text = extractText(childProps.children).replace(/\n$/, '')
+        return <AppleMusicCallout>{text}</AppleMusicCallout>
+      }
+      if (className.includes('language-top-tip')) {
+        const text = extractText(childProps.children).replace(/\n$/, '')
+        return <TopTip>{text}</TopTip>
+      }
     }
     return <pre>{children}</pre>
   },

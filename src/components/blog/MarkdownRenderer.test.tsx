@@ -40,6 +40,33 @@ describe('MarkdownRenderer', () => {
     expect(document.querySelector('pre code.language-top-tip')).toBeNull()
   })
 
+  test('renders ```apple-music fenced blocks as an Apple Music callout', () => {
+    render(
+      <MarkdownRenderer>
+        {'```apple-music\nhttps://music.apple.com/ca/album/x/1\nListen in spatial audio.\n```'}
+      </MarkdownRenderer>,
+    )
+    const link = screen.getByRole('link', { name: /apple music/i })
+    expect(link).toHaveAttribute('href', 'https://music.apple.com/ca/album/x/1')
+    expect(screen.getByText(/listen in spatial audio/i)).toBeInTheDocument()
+    // The default <pre><code> rendering should not appear for this shortcode.
+    expect(document.querySelector('pre code.language-apple-music')).toBeNull()
+  })
+
+  test('renders markdown blockquotes as <blockquote>', () => {
+    render(<MarkdownRenderer>{'> A quote.'}</MarkdownRenderer>)
+    expect(screen.getByText('A quote.').closest('blockquote')).not.toBeNull()
+  })
+
+  test('renders a single image node per inline image', () => {
+    render(
+      <MarkdownRenderer>
+        {`![x](https://cdn.example/x.jpg)`}
+      </MarkdownRenderer>,
+    )
+    expect(document.querySelectorAll('img')).toHaveLength(1)
+  })
+
   test('strips raw <script> tags via rehype-sanitize', () => {
     render(
       <MarkdownRenderer>
