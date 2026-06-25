@@ -7,6 +7,7 @@ import {
   requireApiStudioUser,
 } from '@/lib/auth/server'
 import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
+import { cleanupProjectArtifacts } from '@/lib/portal/projectCleanup'
 
 export async function GET(
   _request: NextRequest,
@@ -153,66 +154,11 @@ export async function DELETE(
     return forbiddenResponse()
   }
 
-  // If this project reserved the first-mix discount but was never paid,
-  // return the reservation to the user's pool so they can retry later.
-  if (project.discount_applied && !project.paid_at) {
-    const { error: restoreError } = await supabase.rpc(
-      'restore_first_mix_discount',
-      { p_user_id: project.owner_id },
-    )
-    if (restoreError) {
-      console.error(
-        '[DELETE /projects/:id] discount restore failed',
-        restoreError,
-      )
-    }
-  }
-
-  const [filesResult, deliverablesResult] = await Promise.all([
-    supabase
-      .from('project_files')
-      .select('storage_path')
-      .eq('project_id', id),
-    supabase
-      .from('deliverables')
-      .select('storage_path')
-      .eq('project_id', id),
-  ])
-
-  if (filesResult.error) {
-    return NextResponse.json({ error: filesResult.error.message }, { status: 500 })
-  }
-
-  if (deliverablesResult.error) {
-    return NextResponse.json(
-      { error: deliverablesResult.error.message },
-      { status: 500 },
-    )
-  }
-
-  const uploadPaths = (filesResult.data || []).map((file) => file.storage_path)
-  const deliverablePaths = (deliverablesResult.data || []).map(
-    (deliverable) => deliverable.storage_path,
-  )
-
-  if (uploadPaths.length > 0) {
-    const { error } = await supabase.storage
-      .from('project-uploads')
-      .remove(uploadPaths)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-  }
-
-  if (deliverablePaths.length > 0) {
-    const { error } = await supabase.storage
-      .from('project-deliverables')
-      .remove(deliverablePaths)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+  // Sweep storage objects (uploads, comment attachments, deliverables) and
+  // return any unpaid first-mix discount before the row + children cascade.
+  const { error: cleanupError } = await cleanupProjectArtifacts(supabase, project)
+  if (cleanupError) {
+    return NextResponse.json({ error: cleanupError }, { status: 500 })
   }
 
   const { data: deletedProject, error: deleteError } = await supabase

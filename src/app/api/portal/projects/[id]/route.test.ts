@@ -563,6 +563,82 @@ describe('DELETE /api/portal/projects/[id]', () => {
     ])
   })
 
+  test('sweeps comment-attachment storage objects alongside files on delete', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'client-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: '2026-04-01T00:00:00.000Z',
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'client-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: '2026-04-01T00:00:00.000Z',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'proj-1' }, error: null })
+    const filesChain = createChainMock({
+      data: [{ storage_path: 'client-1/proj-1/stems.wav' }],
+      error: null,
+    })
+    const attachmentsChain = createChainMock({
+      data: [{ storage_path: 'client-1/proj-1/comments/c1/note.png' }],
+      error: null,
+    })
+    const deliverablesChain = createChainMock({
+      data: [{ storage_path: 'client-1/proj-1/final.wav' }],
+      error: null,
+    })
+    const uploadsBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const deliverablesBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        project_comment_attachments: attachmentsChain,
+        deliverables: deliverablesChain,
+      },
+      storageMocks: {
+        'project-uploads': uploadsBucket,
+        'project-deliverables': deliverablesBucket,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(uploadsBucket.remove).toHaveBeenCalledWith([
+      'client-1/proj-1/stems.wav',
+      'client-1/proj-1/comments/c1/note.png',
+    ])
+    expect(deliverablesBucket.remove).toHaveBeenCalledWith([
+      'client-1/proj-1/final.wav',
+    ])
+  })
+
   test('returns 500 when file cleanup lookup fails during final delete', async () => {
     const profileChain = createChainMock({
       data: { role: 'client' },
