@@ -80,7 +80,7 @@ function TimelineStep({
             </div>
 
             {/* Description */}
-            <p className="mt-1.5 text-center text-[11px] leading-relaxed text-zinc-400 sm:text-left sm:text-sm 3xl:text-base">
+            <p className="mt-1.5 text-center text-[11px] leading-relaxed text-zinc-300 sm:text-left sm:text-base 3xl:text-lg">
               {step.description}
             </p>
           </div>
@@ -100,7 +100,7 @@ export function HowItWorks() {
               <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
                 Seamless Remote Collaboration
               </h2>
-              <p className="mt-2.5 text-sm leading-relaxed text-zinc-400 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
+              <p className="mt-2.5 text-sm leading-relaxed text-zinc-300 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
                 Our streamlined workflow makes world-class spatial mixing
                 effortless, no matter where you are in the world.
               </p>

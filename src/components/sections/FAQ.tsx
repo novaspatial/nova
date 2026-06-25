@@ -116,7 +116,7 @@ export function FAQ() {
                       as="dd"
                       className="mt-1 pr-6 sm:mt-2 sm:pr-12 3xl:mt-3"
                     >
-                      <div className="space-y-2 text-[10px]/4 text-zinc-300 sm:text-base/7 3xl:text-lg/8">
+                      <div className="space-y-2 text-[10px]/4 text-zinc-300 sm:text-lg/8 3xl:text-lg/8">
                         {typeof faq.answer === 'string' ? (
                           <p>{faq.answer}</p>
                         ) : (

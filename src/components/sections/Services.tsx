@@ -104,7 +104,7 @@ function FeatureRow({
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10 transition-all duration-300 group-hover/row:scale-110 group-hover/row:bg-white/10 group-hover/row:ring-white/20 sm:size-11 3xl:size-12">
         <Icon className="size-4 text-white/90 transition-colors duration-300 group-hover/row:text-white sm:size-5 3xl:size-6" />
       </div>
-      <p className="text-xs leading-relaxed text-zinc-300 sm:text-sm 3xl:text-base">
+      <p className="text-xs leading-relaxed text-zinc-300 sm:text-base 3xl:text-lg">
         <strong className="font-semibold text-white">{title}</strong>{' '}
         {description}
       </p>
@@ -175,7 +175,7 @@ function NoAtmosCard() {
         <h3 className="font-display text-lg font-medium tracking-tight text-white sm:text-2xl 3xl:text-3xl">
           No Atmos System? No Problem.
         </h3>
-        <p className="mt-3 text-xs leading-relaxed text-zinc-300 sm:mt-4 sm:text-sm 3xl:mt-5 3xl:text-base">
+        <p className="mt-3 text-xs leading-relaxed text-zinc-300 sm:mt-4 sm:text-base 3xl:mt-5 3xl:text-lg">
           Our client portal lets you preview your spatial mix in binaural
           playback — exactly how listeners on headphones and stereo setups will
           hear it. Review, approve, and sign off with confidence. No special
@@ -204,7 +204,7 @@ function PortalFeatureTile({
       <h4 className="mt-3 font-display text-sm font-semibold text-white sm:mt-4 sm:text-base 3xl:text-lg">
         {title}
       </h4>
-      <p className="mt-1.5 text-xs leading-relaxed text-zinc-400 sm:mt-2 sm:text-sm 3xl:text-base">
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-300 sm:mt-2 sm:text-base 3xl:text-lg">
         {description}
       </p>
     </div>
@@ -253,7 +253,7 @@ function ToneLockFeatureCard({
           <h4 className="font-display text-sm font-semibold text-white sm:text-base 3xl:text-lg">
             {title}
           </h4>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-400 sm:text-sm 3xl:text-base">
+          <p className="mt-1 text-xs leading-relaxed text-zinc-300 sm:text-base 3xl:text-lg">
             {description}
           </p>
         </div>
@@ -273,8 +273,8 @@ function SpatialToneLockBlock() {
           Spatial Tone Lock
         </h3>
       </div>
-      <div className="mt-4 space-y-3 text-xs leading-relaxed text-zinc-300 sm:mt-6 sm:space-y-4 sm:text-sm 3xl:mt-8 3xl:text-base">
-        <p className="italic text-zinc-400">
+      <div className="mt-4 space-y-3 text-xs leading-relaxed text-zinc-300 sm:mt-6 sm:space-y-4 sm:text-base 3xl:mt-8 3xl:text-lg">
+        <p className="italic text-zinc-300">
           Your stereo master is a carefully crafted piece of art — every
           limiter smash, every clipping decision, every sonic quirk is
           intentional. But when it comes to Spatial Audio, most engineers
