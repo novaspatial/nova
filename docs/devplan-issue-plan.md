@@ -22,7 +22,7 @@ Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
 | Sıra | Issue | Ne | Durum / Not |
 |------|-------|----|-------------|
-| 1 | [#12](https://github.com/novaspatial/nova/issues/12) **S16** | Archive RLS sıkılaştırma | ✅ **Tamam** — `20260625` trigger'ı studio-only `archived_at` yazımını DB seviyesinde zorluyor; ARCHITECTURE.md + CLAUDE.md güncel. ⚠️ Migration remote'a uygulanmalı (sonra canlı RLS verify). |
+| 1 | [#12](https://github.com/novaspatial/nova/issues/12) **S16** | Archive RLS sıkılaştırma | ✅ **Tamam** — `20260625` trigger'ı studio-only `archived_at` yazımını DB seviyesinde zorluyor; ARCHITECTURE.md + CLAUDE.md güncel. Migration remote'a uygulandı + canlı doğrulandı (client → 42501 FAIL, studio → OK). |
 | 2 | [#2](https://github.com/novaspatial/nova/issues/2) **P4** | Checkbox primitive + Footer düzeni | ✅ **Tamam** (`de811ff`) — erişilebilir Checkbox + Footer Legal seam; #23 (T&C) artık ince wiring. |
 | 3 | [#3](https://github.com/novaspatial/nova/issues/3) **P5** | Storage-cleanup kütüphanesi | ✅ **Tamam** — `projectCleanup.ts` (files + comment-attachments + deliverables); DELETE route paylaşıyor, attachment sızıntısı kapandı. #27 (purge) yeniden kullanacak. |
 | 4 | [#7](https://github.com/novaspatial/nova/issues/7) **S9** | Motion + reduced-motion geçişi | ⏳ Sırada — bağımsız pazarlama cilası. |
