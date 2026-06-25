@@ -79,7 +79,7 @@ Three clients live in `src/lib/supabase/`, picked by execution context:
 - **profiles** — anyone can read; you can update only your own.
 - **projects / project_files / project_comments / deliverables** — visible to the owning Client and all Studio; Studio-only writes for status and deliverables; comment INSERT/DELETE scoped to author-or-Studio.
 
-> **Known gap (archive):** the `archived_at` column (migration `20260624`) was added **without an RLS policy**. Today the "archived is Client-invisible" guarantee is enforced only at the app layer (the `.is('archived_at', null)` filters in the projects list, dashboard, and new-count), not by Postgres — a deviation from RLS-first. DB-level hardening is tracked in [issue #12](https://github.com/novaspatial/nova/issues/12).
+- **archive (`projects.archived_at`)** — **studio-only write, enforced at the DB level** by the `projects_enforce_studio_only_archive` BEFORE UPDATE trigger (migration `20260625`): any change to `archived_at` is rejected unless the caller is a Studio profile. Postgres RLS can't compare OLD/NEW and Supabase clients/studio share the one `authenticated` role, so a trigger — not a column policy — is the enforcement floor. Read is intentionally **not** restricted: archiving doesn't change what the Client sees (archived projects stay visible to their owner; the `.is('archived_at', null)` filter is studio-dashboard-only), so the timestamp carries no Client-relevant state and splitting it into a separate table to hide one column from the shared role isn't worth the cost.
 - **contact_inquiries** — public INSERT, no public SELECT.
 - **blog_posts** — anon reads *published* posts; Studio reads/writes everything.
 
@@ -120,7 +120,7 @@ See `docs/adr/0004-stripe-payment-gating.md`.
 4. **Mix** — Studio reviews, uploads Mixes (same upload dance, `file_type: 'mix'`), and PATCHes status toward `review`.
 5. **Review** — On `/listen`, the Client plays Mixes (signed streaming URLs) and leaves timestamped Comments tied to a `track_id`, optionally with attachments. Studio iterates through `revision`.
 6. **Deliver** — Studio sets `approved` (with a delivery format), uploads Deliverables, and sets `delivered`; the Client downloads via signed URLs.
-7. **Archive** — Studio archives the finished Project (reversible, Client-invisible — currently enforced app-side; see the archive RLS gap above); full delete also removes storage objects.
+7. **Archive** — Studio archives the finished Project to clear it from the studio dashboard (reversible; studio-only write enforced at the DB level — see the archive note above). Archiving doesn't change the Client's view; full delete also removes storage objects.
 
 ## Status state machine
 

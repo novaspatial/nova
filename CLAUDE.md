@@ -67,7 +67,7 @@ Vercel. `.github/workflows/main.yml` runs install → lint → build on push/PR 
 
 Issues and PRDs live in novaspatial/nova's GitHub Issues, via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`. The sequenced **dev plan** (phases, decision gates D1–D13, critical path across the open issues) is `docs/devplan-issue-plan.md` — read it before picking up commerce/SEO/lifecycle work.
 
-> **Known gaps (don't treat the clean state as reality):** the archive feature's `archived_at` column has **no RLS policy yet** — Client-invisibility is app-layer-only (issue #12); and the `Project` type in `src/types/portal.ts` is **not synced** with the payment columns added in `20260422_add_project_payments.sql` (issue #4). The bulk of the dev plan (per-song/CAD pricing, discount codes, add-ons, T&C, order email, sitemap, purge job) is **planned, not built** — today's pricing is flat USD ($299/$149).
+> **Known gaps (don't treat the clean state as reality):** the `Project` type in `src/types/portal.ts` is **not synced** with the payment columns added in `20260422_add_project_payments.sql` (issue #4). The bulk of the dev plan (per-song/CAD pricing, discount codes, add-ons, T&C, order email, sitemap, purge job) is **planned, not built** — today's pricing is flat USD ($299/$149). _(Archive RLS — issue #12 — is now closed: studio-only `archived_at` write is enforced by a DB trigger; see `20260625` and ARCHITECTURE.md.)_
 
 ### Triage labels
 
