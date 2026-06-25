@@ -18,15 +18,17 @@ Bu doküman: **hangi sırayla gidilmeli**, neyin neyi blokladığı ve hangi kar
 
 Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
-| Sıra | Issue | Ne | Not |
-|------|-------|----|-----|
-| 1 | [#12](https://github.com/novaspatial/nova/issues/12) **S16** | Archive RLS sıkılaştırma | **Güvenlik açığı** — `20260624` migration'ı `archived_at`'i politikasız ekledi. Önce bunu kapat. |
-| 2 | [#2](https://github.com/novaspatial/nova/issues/2) **P4** | Checkbox primitive + Footer düzeni | Prefactor — #23 (T&C) bunu bekliyor, erken yap. |
-| 3 | [#3](https://github.com/novaspatial/nova/issues/3) **P5** | Storage-cleanup kütüphanesi | Prefactor — #27 (purge) bunu bekliyor; yorum-eki sızıntısını da düzeltir. |
-| 4 | [#7](https://github.com/novaspatial/nova/issues/7) **S9** | Motion + reduced-motion geçişi | Bağımsız pazarlama cilası. |
-| 5 | [#8](https://github.com/novaspatial/nova/issues/8) **S9b** | Kontrast + hero kredileri (Juno & Emmy) | Bağımsız. |
-| 6 | [#10](https://github.com/novaspatial/nova/issues/10) **S11** | Blog tipografi cilası | #20'nin (per-post SEO) önkoşulu. |
-| 7 | [#11](https://github.com/novaspatial/nova/issues/11) **S11b** | Blog yapısal hata düzeltmeleri | Bağımsız (hero çift render, nav pill, dup H2). |
+> **Durum (2026-06-25):** #12, #2, #3 tamam (commit'lendi). #7, #8, #10, #11 sırada.
+
+| Sıra | Issue | Ne | Durum / Not |
+|------|-------|----|-------------|
+| 1 | [#12](https://github.com/novaspatial/nova/issues/12) **S16** | Archive RLS sıkılaştırma | ✅ **Tamam** — `20260625` trigger'ı studio-only `archived_at` yazımını DB seviyesinde zorluyor; ARCHITECTURE.md + CLAUDE.md güncel. ⚠️ Migration remote'a uygulanmalı (sonra canlı RLS verify). |
+| 2 | [#2](https://github.com/novaspatial/nova/issues/2) **P4** | Checkbox primitive + Footer düzeni | ✅ **Tamam** (`de811ff`) — erişilebilir Checkbox + Footer Legal seam; #23 (T&C) artık ince wiring. |
+| 3 | [#3](https://github.com/novaspatial/nova/issues/3) **P5** | Storage-cleanup kütüphanesi | ✅ **Tamam** — `projectCleanup.ts` (files + comment-attachments + deliverables); DELETE route paylaşıyor, attachment sızıntısı kapandı. #27 (purge) yeniden kullanacak. |
+| 4 | [#7](https://github.com/novaspatial/nova/issues/7) **S9** | Motion + reduced-motion geçişi | ⏳ Sırada — bağımsız pazarlama cilası. |
+| 5 | [#8](https://github.com/novaspatial/nova/issues/8) **S9b** | Kontrast + hero kredileri (Juno & Emmy) | ⏳ Sırada — bağımsız. |
+| 6 | [#10](https://github.com/novaspatial/nova/issues/10) **S11** | Blog tipografi cilası | ⏳ Sırada — #20'nin (per-post SEO) önkoşulu. |
+| 7 | [#11](https://github.com/novaspatial/nova/issues/11) **S11b** | Blog yapısal hata düzeltmeleri | ⏳ Sırada — bağımsız (hero çift render, nav pill, dup H2). |
 
 ---
 
@@ -130,9 +132,9 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 
 ## Önerilen lineer sıra (tek ajan/kişi sırayla giderse)
 
-1. **#12** (güvenlik)
-2. **#2, #3** (prefactor)
-3. **#7, #8, #10, #11** (hızlı kazanımlar — araya serpiştirilebilir)
+1. **#12** (güvenlik) ✅
+2. **#2, #3** (prefactor) ✅
+3. **#7, #8, #10, #11** (hızlı kazanımlar — araya serpiştirilebilir) ⏳
 4. **Kararlar:** D1, D3, D4, D2, D5, D6
 5. **#4 (P1), #5 (P2)**
 6. **#16 (S1)**
