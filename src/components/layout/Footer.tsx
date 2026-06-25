@@ -4,7 +4,10 @@ import { Container } from '@/components/layout/Container'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Logo } from '@/components/ui/Logo'
 
-const navigation = [
+type FooterNavLink = { title: string; href: string }
+type FooterNavGroup = { title: string; links: FooterNavLink[] }
+
+const navigation: FooterNavGroup[] = [
   {
     title: 'NovaSpatial',
     links: [
@@ -13,14 +16,15 @@ const navigation = [
       { title: 'Contact', href: '/about' },
     ],
   },
+  // Legal group (Terms, Privacy, …) drops in here — see #23 (T&C).
 ]
 
 function Navigation() {
   return (
     <nav>
       <ul role="list" className="grid grid-cols-2 gap-4 text-center sm:gap-8 lg:text-left">
-        {navigation.map((section, sectionIndex) => (
-          <li key={sectionIndex}>
+        {navigation.map((section) => (
+          <li key={section.title}>
             <div className="font-display text-[10px] font-semibold tracking-wider text-white sm:text-sm 3xl:text-base">
               {section.title}
             </div>
@@ -28,8 +32,8 @@ function Navigation() {
               role="list"
               className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base"
             >
-              {section.links.map((link, linkIndex) => (
-                <li key={linkIndex} className="mt-2 sm:mt-4">
+              {section.links.map((link) => (
+                <li key={link.title} className="mt-2 sm:mt-4">
                   <Link
                     href={link.href}
                     className="transition hover:text-white"
