@@ -1,7 +1,9 @@
 .typography {
   color: var(--color-zinc-300);
   font-size: var(--text-xl);
-  line-height: var(--text-xl--line-height);
+  /* ~1.7 leading for long-form reading (overridden locally; the global
+     --text-xl--line-height token is used elsewhere and left untouched). */
+  line-height: 2.125rem;
 
   --shiki-color-text: var(--color-white);
   --shiki-color-background: var(--color-zinc-950);
@@ -24,9 +26,9 @@
     font-weight: var(--font-weight-semibold);
     font-family: var(--font-display);
     font-variation-settings: var(--font-display--font-variation-settings);
-    font-size: var(--text-2xl);
-    line-height: var(--text-2xl--line-height);
-    margin-top: --spacing(16);
+    font-size: var(--text-4xl);
+    line-height: var(--text-4xl--line-height);
+    margin-top: --spacing(20);
   }
 
   :where(h3) {
@@ -149,6 +151,26 @@
 
   :where(strong) {
     font-weight: var(--font-weight-semibold);
+  }
+
+  /* Blockquotes */
+  :where(blockquote) {
+    border-left: 2px solid var(--color-violet-500);
+    padding-left: --spacing(6);
+    margin-top: --spacing(10);
+    margin-bottom: --spacing(10);
+    font-style: italic;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+    color: var(--color-zinc-400);
+  }
+
+  :where(blockquote p:first-of-type) {
+    margin-top: 0;
+  }
+
+  :where(blockquote p:last-of-type) {
+    margin-bottom: 0;
   }
 
   :where(code:not(pre code)) {

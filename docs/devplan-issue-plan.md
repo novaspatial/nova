@@ -18,7 +18,7 @@ Bu doküman: **hangi sırayla gidilmeli**, neyin neyi blokladığı ve hangi kar
 
 Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
-> **Durum (2026-06-25):** #12, #2, #3, #8, #7 tamam (commit'lendi). #10, #11 sırada.
+> **Durum (2026-06-25):** #12, #2, #3, #7, #8, #10, #11 tamam (commit'lendi). Faz 0 tamamlandı.
 
 | Sıra | Issue | Ne | Durum / Not |
 |------|-------|----|-------------|
@@ -27,8 +27,8 @@ Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 | 3 | [#3](https://github.com/novaspatial/nova/issues/3) **P5** | Storage-cleanup kütüphanesi | ✅ **Tamam** — `projectCleanup.ts` (files + comment-attachments + deliverables); DELETE route paylaşıyor, attachment sızıntısı kapandı. #27 (purge) yeniden kullanacak. |
 | 4 | [#7](https://github.com/novaspatial/nova/issues/7) **S9** | Motion + reduced-motion geçişi | ✅ **Tamam** (`c612c93`) — FadeIn ~0.4→1 opaklıktan + 0.35s; `prefers-reduced-motion` altında opaklık anında 1 (sadece y değil). Global `@media (prefers-reduced-motion: reduce)` bloğu 6 sonsuz keyframe'i (marquee, border-flow, nav-highlight(-bg), gradient-shimmer, hero-glow) + dekoratif pulse/ping/bounce'u `animation:none` ile durduruyor; işlevsel `spin` bırakıldı. GridPattern **kaldırılmadı** (sahibi "görsel için kritik" dedi) — bunun yerine `interactive` JS hover-trail animasyonu `useReducedMotion()` ile kapatıldı (CSS bloğu JS animasyonuna erişemez). Build + lint temiz. |
 | 5 | [#8](https://github.com/novaspatial/nova/issues/8) **S9b** | Kontrast + hero kredileri (Juno & Emmy) | ✅ **Tamam** (`6d36e6c`) — ikincil kopya `zinc-400→zinc-300` + 18px (HowItWorks, Services, FAQ); hero artık "Juno & Emmy Award-winning engineers" diyor + dengeli satır sarma (`text-balance`); caption/label'lar sönük bırakıldı. |
-| 6 | [#10](https://github.com/novaspatial/nova/issues/10) **S11** | Blog tipografi cilası | ⏳ Sırada — #20'nin (per-post SEO) önkoşulu. |
-| 7 | [#11](https://github.com/novaspatial/nova/issues/11) **S11b** | Blog yapısal hata düzeltmeleri | ⏳ Sırada — bağımsız (hero çift render, nav pill, dup H2). |
+| 6 | [#10](https://github.com/novaspatial/nova/issues/10) **S11** | Blog tipografi cilası | ✅ **Tamam** (`1729e38`) — okuma kolonu 768→660px (`max-w-165`), gövde line-height ~1.7, H2 32px (`--text-4xl`) + üstte daha çok boşluk, blockquote stili; Apple Music için `apple-music` fenced shortcode → callout card. #20 (per-post SEO) artık açık. |
+| 7 | [#11](https://github.com/novaspatial/nova/issues/11) **S11b** | Blog yapısal hata düzeltmeleri | ✅ **Tamam** (`711ebbd`) — ilk gövde görseli `extractHeroImage` ile ayrılıp ilk H2'den önce tek-render hero (`next/image priority`) olarak basılıyor (GrayscaleTransitionImage çift-boya yok); nav pill scroll-down'da gizlenip scroll-up'ta beliriyor (`useScroll` + `useReducedMotion`); byline adı/rolden ayrıldı. Footer'daki çift H2 bir kod hatası değil **bozuk içerikti** (ilk H2 byline paragrafına yapışmış) — Supabase'de düzeltildi (artık 1×). |
 
 ---
 
@@ -134,7 +134,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 
 1. **#12** (güvenlik) ✅
 2. **#2, #3** (prefactor) ✅
-3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar — araya serpiştirilebilir) ⏳
+3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar) ✅
 4. **Kararlar:** D1, D3, D4, D2, D5, D6
 5. **#4 (P1), #5 (P2)**
 6. **#16 (S1)**

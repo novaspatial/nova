@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 
 import { BlogPostView } from '@/components/blog/BlogPostView'
 import { MarkdownRenderer } from '@/components/blog/MarkdownRenderer'
+import { extractHeroImage } from '@/lib/blog/extractHeroImage'
 import { loadPostBySlug } from '@/lib/blog/posts'
 
 type Params = Promise<{ slug: string }>
@@ -26,9 +27,11 @@ export default async function BlogPostPage({ params }: { params: Params }) {
   const post = await loadPostBySlug(slug)
   if (!post) notFound()
 
+  const { hero, body } = extractHeroImage(post.body)
+
   return (
-    <BlogPostView post={post}>
-      <MarkdownRenderer>{post.body}</MarkdownRenderer>
+    <BlogPostView post={post} hero={hero}>
+      <MarkdownRenderer>{body}</MarkdownRenderer>
     </BlogPostView>
   )
 }
