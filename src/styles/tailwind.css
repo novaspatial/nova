@@ -137,6 +137,29 @@
   }
 }
 
+/*
+ * Reduced-motion: neutralize the always-on, looping keyframe animations so
+ * nothing animates indefinitely for users who ask for less motion. `none`
+ * (not a near-zero duration) is used deliberately — it leaves each element in
+ * its static initial state (e.g. the marquee row stays in view instead of
+ * jumping to its off-screen end frame). Framer Motion's scroll/hover reveals
+ * are handled separately via useReducedMotion(); functional `animate-spin`
+ * loading indicators are intentionally left running.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-border-flow,
+  .animate-nav-highlight,
+  .animate-nav-highlight-bg,
+  .animate-gradient-shimmer,
+  .animate-hero-glow,
+  .animate-pulse,
+  .animate-ping,
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
 @utility pause {
   animation-play-state: paused;
 }

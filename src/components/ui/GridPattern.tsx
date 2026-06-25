@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useId, useRef, useState } from 'react'
 
 function Block({
@@ -51,6 +51,11 @@ export function GridPattern({
   yOffset?: number
   interactive?: boolean
 }) {
+  const shouldReduceMotion = useReducedMotion()
+  // The hover trail is a continuous, pointer-driven Framer Motion animation;
+  // skip it (static grid only) when the user prefers reduced motion. CSS
+  // can't neutralize this one because it animates via JS, not a keyframe.
+  const enableInteractive = interactive && !shouldReduceMotion
   const id = useId()
   const ref = useRef<React.ElementRef<'svg'>>(null)
   const currentBlock = useRef<[x: number, y: number] | undefined>(undefined)
@@ -68,7 +73,7 @@ export function GridPattern({
   ]
 
   useEffect(() => {
-    if (!interactive) {
+    if (!enableInteractive) {
       return
     }
 
@@ -110,7 +115,7 @@ export function GridPattern({
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
     }
-  }, [yOffset, interactive])
+  }, [yOffset, enableInteractive])
 
   const hoveredGradientId = `${id}-hovered-gradient`
   const staticGradientId = `${id}-static-gradient`
