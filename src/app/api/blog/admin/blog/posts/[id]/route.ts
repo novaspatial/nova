@@ -74,6 +74,7 @@ export async function PATCH(
     slug: newSlug ?? existingSlug,
     previousSlug: newSlug && newSlug !== existingSlug ? existingSlug : undefined,
     isPublished: resultingPublishedAt !== null,
+    wasPublished: existingPublishedAt !== null,
   })
 
   return NextResponse.json({ ok: true })
@@ -91,7 +92,7 @@ export async function DELETE(
 
   const { data: existing } = await auth.supabase
     .from('blog_posts')
-    .select('slug')
+    .select('slug, published_at')
     .eq('id', id)
     .maybeSingle()
 
@@ -101,10 +102,12 @@ export async function DELETE(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  const removed = existing as { slug?: string | null; published_at?: string | null } | null
   await onPostMutated({
     type: 'deleted',
-    slug: (existing as { slug?: string | null } | null)?.slug ?? null,
+    slug: removed?.slug ?? null,
     isPublished: false,
+    wasPublished: (removed?.published_at ?? null) !== null,
   })
 
   return NextResponse.json({ ok: true })

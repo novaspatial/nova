@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     type: 'created',
     slug: body.slug!,
     isPublished: Boolean(body.published_at),
+    wasPublished: false,
   })
 
   return NextResponse.json({ id: data.id })
