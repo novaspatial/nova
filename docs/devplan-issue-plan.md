@@ -106,11 +106,15 @@ P1(#4) + P2(#5)
 P3(#6) ─┬─> S14(#14)  sitemap + robots
         └─> S15(#15)  IndexNow ping
 S11(#10) ─> S12(#20)  per-post meta + JSON-LD + alt + slug   (ayrıca P3, D8)
-              └─> S13(#21)  otomatik share-image            (D9)
+              ├─> S13(#21)  otomatik share-image            (D9)
+              └─> S19(#29)  LLM/GEO görünürlük (schema + llms.txt + AI-crawler)
 ```
 
-- [#14](https://github.com/novaspatial/nova/issues/14) **S14** sitemap + robots — ✅ **Tamam (2026-06-26)** (`bf710fe`). `src/app/sitemap.ts` (pazarlama sayfaları + `loadPublishedPosts` ile yayınlanmış postlar, `updated_at` lastmod, `absoluteUrl`) ve `src/app/robots.ts` (non-public yüzeyi disallow, sitemap'i gösterir). robots statik, sitemap dinamik (publish'te taze); draft sızmaz. **D8/D9 verildi (2026-06-26):** #20 açıldı (yalnız D8'e bağlıydı, D10 zaten kapalı) ve implemente ediliyor; #21 sadece D9'a bağlı (next/og, Node) — sırada.
+- [#14](https://github.com/novaspatial/nova/issues/14) **S14** sitemap + robots — ✅ **Tamam (2026-06-26)** (`bf710fe`). `src/app/sitemap.ts` (pazarlama sayfaları + `loadPublishedPosts` ile yayınlanmış postlar, `updated_at` lastmod, `absoluteUrl`) ve `src/app/robots.ts` (non-public yüzeyi disallow, sitemap'i gösterir). robots statik, sitemap dinamik (publish'te taze); draft sızmaz.
 - [#15](https://github.com/novaspatial/nova/issues/15) **S15** IndexNow ping — ✅ **Tamam (2026-06-26)** (`02d3d02`). `onPostMutated` hook'una bağlı best-effort `pingIndexNow`; `PostMutation`'a `wasPublished` eklendi → publish / canlı-düzenleme / takedown'da ping, hiç-public-olmamış draft'ta yok. Anahtar `/indexnow-key.txt`'te env'den (tek kaynak). Bing/Yandex/Seznam/Naver/Yep'i kapsar (Google katılmaz → robots+sitemap). `INDEXNOW_KEY` set edilene kadar atıl.
+- [#20](https://github.com/novaspatial/nova/issues/20) **S12** per-post SEO meta + JSON-LD + alt + slug — ✅ **Tamam (2026-06-26)** (`be6209c`). **D8/D9 verildi** (D8: ilk inline görsel, D10 zaten kapalıydı). `buildPostMetadata`/`buildPostJsonLd` (`src/lib/blog/metadata.ts`): canonical + article OG + Twitter kartı + `BlogPosting` JSON-LD; `rehype-slug` ile temiz başlık anchor'ları (sanitize `clobber`'dan `id` çıkarıldı); admin route'larında slug + alt-metin doğrulaması (400). OG görseli ilk inline görsel, yoksa `/og-image.jpg`.
+- [#21](https://github.com/novaspatial/nova/issues/21) **S13** otomatik share-image — D9 verildi (`next/og` `ImageResponse`, Node runtime); satori statik-ağırlık font ister → değişken `Mona-Sans.var.woff2` statik export/fallback gerekecek. **Sırada.**
+- [#29](https://github.com/novaspatial/nova/issues/29) **S19** LLM/AI-arama görünürlüğü (GEO) — #20 üstüne: ana sayfada `Organization`+`WebSite`, yazar `Person`+`sameAs`, `BreadcrumbList`, uygun yazılarda `FAQPage`; `/llms.txt`; robots'ta AI-crawler erişimini belgele (GPTBot/ClaudeBot/PerplexityBot/Google-Extended bloklanmıyor). **needs-info:** `sameAs` sosyal/profil URL'leri. İçerik tarafı (soru-formatlı başlık + özet-cevap) editör işi.
 
 ### Hat C — Pazarlama
 - [#9](https://github.com/novaspatial/nova/issues/9) **S10** 50% promo → welcome kod — **D11 sonrası**, küçük (copy + sabit).
@@ -149,7 +153,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 10. **#23 (S7)**
 11. **Karar D10 ✅ → #6 (P3)** ✅
 12. **#14 ✅, #15 ✅** (sitemap, IndexNow)
-13. **Karar D8/D9 ✅ (2026-06-26) → #20 (S12) implemente ediliyor → #21 (S13) sırada (D9: next/og, Node)**
+13. **Karar D8/D9 ✅ (2026-06-26) → #20 (S12) ✅ Tamam (`be6209c`) → #21 (S13) + #29 (S19, GEO/LLM görünürlük) sırada**
 14. **Karar D2/D13 → #24 (S8)**
 15. **Karar D11 → #9 (S10)**
 16. **Karar D7/D7b → #27 (S18)**
@@ -199,6 +203,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 | S16 | [#12](https://github.com/novaspatial/nova/issues/12) | ready-for-agent | Archive RLS hardening |
 | S17 | [#13](https://github.com/novaspatial/nova/issues/13) | ready-for-human | Admin file download |
 | S18 | [#27](https://github.com/novaspatial/nova/issues/27) | ready-for-human | delivered_at + 90-day purge |
+| S19 | [#29](https://github.com/novaspatial/nova/issues/29) | ready-for-human | LLM/AI-search visibility (GEO): site+author schema, llms.txt, AI-crawler access |
 
 ---
 
