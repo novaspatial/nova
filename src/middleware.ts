@@ -5,6 +5,43 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
 
+// Everything this middleware matches (/portal, /profile) is the private,
+// auth-gated surface and must never appear in search results. A robots.txt
+// Disallow only blocks crawling — it does NOT remove an already-indexed URL,
+// which leaves Google showing the bare URL with a generic snippet. A noindex
+// directive the crawler can actually see is what de-indexes it, so we attach
+// it as a header on every response (including the login redirect Googlebot
+// hits when it crawls /portal).
+function withNoindex<T extends Response>(response: T): T {
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  return response
+}
+
+// Where to send a signed-out visitor who hits a protected route.
+//
+// Bare entry points (/portal, /profile) — what someone types, bookmarks, or
+// finds in search — go to the public home page, so clients meet the main
+// marketing site and log in from the navbar when ready, instead of being
+// dropped straight onto a bare login form.
+//
+// Deeper links (e.g. the /portal/<projectId> review link emailed to a client)
+// keep the login?next flow, so after signing in the client lands on the exact
+// page they were trying to reach rather than the generic home page.
+function redirectUnauthenticated(request: NextRequest) {
+  const { pathname, search } = request.nextUrl
+  const url = request.nextUrl.clone()
+  url.search = ''
+
+  if (pathname === '/portal' || pathname === '/profile') {
+    url.pathname = '/'
+  } else {
+    url.pathname = '/login'
+    url.searchParams.set('next', `${pathname}${search}`)
+  }
+
+  return withNoindex(NextResponse.redirect(url))
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
   const authCookieNames = request.cookies
@@ -13,20 +50,13 @@ export async function middleware(request: NextRequest) {
     .filter((name) => supabaseAuthCookiePattern.test(name))
 
   if (!supabaseUrl || !supabaseKey) {
-    return supabaseResponse
+    return withNoindex(supabaseResponse)
   }
 
   // If there is no Supabase auth cookie at all, avoid creating the auth client.
   // This keeps protected-route requests quiet for clearly unauthenticated visitors.
   if (authCookieNames.length === 0) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.search = ''
-    url.searchParams.set(
-      'next',
-      `${request.nextUrl.pathname}${request.nextUrl.search}`,
-    )
-    return NextResponse.redirect(url)
+    return redirectUnauthenticated(request)
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -61,14 +91,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.search = ''
-    url.searchParams.set(
-      'next',
-      `${request.nextUrl.pathname}${request.nextUrl.search}`,
-    )
-    const response = NextResponse.redirect(url)
+    const response = redirectUnauthenticated(request)
 
     // Clear stale auth cookies so failed refresh attempts do not keep repeating.
     if (authCheckFailed) {
@@ -78,7 +101,7 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  return supabaseResponse
+  return withNoindex(supabaseResponse)
 }
 
 export const config = {
