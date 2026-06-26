@@ -1,9 +1,17 @@
-# Commerce pricing foundation — decisions D1/D3/D4 and Project type sync
+Commerce pricing foundation — pricing decisions and Project type sync
 
-**Date:** 2026-06-26 · **Issues:** #4 (P1), #5 (P2), #22 (S4a) · **Decisions:** D1, D3, D4 · **Phase:** Faz 1–2
+Date: 2026-06-26. Phase: Faz 1–2
 
-Closed the Priority-1 commerce decisions that gate the order/checkout line. **D1:** order data stays on the `projects` row (1 order = 1 project), keeping Stripe Elements/PaymentIntent — no separate orders table. **D3:** list prices in USD, with the per-song floor applied directly as $225 USD (no fixed-rate CAD conversion needed). **D4:** the full pricing algorithm — $325/song list, album/EP bulk tiers (3–4:15%, 5–7:20%, 8+:25%), one code per order (percent or fixed; private codes suppress bulk), a 35% cap on the stacked percentage, a $225 USD per-song floor, and add-ons (extra revision +$50, 48h rush +$149) applied after discounts and outside the cap/floor, all in integer cents with half-up rounding. Noted that the $225 floor binds at ~30.8%, so the 35% cap is a deliberate secondary guard rather than the active constraint.
+Settled the three top-priority commerce decisions that block the order and checkout work, then started building against them.
 
-With D1 settled, **P1 (#4)** synced the `Project` type to the migrated payment columns and declared the order/lifecycle field surface (`song_count`, `subtotal_cents`, `add_ons`, `terms_accepted_at`, `delivered_at`, `files_purged_at`, …) as optional + nullable so existing `select *` reads stay type-safe, plus new `Currency`, `AddOn`, `DiscountCode`, and `PriceBreakdown` types. Build and the full 344-test suite stayed green.
+The decisions:
 
-Drafted the pure `computeOrderPrice(OrderInput): PriceBreakdown` module (P2/#5 + the math of S4a/#22) per D4 in `src/lib/stripe/pricing.ts`, leaving legacy `computePrice` live until the checkout slice (S1/#16) rewires it. An adversarial review confirmed the algorithm correct on every rule and surfaced two defensive gaps — clamp percent codes to `[0,100]` and de-duplicate add-ons — whose handling was decided. Finalization (those two fixes plus an exhaustive ~30-case test suite and an invariant property loop) is **parked pending manager approval**; an execution-ready coding-agent prompt was written to capture it so it can be run as-is once approved.
+Where orders live. An order is stored on its projects row (one order equals one project) rather than in a separate orders table, keeping the existing Stripe Elements and PaymentIntent flow intact.
+
+Currency. Prices are listed in USD, with the per-song price floor expressed natively in USD, so no fixed-rate CAD conversion is needed.
+
+The pricing algorithm. From a per-song list price, apply in order: bulk discount tiers for multi-song albums and EPs, one discount code per order (percentage or fixed; private codes turn off the bulk tier), an overall cap on the total percentage discount, a per-song price floor, and finally any add-ons (extra revision, rush delivery) layered on after discounts and exempt from the cap and floor. All math runs in integer cents with half-up rounding. The floor binds before the cap is reached, so the cap is a deliberate secondary safeguard rather than the rule that normally kicks in.
+
+Type sync. With the storage decision fixed, the Project TypeScript type was aligned with the payment columns already added by migration. New order- and lifecycle-related fields are optional and nullable so existing select-star reads stay type-safe, and supporting types (Currency, AddOn, DiscountCode, PriceBreakdown) were added. Build and the full 344-test suite stayed green.
+
+Pricing module. Drafted a pure computeOrderPrice function (order input in, price breakdown out) in src/lib/stripe/pricing.ts implementing the new algorithm; the legacy computePrice stays in use until the checkout slice switches over. An adversarial review confirmed the algorithm correct against every rule and flagged two defensive gaps: clamp percentage codes to a valid 0-to-100 range and de-duplicate add-ons. Finalizing the module (those two fixes, a roughly 30-case test suite, and a property-based invariant check) is parked pending manager approval; a ready-to-run coding-agent prompt captures it so it can be executed as-is once approved.
