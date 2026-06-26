@@ -36,14 +36,14 @@ Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
 Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 
-> **Durum (2026-06-26):** D1 ve D3 verildi (aşağıda ✅). **D4 hâlâ açık** — S1(#16) öncesi kritik yolun bir sonraki kapısı.
+> **Durum (2026-06-26):** D1, D3, D4 verildi (aşağıda ✅). Öncelik-1 ticaret ana hattının kararları kapandı. Saf pricing modülü (#5/#22) **taslak hâlde, yönetici onayı bekliyor** — implementasyon parkta (plan: `~/.claude/plans/this-is-implementation-…bentley.md`). Onay gelene kadar tüm commerce hattı (S1/#16 → … → #26) beklemede.
 
 ### Öncelik 1 — ticaret ana hattı (en çok issue'yu açar)
 | Karar | Soru özeti | Açtığı issue'lar |
 |-------|-----------|------------------|
 | **D1** ✅ | **Karar: sipariş verisi `projects` satırında kalır** (mevcut kod + 20260422 migration'ı zaten böyle; 1 sipariş = 1 proje). Stripe Elements/PaymentIntent devam. | #4, #16, #17, #19, #23, #27 |
-| **D3** ✅ | **Karar: liste fiyatları USD; $225 CAD taban sabit dahili kura göre.** Stripe bugün zaten USD çekiyor. Apple/Google Pay cüzdanları S1'de ayrı alt-karar. | #16, #22 (+#5 şekli) |
-| **D4** | Kesin indirim algoritması: cap/floor/tier/sabit-vs-yüzde/işlem sırası | #18, #22, #19 (+#5 şekli) |
+| **D3** ✅ | **Karar: liste fiyatları USD; floor $225 doğrudan USD charge biriminde** (sabit kur gömme gereği yok). Stripe bugün zaten USD çekiyor. Apple/Google Pay cüzdanları S1'de ayrı alt-karar. | #16, #22 (+#5 şekli) |
+| **D4** ✅ | **Karar (per-song):** liste $325/şarkı; bulk 3–4 %15 / 5–7 %20 / 8+ %25; tek kod (private ise bulk'ı bastırır); %35 cap **yalnız yüzde-yığınına**; floor **$225 USD/şarkı × şarkı sayısı**; sabit kod **yalnız floor ile sınırlı** (cap dışı); add-on'lar **indirimden sonra, cap/floor dışı**; integer cent, yarı-yukarı. Not: $225 USD floor %30.8'de bağladığından %35 cap pratikte ısırmaz (ikincil güvenlik). | #18, #22, #19 (+#5 şekli) |
 
 ### Öncelik 2 — ticaret detayları
 | Karar | Konu | Açtığı |
@@ -76,7 +76,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 Kararlar gelince:
 
 - [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — ✅ **Tamam (2026-06-26)**. D1 kararıyla alanlar `Project`'e kondu: 20260422 ödeme kolonları (required) + sipariş/yaşam-döngüsü yüzeyi (optional+nullable: `song_count`, `stem_count`, `service`, `add_ons`, `subtotal_cents`, `tax_cents`, `applied_coupon_code`, `terms_accepted_at/version`, `delivered_at`, `files_purged_at`) + `DiscountCode` ve `PriceBreakdown` tipleri. build + 344 vitest temiz.
-- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — düz yol **hemen** başlayabilir; breakdown şekli **D4** ile netleşir (D3 verildi: USD/CAD-floor).
+- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — 🟡 **Taslak, yönetici onayı bekliyor (2026-06-26)**. D4 spec'iyle `computeOrderPrice(OrderInput): PriceBreakdown` taslağı `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar). **Henüz commit/test yok** — finalizasyon (2 defansif düzeltme + exhaustive test) onay sonrası, plan dosyasına göre yapılacak. S4a(#22) matematiğini de kapsar; S1(#16) checkout'a bağlayacak. Eski `computePrice` (düz $299/$149) S1'e kadar canlı.
 - [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — **D10 sonrası** (canonical host).
 
 ---
@@ -137,8 +137,8 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 1. **#12** (güvenlik) ✅
 2. **#2, #3** (prefactor) ✅
 3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar) ✅
-4. **Kararlar:** D1 ✅, D3 ✅, D4 (sıradaki kapı), D2, D5, D6
-5. **#4 (P1)** ✅; **#5 (P2)** — düz yol başlanabilir
+4. **Kararlar:** D1 ✅, D3 ✅, D4 ✅; D2, D5, D6 (kalan)
+5. **#4 (P1)** ✅; **#5 (P2) + #22 (S4a) saf matematiği** 🟡 taslak, onay bekliyor
 6. **#16 (S1)**
 7. **#17, #18, #19** (paralel)
 8. **#22 (S4a)**
