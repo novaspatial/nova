@@ -37,7 +37,7 @@ describe('middleware', () => {
     expect(mockCreateServerClient).not.toHaveBeenCalled()
   })
 
-  test('redirects unauthenticated requests when there is no auth cookie', async () => {
+  test('redirects an unauthenticated deep link to login with a next param', async () => {
     const { middleware } = await import('./middleware')
 
     const response = await middleware(
@@ -48,10 +48,26 @@ describe('middleware', () => {
     expect(response.headers.get('location')).toBe(
       'http://localhost:3000/login?next=%2Fportal%2Fproject-1%3Ftab%3Dfiles',
     )
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     expect(mockCreateServerClient).not.toHaveBeenCalled()
   })
 
-  test('redirects to login and clears stale cookies when auth lookup fails', async () => {
+  test('sends bare /portal and /profile entry points to the home page', async () => {
+    const { middleware } = await import('./middleware')
+
+    for (const path of ['/portal', '/profile']) {
+      const response = await middleware(
+        new NextRequest(`http://localhost:3000${path}`),
+      )
+
+      expect(response.status).toBe(307)
+      expect(response.headers.get('location')).toBe('http://localhost:3000/')
+      expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
+      expect(mockCreateServerClient).not.toHaveBeenCalled()
+    }
+  })
+
+  test('redirects home and clears stale cookies when auth lookup fails', async () => {
     mockCreateServerClient.mockReturnValue({
       auth: {
         getClaims: vi.fn().mockRejectedValue(new Error('network down')),
@@ -69,15 +85,14 @@ describe('middleware', () => {
     )
 
     expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/login?next=%2Fprofile',
-    )
+    expect(response.headers.get('location')).toBe('http://localhost:3000/')
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     const setCookie = response.headers.get('set-cookie') ?? ''
     expect(setCookie).toContain('sb-project-auth-token=')
     expect(setCookie).toContain('sb-project-auth-token.0=')
   })
 
-  test('redirects to login without clearing cookies when claims are empty', async () => {
+  test('redirects home without clearing cookies when claims are empty', async () => {
     mockCreateServerClient.mockReturnValue({
       auth: {
         getClaims: vi.fn().mockResolvedValue({
@@ -96,9 +111,8 @@ describe('middleware', () => {
     )
 
     expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/login?next=%2Fportal',
-    )
+    expect(response.headers.get('location')).toBe('http://localhost:3000/')
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     expect(response.headers.get('set-cookie') ?? '').not.toContain('Max-Age=0')
   })
 
@@ -122,5 +136,6 @@ describe('middleware', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('location')).toBeNull()
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
   })
 })
