@@ -1,7 +1,7 @@
-import { revalidatePath } from 'next/cache'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { forbiddenResponse, requireApiProfile } from '@/lib/auth/server'
+import { onPostMutated } from '@/lib/blog/onPostMutated'
 import { getAuthor } from '@/lib/team'
 
 export async function POST(request: NextRequest) {
@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  revalidatePath('/blog')
-  if (body.published_at) revalidatePath(`/blog/${body.slug!}`)
+  await onPostMutated({
+    type: 'created',
+    slug: body.slug!,
+    isPublished: Boolean(body.published_at),
+  })
 
   return NextResponse.json({ id: data.id })
 }

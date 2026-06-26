@@ -1,17 +1,10 @@
-import { revalidatePath } from 'next/cache'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { forbiddenResponse, requireApiProfile } from '@/lib/auth/server'
+import { onPostMutated } from '@/lib/blog/onPostMutated'
 import { getAuthor } from '@/lib/team'
 
 type Params = Promise<{ id: string }>
-
-function revalidateBlog(slugs: Array<string | null | undefined>) {
-  revalidatePath('/blog')
-  for (const slug of slugs) {
-    if (slug) revalidatePath(`/blog/${slug}`)
-  }
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -45,9 +38,13 @@ export async function PATCH(
 
   const { data: existing } = await auth.supabase
     .from('blog_posts')
-    .select('slug')
+    .select('slug, published_at')
     .eq('id', id)
     .maybeSingle()
+
+  const existingSlug = (existing as { slug?: string | null } | null)?.slug ?? null
+  const existingPublishedAt =
+    (existing as { published_at?: string | null } | null)?.published_at ?? null
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const key of ['title', 'slug', 'description', 'body', 'author_key', 'post_date'] as const) {
@@ -68,7 +65,16 @@ export async function PATCH(
     )
   }
 
-  revalidateBlog([existing?.slug, body.slug])
+  const newSlug = typeof body.slug === 'string' ? body.slug : undefined
+  const resultingPublishedAt =
+    body.published_at !== undefined ? body.published_at : existingPublishedAt
+
+  await onPostMutated({
+    type: 'updated',
+    slug: newSlug ?? existingSlug,
+    previousSlug: newSlug && newSlug !== existingSlug ? existingSlug : undefined,
+    isPublished: resultingPublishedAt !== null,
+  })
 
   return NextResponse.json({ ok: true })
 }
@@ -95,7 +101,11 @@ export async function DELETE(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  revalidateBlog([existing?.slug])
+  await onPostMutated({
+    type: 'deleted',
+    slug: (existing as { slug?: string | null } | null)?.slug ?? null,
+    isPublished: false,
+  })
 
   return NextResponse.json({ ok: true })
 }

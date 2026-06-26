@@ -1,6 +1,7 @@
 import { type Metadata, type Viewport } from 'next'
 import localFont from 'next/font/local'
 
+import { SITE_NAME, SITE_URL } from '@/lib/site'
 import '@/styles/tailwind.css'
 
 const monaSans = localFont({
@@ -11,8 +12,8 @@ const monaSans = localFont({
   style: 'normal',
 })
 
-const siteUrl = 'https://www.nova-spatial.com'
-const siteName = 'NOVA Spatial'
+const siteUrl = SITE_URL
+const siteName = SITE_NAME
 const defaultTitle = 'NOVA Spatial - World-Class Dolby Atmos Mixing Facility'
 const defaultDescription =
   'NOVA Spatial is a world-class Dolby Atmos mixing facility delivering immersive spatial audio for music, film, and broadcast.'
