@@ -36,11 +36,13 @@ Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
 Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 
+> **Durum (2026-06-26):** D1 ve D3 verildi (aşağıda ✅). **D4 hâlâ açık** — S1(#16) öncesi kritik yolun bir sonraki kapısı.
+
 ### Öncelik 1 — ticaret ana hattı (en çok issue'yu açar)
 | Karar | Soru özeti | Açtığı issue'lar |
 |-------|-----------|------------------|
-| **D1** | Sipariş kayıtları nerede? (`projects` satırı mı, ayrı `orders` tablosu mu) + Stripe entegrasyon şekli | #4, #16, #17, #19, #23, #27 |
-| **D3** | Hangi para biriminde tahsilat (USD/CAD), $225 CAD taban hangi kura göre, hangi cüzdanlar (Apple/Google Pay) | #16, #22 (+#5 şekli) |
+| **D1** ✅ | **Karar: sipariş verisi `projects` satırında kalır** (mevcut kod + 20260422 migration'ı zaten böyle; 1 sipariş = 1 proje). Stripe Elements/PaymentIntent devam. | #4, #16, #17, #19, #23, #27 |
+| **D3** ✅ | **Karar: liste fiyatları USD; $225 CAD taban sabit dahili kura göre.** Stripe bugün zaten USD çekiyor. Apple/Google Pay cüzdanları S1'de ayrı alt-karar. | #16, #22 (+#5 şekli) |
 | **D4** | Kesin indirim algoritması: cap/floor/tier/sabit-vs-yüzde/işlem sırası | #18, #22, #19 (+#5 şekli) |
 
 ### Öncelik 2 — ticaret detayları
@@ -73,8 +75,8 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 
 Kararlar gelince:
 
-- [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — **D1 sonrası** (alanlar `Project`'te mi yoksa yeni `Order` tipinde mi).
-- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — düz yol **hemen** başlayabilir; breakdown şekli **D3/D4** ile netleşir.
+- [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — ✅ **Tamam (2026-06-26)**. D1 kararıyla alanlar `Project`'e kondu: 20260422 ödeme kolonları (required) + sipariş/yaşam-döngüsü yüzeyi (optional+nullable: `song_count`, `stem_count`, `service`, `add_ons`, `subtotal_cents`, `tax_cents`, `applied_coupon_code`, `terms_accepted_at/version`, `delivered_at`, `files_purged_at`) + `DiscountCode` ve `PriceBreakdown` tipleri. build + 344 vitest temiz.
+- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — düz yol **hemen** başlayabilir; breakdown şekli **D4** ile netleşir (D3 verildi: USD/CAD-floor).
 - [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — **D10 sonrası** (canonical host).
 
 ---
@@ -135,8 +137,8 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 1. **#12** (güvenlik) ✅
 2. **#2, #3** (prefactor) ✅
 3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar) ✅
-4. **Kararlar:** D1, D3, D4, D2, D5, D6
-5. **#4 (P1), #5 (P2)**
+4. **Kararlar:** D1 ✅, D3 ✅, D4 (sıradaki kapı), D2, D5, D6
+5. **#4 (P1)** ✅; **#5 (P2)** — düz yol başlanabilir
 6. **#16 (S1)**
 7. **#17, #18, #19** (paralel)
 8. **#22 (S4a)**
