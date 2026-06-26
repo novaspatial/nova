@@ -8,17 +8,31 @@ import type { BlogPostWithAuthor } from './types'
 const DEFAULT_OG_IMAGE = '/og-image.jpg'
 
 /**
- * Resolve the absolute Open Graph image URL for a post.
- *
- * Per decision D8 the hero/OG image is the post's first inline markdown image
- * (the same one rendered as the on-page hero). Posts without an image fall back
- * to the site-wide default. Supabase image URLs are already absolute; a relative
- * path is resolved against the canonical host.
+ * The post's own hero image — the first inline markdown image (decision D8) —
+ * as an absolute URL, or `null` when the post has no image. Supabase URLs are
+ * already absolute; a relative path is resolved against the canonical host.
+ */
+export function resolvePostHeroImage(post: BlogPostWithAuthor): string | null {
+  const src = extractHeroImage(post.body).hero?.src
+  if (!src) return null
+  return /^https?:\/\//.test(src) ? src : absoluteUrl(src)
+}
+
+/**
+ * Resolve the absolute Open Graph image URL for a post, used by the JSON-LD
+ * `image` field. Falls back to the site-wide default when the post has no image.
  */
 export function resolvePostOgImage(post: BlogPostWithAuthor): string {
-  const src = extractHeroImage(post.body).hero?.src
-  if (!src) return absoluteUrl(DEFAULT_OG_IMAGE)
-  return /^https?:\/\//.test(src) ? src : absoluteUrl(src)
+  return resolvePostHeroImage(post) ?? absoluteUrl(DEFAULT_OG_IMAGE)
+}
+
+/**
+ * Absolute URL of the post's auto-generated share card (#21 / S13). The
+ * `share-image` Route Handler renders the title over the hero in the brand
+ * font; this is what social crawlers fetch as the og/twitter image.
+ */
+export function postShareImageUrl(post: BlogPostWithAuthor): string {
+  return absoluteUrl(`/blog/${post.slug}/share-image`)
 }
 
 /**
@@ -28,7 +42,7 @@ export function resolvePostOgImage(post: BlogPostWithAuthor): string {
 export function buildPostMetadata(post: BlogPostWithAuthor): Metadata {
   const path = `/blog/${post.slug}`
   const url = absoluteUrl(path)
-  const ogImage = resolvePostOgImage(post)
+  const shareImage = postShareImageUrl(post)
 
   return {
     title: post.title,
@@ -45,14 +59,14 @@ export function buildPostMetadata(post: BlogPostWithAuthor): Metadata {
       modifiedTime: post.updated_at,
       authors: [post.author.name],
       images: [
-        { url: ogImage, width: 1200, height: 630, alt: post.title },
+        { url: shareImage, width: 1200, height: 630, alt: post.title },
       ],
     },
     twitter: {
       card: 'summary_large_image',
       title: post.title,
       description: post.description,
-      images: [ogImage],
+      images: [shareImage],
     },
   }
 }

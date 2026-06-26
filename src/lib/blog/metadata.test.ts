@@ -5,6 +5,8 @@ import { getAuthor } from '@/lib/team'
 import {
   buildPostJsonLd,
   buildPostMetadata,
+  postShareImageUrl,
+  resolvePostHeroImage,
   resolvePostOgImage,
 } from './metadata'
 import type { BlogPostWithAuthor } from './types'
@@ -31,6 +33,22 @@ function makePost(
   }
 }
 
+describe('resolvePostHeroImage', () => {
+  test('returns the first inline image (the on-page hero)', () => {
+    expect(resolvePostHeroImage(makePost())).toBe('https://cdn.example/hero.jpg')
+  })
+
+  test('returns null when the post has no image', () => {
+    const post = makePost({ body: '## Just text\n\nNo images here.' })
+    expect(resolvePostHeroImage(post)).toBeNull()
+  })
+
+  test('resolves a relative image path against the canonical host', () => {
+    const post = makePost({ body: '![local](/uploads/x.jpg)' })
+    expect(resolvePostHeroImage(post)).toBe(absoluteUrl('/uploads/x.jpg'))
+  })
+})
+
 describe('resolvePostOgImage', () => {
   test('uses the first inline image (the on-page hero)', () => {
     expect(resolvePostOgImage(makePost())).toBe('https://cdn.example/hero.jpg')
@@ -40,10 +58,13 @@ describe('resolvePostOgImage', () => {
     const post = makePost({ body: '## Just text\n\nNo images here.' })
     expect(resolvePostOgImage(post)).toBe(absoluteUrl('/og-image.jpg'))
   })
+})
 
-  test('resolves a relative image path against the canonical host', () => {
-    const post = makePost({ body: '![local](/uploads/x.jpg)' })
-    expect(resolvePostOgImage(post)).toBe(absoluteUrl('/uploads/x.jpg'))
+describe('postShareImageUrl', () => {
+  test('points at the per-post generated share-image route', () => {
+    expect(postShareImageUrl(makePost())).toBe(
+      `${SITE_URL}/blog/my-post/share-image`,
+    )
   })
 })
 
@@ -65,7 +86,7 @@ describe('buildPostMetadata', () => {
       authors: ['Jamie Kuse'],
       images: [
         {
-          url: 'https://cdn.example/hero.jpg',
+          url: `${SITE_URL}/blog/my-post/share-image`,
           width: 1200,
           height: 630,
           alt: 'My Post',
@@ -76,7 +97,7 @@ describe('buildPostMetadata', () => {
     expect(meta.twitter).toMatchObject({
       card: 'summary_large_image',
       title: 'My Post',
-      images: ['https://cdn.example/hero.jpg'],
+      images: [`${SITE_URL}/blog/my-post/share-image`],
     })
   })
 

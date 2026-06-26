@@ -45,6 +45,12 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Ensure the static brand font is traced into the share-image route's
+  // serverless bundle on Vercel (the `new URL(import.meta.url)` reference
+  // usually suffices, but this makes it explicit).
+  outputFileTracingIncludes: {
+    '/blog/[slug]/share-image': ['./src/lib/blog/fonts/**'],
+  },
   images: {
     remotePatterns: supabaseHostname
       ? [
