@@ -109,6 +109,9 @@ S11(#10) ─> S12(#20)  per-post meta + JSON-LD + alt + slug   (ayrıca P3, D8)
               └─> S13(#21)  otomatik share-image            (D9)
 ```
 
+- [#14](https://github.com/novaspatial/nova/issues/14) **S14** sitemap + robots — ✅ **Tamam (2026-06-26)** (`bf710fe`). `src/app/sitemap.ts` (pazarlama sayfaları + `loadPublishedPosts` ile yayınlanmış postlar, `updated_at` lastmod, `absoluteUrl`) ve `src/app/robots.ts` (non-public yüzeyi disallow, sitemap'i gösterir). robots statik, sitemap dinamik (publish'te taze); draft sızmaz. #20/#21 hâlâ D8/D9 bekliyor.
+- [#15](https://github.com/novaspatial/nova/issues/15) **S15** IndexNow ping — ✅ **Tamam (2026-06-26)** (`02d3d02`). `onPostMutated` hook'una bağlı best-effort `pingIndexNow`; `PostMutation`'a `wasPublished` eklendi → publish / canlı-düzenleme / takedown'da ping, hiç-public-olmamış draft'ta yok. Anahtar `/indexnow-key.txt`'te env'den (tek kaynak). Bing/Yandex/Seznam/Naver/Yep'i kapsar (Google katılmaz → robots+sitemap). `INDEXNOW_KEY` set edilene kadar atıl.
+
 ### Hat C — Pazarlama
 - [#9](https://github.com/novaspatial/nova/issues/9) **S10** 50% promo → welcome kod — **D11 sonrası**, küçük (copy + sabit).
 
@@ -145,7 +148,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 9. **#25 (S4b) → #26 (S5)**
 10. **#23 (S7)**
 11. **Karar D10 ✅ → #6 (P3)** ✅
-12. **#14, #15** (sitemap, IndexNow)
+12. **#14 ✅, #15 ✅** (sitemap, IndexNow)
 13. **Karar D8/D9 → #20 (S12) → #21 (S13)**
 14. **Karar D2/D13 → #24 (S8)**
 15. **Karar D11 → #9 (S10)**
