@@ -3,6 +3,7 @@
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import rehypeSlug from 'rehype-slug'
 import rehypeUnwrapImages from 'rehype-unwrap-images'
 import { isValidElement, type ReactElement } from 'react'
 
@@ -14,8 +15,13 @@ const AppleMusicCallout = MDXComponents.AppleMusicCallout
 
 // Allow language-* classNames on <code> so we can detect the `top-tip` shortcode
 // after rehype-sanitize runs (the default schema strips unknown attributes).
+// `id` is already allowed on every element by the default schema, but it lives in
+// `clobber`, which rewrites it to `user-content-<slug>`. We author this markdown
+// ourselves, so drop `id` from `clobber` to keep rehype-slug's heading anchors
+// clean (e.g. `#my-heading`) for fragment links and the table of contents.
 const sanitizeSchema = {
   ...defaultSchema,
+  clobber: (defaultSchema.clobber ?? []).filter((attr) => attr !== 'id'),
   attributes: {
     ...defaultSchema.attributes,
     code: [
@@ -79,7 +85,11 @@ export function MarkdownRenderer({ children }: { children: string }) {
     <div className="typography">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeUnwrapImages, [rehypeSanitize, sanitizeSchema]]}
+        rehypePlugins={[
+          rehypeUnwrapImages,
+          rehypeSlug,
+          [rehypeSanitize, sanitizeSchema],
+        ]}
         components={components}
       >
         {children}

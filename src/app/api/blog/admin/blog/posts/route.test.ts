@@ -171,6 +171,43 @@ describe('POST /api/blog/admin/blog/posts', () => {
     expect(json.error).toBe(`Missing field: ${field}`)
   })
 
+  test('returns 400 when the slug is not clean', async () => {
+    const from = vi.fn()
+    requireApiProfile.mockResolvedValueOnce({
+      supabase: { from } as never,
+      user: { id: 'u1' } as never,
+      profile: studioProfile,
+    })
+
+    const { POST } = await import('./route')
+    const res = await POST(
+      makeRequest({ ...validPayload, slug: 'Not Clean' }) as never,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/slug/i)
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  test('returns 400 when an image is missing alt text', async () => {
+    const from = vi.fn()
+    requireApiProfile.mockResolvedValueOnce({
+      supabase: { from } as never,
+      user: { id: 'u1' } as never,
+      profile: studioProfile,
+    })
+
+    const { POST } = await import('./route')
+    const res = await POST(
+      makeRequest({
+        ...validPayload,
+        body: '![](https://cdn.example/x.jpg)',
+      }) as never,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/alt text/i)
+    expect(from).not.toHaveBeenCalled()
+  })
+
   test('returns 409 when the slug collides with an existing post', async () => {
     const chain = makeInsertChain({
       insertedId: null,

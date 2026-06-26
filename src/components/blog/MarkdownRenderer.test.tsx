@@ -53,6 +53,13 @@ describe('MarkdownRenderer', () => {
     expect(document.querySelector('pre code.language-apple-music')).toBeNull()
   })
 
+  test('adds clean slug ids to headings (rehype-slug)', () => {
+    render(<MarkdownRenderer>{`## My Heading`}</MarkdownRenderer>)
+    const heading = screen.getByRole('heading', { level: 2 })
+    // No `user-content-` clobber prefix: ids stay clean for fragment links.
+    expect(heading).toHaveAttribute('id', 'my-heading')
+  })
+
   test('renders markdown blockquotes as <blockquote>', () => {
     render(<MarkdownRenderer>{'> A quote.'}</MarkdownRenderer>)
     expect(screen.getByText('A quote.').closest('blockquote')).not.toBeNull()

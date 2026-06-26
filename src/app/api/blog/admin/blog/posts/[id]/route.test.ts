@@ -126,6 +126,41 @@ describe('PATCH /api/blog/admin/blog/posts/[id]', () => {
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 
+  test('returns 400 when the slug is set to a dirty value', async () => {
+    const from = vi.fn()
+    requireApiProfile.mockResolvedValueOnce({
+      supabase: { from } as never,
+      user: { id: 'u1' } as never,
+      profile: studioProfile,
+    })
+
+    const { PATCH } = await import('./route')
+    const res = await PATCH(patchRequest({ slug: 'Not Clean' }) as never, params)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/slug/i)
+    expect(from).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  test('returns 400 when the body adds an image with no alt text', async () => {
+    const from = vi.fn()
+    requireApiProfile.mockResolvedValueOnce({
+      supabase: { from } as never,
+      user: { id: 'u1' } as never,
+      profile: studioProfile,
+    })
+
+    const { PATCH } = await import('./route')
+    const res = await PATCH(
+      patchRequest({ body: '![](https://cdn.example/x.jpg)' }) as never,
+      params,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/alt text/i)
+    expect(from).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
   test('updates fields and revalidates the index plus the existing slug', async () => {
     const { from, update } = makeUpdateChain({ existingSlug: 'old-slug' })
     requireApiProfile.mockResolvedValueOnce({

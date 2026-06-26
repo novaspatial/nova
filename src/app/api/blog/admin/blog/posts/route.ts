@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { forbiddenResponse, requireApiProfile } from '@/lib/auth/server'
 import { onPostMutated } from '@/lib/blog/onPostMutated'
+import { hasEmptyAltImage, isValidSlug } from '@/lib/blog/validate'
 import { getAuthor } from '@/lib/team'
 
 export async function POST(request: NextRequest) {
@@ -33,6 +34,18 @@ export async function POST(request: NextRequest) {
   }
   if (!getAuthor(body.author_key!)) {
     return NextResponse.json({ error: 'Unknown author_key' }, { status: 400 })
+  }
+  if (!isValidSlug(body.slug!)) {
+    return NextResponse.json(
+      { error: 'Slug must be lowercase, hyphen-separated, with no spaces or punctuation.' },
+      { status: 400 },
+    )
+  }
+  if (hasEmptyAltImage(body.body!)) {
+    return NextResponse.json(
+      { error: 'Every image must have alt text (![alt](url)).' },
+      { status: 400 },
+    )
   }
 
   const { data, error } = await auth.supabase
