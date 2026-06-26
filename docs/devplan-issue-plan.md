@@ -55,7 +55,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 ### Öncelik 3 — blog/SEO
 | Karar | Konu | Açtığı |
 |-------|------|--------|
-| **D10** | Canonical host (www vs apex) | #6, #20, #14, #15 |
+| **D10** ✅ | **Karar: apex (çıplak alan) `https://nova-spatial.com`** — proje + e-posta alanıyla hizalı; www → apex redirect altyapı işi. Tek kaynak `src/lib/site.ts` (`SITE_URL`, env `NEXT_PUBLIC_SITE_URL` + fallback). | #6, #20, #14, #15 |
 | **D8** | Blog hero/OG görsel kaynağı (kolon mu, ilk inline görsel mi) | #20, #21 |
 | **D9** | Share-image tekno/runtime/font | #21 |
 
@@ -77,7 +77,7 @@ Kararlar gelince:
 
 - [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — ✅ **Tamam (2026-06-26)**. D1 kararıyla alanlar `Project`'e kondu: 20260422 ödeme kolonları (required) + sipariş/yaşam-döngüsü yüzeyi (optional+nullable: `song_count`, `stem_count`, `service`, `add_ons`, `subtotal_cents`, `tax_cents`, `applied_coupon_code`, `terms_accepted_at/version`, `delivered_at`, `files_purged_at`) + `DiscountCode` ve `PriceBreakdown` tipleri. build + 344 vitest temiz.
 - [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — 🟡 **Taslak, yönetici onayı bekliyor (2026-06-26)**. D4 spec'iyle `computeOrderPrice(OrderInput): PriceBreakdown` taslağı `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar). **Henüz commit/test yok** — finalizasyon (2 defansif düzeltme + exhaustive test) onay sonrası, plan dosyasına göre yapılacak. S4a(#22) matematiğini de kapsar; S1(#16) checkout'a bağlayacak. Eski `computePrice` (düz $299/$149) S1'e kadar canlı.
-- [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — **D10 sonrası** (canonical host).
+- [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — ✅ **Tamam (2026-06-26)** (`cf283fb`). D10 apex kararıyla tek kaynak `src/lib/site.ts` (`SITE_URL`/`SITE_NAME`/`absoluteUrl`, `NEXT_PUBLIC_SITE_URL` env + fallback); `layout.tsx` hardcoded `www` → bu kaynaktan okuyor. Blog publish yan-etkileri tek `onPostMutated({type,slug,isPublished})` hook'unda toplandı (POST + PATCH/[id] + DELETE paylaşıyor; duplike `revalidatePath` + lokal `revalidateBlog` kaldırıldı) — draft-create yalnız `/blog`'u, update/delete post sayfasını da bust ediyor (mevcut testler korunuyor). IndexNow(#15) buraya sıfır route değişikliğiyle bağlanacak. build + lint temiz; 41 route+yeni test geçiyor. #14/#15 artık açık.
 
 ---
 
@@ -144,7 +144,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 8. **#22 (S4a)**
 9. **#25 (S4b) → #26 (S5)**
 10. **#23 (S7)**
-11. **Karar D10 → #6 (P3)**
+11. **Karar D10 ✅ → #6 (P3)** ✅
 12. **#14, #15** (sitemap, IndexNow)
 13. **Karar D8/D9 → #20 (S12) → #21 (S13)**
 14. **Karar D2/D13 → #24 (S8)**
