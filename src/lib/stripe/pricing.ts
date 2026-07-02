@@ -68,7 +68,8 @@ export function computeOrderPrice(input: OrderInput): PriceBreakdown {
   const songCount = Math.max(0, Math.trunc(input.songCount))
   const currency: Currency = input.currency ?? 'usd'
   const code = input.code ?? null
-  const addOns = input.addOns ?? []
+  // De-duplicate add-ons: each add-on is charged at most once per order.
+  const addOns = [...new Set(input.addOns ?? [])]
 
   const listTotalCents = songCount * LIST_PRICE_PER_SONG_CENTS
 
@@ -80,8 +81,11 @@ export function computeOrderPrice(input: OrderInput): PriceBreakdown {
   let intendedCodeDiscountCents = 0
   if (code) {
     if (code.kind === 'percent') {
-      // The 35% cap limits the stacked percentage (bulk + percent code).
-      const cappedPct = Math.min(bulkPct + code.value, MAX_DISCOUNT_PCT)
+      // Clamp to a valid 0–100 percent first: a negative code must never
+      // inflate the price above list. The 35% cap then limits the stacked
+      // percentage (bulk + percent code).
+      const pct = Math.min(100, Math.max(0, code.value))
+      const cappedPct = Math.min(bulkPct + pct, MAX_DISCOUNT_PCT)
       const stackedDiscountCents = roundHalfUp((listTotalCents * cappedPct) / 100)
       intendedCodeDiscountCents = stackedDiscountCents - bulkDiscountCents
     } else {
