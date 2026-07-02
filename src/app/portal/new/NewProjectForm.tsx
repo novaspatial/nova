@@ -1,14 +1,26 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { FileUploader, PaymentStep } from '@/components/portal'
-import type { FileUploadItem } from '@/types/portal'
+import type { FileUploadItem, PriceBreakdown, Project } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
+import { computeOrderPrice } from '@/lib/stripe/pricing'
+import { formatCurrency } from '@/lib/formatCurrency'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
 
 type Phase = 'form' | 'payment' | 'uploading'
+
+type ServiceFormat = Project['format']
+
+const SERVICE_OPTIONS: { value: ServiceFormat; label: string }[] = [
+  { value: 'atmos', label: 'Dolby Atmos' },
+  { value: 'binaural', label: 'Binaural' },
+  { value: 'both', label: 'Both (Atmos + Binaural)' },
+]
+
+const MAX_SONG_COUNT = 99
 
 type CheckoutResponse = {
   projectId: string
@@ -16,8 +28,10 @@ type CheckoutResponse = {
   amountCents: number
   currency: string
   discountApplied: boolean
+  breakdown: PriceBreakdown
   devBypass?: boolean
 }
+
 
 function findDuplicateFileNames(items: FileUploadItem[]): string[] {
   const seen = new Set<string>()
@@ -37,13 +51,19 @@ async function waitForPaymentConfirmation(
 ) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const res = await fetch(
-      `/api/portal/projects/${projectId}/payment-status`,
-      { cache: 'no-store' },
-    )
-    if (res.ok) {
-      const data = (await res.json()) as { paid?: boolean }
-      if (data.paid) return true
+    // A transient fetch failure must not abort the poll — the payment may
+    // already have succeeded; keep polling until the deadline.
+    try {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/payment-status`,
+        { cache: 'no-store' },
+      )
+      if (res.ok) {
+        const data = (await res.json()) as { paid?: boolean }
+        if (data.paid) return true
+      }
+    } catch (pollErr) {
+      console.error('[NewProjectForm] payment-status poll failed', pollErr)
     }
     await new Promise((r) => setTimeout(r, intervalMs))
   }
@@ -53,14 +73,33 @@ async function waitForPaymentConfirmation(
 export function NewProjectForm() {
   const [phase, setPhase] = useState<Phase>('form')
   const [title, setTitle] = useState('')
+  const [format, setFormat] = useState<ServiceFormat>('atmos')
+  const [songCountInput, setSongCountInput] = useState('1')
+  const [referenceTracks, setReferenceTracks] = useState('')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
 
+  // Number() (not parseInt) so exponent notation the number input accepts
+  // ('2e1' = 20) can't silently truncate to its mantissa.
+  const songCount = songCountInput.trim() === '' ? NaN : Number(songCountInput)
+  const songCountValid =
+    Number.isInteger(songCount) && songCount >= 1 && songCount <= MAX_SONG_COUNT
+
+  // Live list-price quote. Welcome/first-mix discounts are applied
+  // server-side at checkout, so the quote here is the pre-code price;
+  // the payment step shows the final charge.
+  const quote = useMemo(
+    () => (songCountValid ? computeOrderPrice({ songCount }) : null),
+    [songCountValid, songCount],
+  )
+
   useEffect(() => {
-    if (phase !== 'payment') return
+    // Guard both payment AND upload: closing the tab mid-upload (after
+    // paying) would abort the stem uploads just as silently.
+    if (phase === 'form') return
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
       e.returnValue = ''
@@ -216,11 +255,23 @@ export function NewProjectForm() {
     [runUploadLoop],
   )
 
+  // Stem-upload reconciliation (S1 #16): stems are selected in this form but
+  // upload only AFTER payment confirms (uploadAndNavigate polls payment-status
+  // first). The project row is created at checkout in pending_payment, so an
+  // abandoned checkout never leaves orphaned storage objects — only a row the
+  // DELETE rollback cleans up. stem_count is captured at checkout from the
+  // files actually selected here, not from a separate free-typed input.
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!title.trim()) {
         setError('Project title is required.')
+        return
+      }
+      if (!songCountValid) {
+        setError(
+          `Song count must be a whole number between 1 and ${MAX_SONG_COUNT}.`,
+        )
         return
       }
       if (files.length === 0) {
@@ -244,7 +295,10 @@ export function NewProjectForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: title.trim(),
-            format: 'atmos',
+            format,
+            songCount,
+            stemCount: files.length,
+            referenceTracks: referenceTracks.trim() || null,
             notes: notes.trim() || null,
           }),
         })
@@ -262,6 +316,14 @@ export function NewProjectForm() {
           return
         }
 
+        // A malformed response must not fall through to a re-enabled form
+        // with a project row already created server-side.
+        if (!data.clientSecret || !data.breakdown) {
+          throw new Error(
+            'Checkout could not be initialized. Please try again.',
+          )
+        }
+
         setCheckout(data)
         setPhase('payment')
       } catch (err) {
@@ -270,7 +332,16 @@ export function NewProjectForm() {
         setSubmitting(false)
       }
     },
-    [title, notes, files, uploadAndNavigate],
+    [
+      title,
+      format,
+      songCount,
+      songCountValid,
+      referenceTracks,
+      notes,
+      files,
+      uploadAndNavigate,
+    ],
   )
 
   const handlePaymentSucceeded = useCallback(async () => {
@@ -285,7 +356,7 @@ export function NewProjectForm() {
     setPhase('form')
   }, [checkout, rollbackProject])
 
-  if (phase === 'payment' && checkout && checkout.clientSecret) {
+  if (phase === 'payment' && checkout?.clientSecret && checkout.breakdown) {
     return (
       <div className="space-y-6">
         <div>
@@ -302,6 +373,7 @@ export function NewProjectForm() {
           amountCents={checkout.amountCents}
           currency={checkout.currency}
           discountApplied={checkout.discountApplied}
+          breakdown={checkout.breakdown}
           onSucceeded={handlePaymentSucceeded}
           onCancel={handlePaymentCancel}
         />
@@ -312,7 +384,10 @@ export function NewProjectForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300 sm:text-sm">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300 sm:text-sm"
+        >
           {error}
         </div>
       )}
@@ -341,6 +416,90 @@ export function NewProjectForm() {
         />
       </div>
 
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="service"
+            className="block text-xs font-medium text-zinc-300 sm:text-sm"
+          >
+            Service
+          </label>
+          <div className="relative mt-2">
+            <select
+              id="service"
+              value={format}
+              onChange={(e) => setFormat(e.target.value as ServiceFormat)}
+              className={`appearance-none pr-10 ${inputClassName}`}
+              disabled={submitting || phase === 'uploading'}
+            >
+              {SERVICE_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  className="bg-zinc-900"
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              fill="none"
+              className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="song-count"
+            className="block text-xs font-medium text-zinc-300 sm:text-sm"
+          >
+            Number of Songs
+          </label>
+          <input
+            id="song-count"
+            type="number"
+            inputMode="numeric"
+            required
+            min={1}
+            max={MAX_SONG_COUNT}
+            step={1}
+            value={songCountInput}
+            onChange={(e) => setSongCountInput(e.target.value)}
+            className={`mt-2 ${inputClassName}`}
+            disabled={submitting || phase === 'uploading'}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label
+          htmlFor="reference-tracks"
+          className="block text-xs font-medium text-zinc-300 sm:text-sm"
+        >
+          Reference Tracks <span className="text-zinc-500">(optional)</span>
+        </label>
+        <textarea
+          id="reference-tracks"
+          value={referenceTracks}
+          onChange={(e) => setReferenceTracks(e.target.value)}
+          placeholder="Links or artist/song names of mixes you want us to reference..."
+          rows={2}
+          className={`mt-2 resize-none ${inputClassName}`}
+          disabled={submitting || phase === 'uploading'}
+        />
+      </div>
+
       <div>
         <label
           htmlFor="notes"
@@ -353,7 +512,7 @@ export function NewProjectForm() {
           id="notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any references, preferences, or instructions for the mix engineer..."
+          placeholder="Any preferences or instructions for the mix engineer..."
           rows={4}
           className={`mt-2 resize-none ${inputClassName}`}
           disabled={submitting || phase === 'uploading'}
@@ -362,7 +521,7 @@ export function NewProjectForm() {
 
       <div>
         <label className="block text-xs font-medium text-zinc-300 sm:text-sm">
-          Upload Files
+          Upload Stems
         </label>
         <div className="mt-2">
           <FileUploader
@@ -372,7 +531,46 @@ export function NewProjectForm() {
             disabled={submitting || phase === 'uploading'}
           />
         </div>
+        {files.length > 0 && (
+          <p className="mt-2 text-xs text-zinc-500">
+            {files.length} stem file{files.length > 1 ? 's' : ''} selected —
+            saved with your order. Files upload after payment is confirmed.
+          </p>
+        )}
       </div>
+
+      {quote && (
+        <div
+          data-testid="live-quote"
+          aria-live="polite"
+          className="rounded-xl border border-white/10 bg-white/5 p-4"
+        >
+          <div className="flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
+            <span>
+              {quote.song_count} song{quote.song_count > 1 ? 's' : ''} ×{' '}
+              {formatCurrency(quote.list_unit_cents)}
+            </span>
+            <span>{formatCurrency(quote.list_total_cents)}</span>
+          </div>
+          {quote.bulk_discount_cents > 0 && (
+            <div className="mt-1 flex items-center justify-between text-xs text-emerald-300 sm:text-sm">
+              <span>Album discount</span>
+              <span>−{formatCurrency(quote.bulk_discount_cents)}</span>
+            </div>
+          )}
+          <div className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2">
+            <span className="text-xs font-medium text-zinc-300 sm:text-sm">
+              Estimated total
+            </span>
+            <span className="text-lg font-semibold text-white">
+              {formatCurrency(quote.total_cents)}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-500">
+            Eligible welcome discounts are applied at payment.
+          </p>
+        </div>
+      )}
 
       <button
         type="submit"

@@ -25,8 +25,8 @@ export type DeliverableFormat = 'adm_bwf' | 'binaural_wav' | 'dolby_atmos_adm'
 
 export type UserRole = 'client' | 'studio'
 
-// Charge currency. D3: list prices are USD; CAD is the floor basis at a fixed
-// internal rate. Stored on the project as the currency the customer was charged.
+// Charge currency. D3: list prices and the per-song floor are natively USD.
+// Stored on the project as the currency the customer was charged.
 export type Currency = 'usd' | 'cad'
 
 // Paid order add-ons (#19): an extra revision round and a 48-hour rush.
@@ -53,14 +53,18 @@ export interface Project {
   currency: Currency | null
   discount_applied: boolean
 
-  // Order/lifecycle surface the pricing, checkout, T&C and purge slices will
+  // Order columns — live in DB since migration 20260702 (S1 #16). Nullable:
+  // rows created before the priced checkout have no order fields.
+  song_count: number | null
+  stem_count: number | null
+  subtotal_cents: number | null
+  reference_tracks: string | null
+
+  // Order/lifecycle surface the remaining commerce and purge slices will
   // add. Declared optional + nullable so current `select *` reads (whose rows
   // lack these columns) stay type-safe; each column lands in its owning slice.
-  song_count?: number | null
-  stem_count?: number | null
-  service?: string | null // service/tier enum lands with the pricing slice (#16)
+  // Service/format selection rides the existing `format` column (#16).
   add_ons?: AddOn[] | null
-  subtotal_cents?: number | null
   tax_cents?: number | null
   applied_coupon_code?: string | null
   terms_accepted_at?: string | null // T&C accept (#23)

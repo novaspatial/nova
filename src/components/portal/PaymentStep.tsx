@@ -8,29 +8,24 @@ import {
   useStripe,
 } from '@stripe/react-stripe-js'
 import { getStripePromise } from '@/lib/stripe/client'
-import { FULL_PRICE_CENTS } from '@/lib/stripe/pricing'
+import { formatCurrency } from '@/lib/formatCurrency'
+import type { PriceBreakdown } from '@/types/portal'
 
 type Props = {
   clientSecret: string
   amountCents: number
   currency: string
   discountApplied: boolean
+  breakdown: PriceBreakdown
   onSucceeded: () => void
   onCancel: () => void
-}
-
-function formatPrice(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: 0,
-  }).format(cents / 100)
 }
 
 function PaymentForm({
   amountCents,
   currency,
   discountApplied,
+  breakdown,
   onSucceeded,
   onCancel,
 }: Omit<Props, 'clientSecret'>) {
@@ -63,24 +58,47 @@ function PaymentForm({
     setSubmitting(false)
   }
 
+  const hasDiscount = amountCents < breakdown.list_total_cents
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <div className="text-xs text-zinc-400 sm:text-sm">Amount due</div>
-        <div className="mt-1 flex items-baseline gap-3">
-          <span className="text-2xl font-semibold text-white">
-            {formatPrice(amountCents, currency)}
+        <div className="flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
+          <span>
+            {breakdown.song_count} song{breakdown.song_count > 1 ? 's' : ''} ×{' '}
+            {formatCurrency(breakdown.list_unit_cents, currency)}
           </span>
-          {discountApplied && (
-            <>
+          <span>{formatCurrency(breakdown.list_total_cents, currency)}</span>
+        </div>
+        {breakdown.bulk_discount_cents > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-emerald-300 sm:text-sm">
+            <span>Album discount</span>
+            <span>−{formatCurrency(breakdown.bulk_discount_cents, currency)}</span>
+          </div>
+        )}
+        {breakdown.code_discount_cents > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-violet-300 sm:text-sm">
+            <span>First mix discount</span>
+            <span>−{formatCurrency(breakdown.code_discount_cents, currency)}</span>
+          </div>
+        )}
+        <div className="mt-2 border-t border-white/10 pt-2">
+          <div className="text-xs text-zinc-400 sm:text-sm">Amount due</div>
+          <div className="mt-1 flex items-baseline gap-3">
+            <span className="text-2xl font-semibold text-white">
+              {formatCurrency(amountCents, currency)}
+            </span>
+            {hasDiscount && (
               <span className="text-sm text-zinc-500 line-through">
-                {formatPrice(FULL_PRICE_CENTS, currency)}
+                {formatCurrency(breakdown.list_total_cents, currency)}
               </span>
+            )}
+            {discountApplied && (
               <span className="rounded-md bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">
                 First mix discount
               </span>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -101,7 +119,7 @@ function PaymentForm({
         >
           {submitting
             ? 'Processing…'
-            : `Pay ${formatPrice(amountCents, currency)} & Start Upload`}
+            : `Pay ${formatCurrency(amountCents, currency)} & Start Upload`}
         </button>
         <button
           type="button"
@@ -121,6 +139,7 @@ export function PaymentStep({
   amountCents,
   currency,
   discountApplied,
+  breakdown,
   onSucceeded,
   onCancel,
 }: Props) {
@@ -133,6 +152,7 @@ export function PaymentStep({
         amountCents={amountCents}
         currency={currency}
         discountApplied={discountApplied}
+        breakdown={breakdown}
         onSucceeded={onSucceeded}
         onCancel={onCancel}
       />
