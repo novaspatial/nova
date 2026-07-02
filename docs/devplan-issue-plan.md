@@ -36,7 +36,8 @@ Hiçbiri açık karara bağlı değil. Aynı anda dağıtılabilir.
 
 Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 
-> **Durum (2026-06-26):** D1, D3, D4 verildi (aşağıda ✅). Öncelik-1 ticaret ana hattının kararları kapandı. Saf pricing modülü (#5/#22) **taslak hâlde, yönetici onayı bekliyor** — implementasyon parkta (plan: `~/.claude/plans/this-is-implementation-…bentley.md`). Onay gelene kadar tüm commerce hattı (S1/#16 → … → #26) beklemede.
+> **Durum (2026-06-26):** D1, D3, D4 verildi (aşağıda ✅). Öncelik-1 ticaret ana hattının kararları kapandı.
+> **Durum (2026-07-02):** Yönetici onayı geldi (Mike + Jamie, pricing önerisi onaylandı). Saf pricing modülü finalize edildi: 2 defansif düzeltme (`748ba42` — yüzde-kod 0–100 klempi, add-on dedupe) + 44 testlik kapsamlı suite (`edacdca` — tier/cap/floor/private/dedupe + 405 noktalık invariant grid); **#5 ve #22 kapatıldı** (#22 başlığı D3 gereği CAD→USD floor olarak düzeltildi). Bayat kalmış **#20/#21 de kapatıldı** (iş 2026-06-26'da `be6209c`/`8ec148c` ile bitmişti). Commerce hattı (S1/#16 → … → #26) artık açık. Mike D2'nin politika yarısını da cevapladı (aşağıda); HST-eyaleti sorusu #1'de Mike'a yöneltildi. Jamie'nin yeni isteği: fiyat hesaplayıcı "start new project" akışının başlangıcı olsun **ve ana sayfada interaktif widget olarak dursun** (bugünkü statik "Start Your Project" CTA'sı yerine; welcome indirimini canlı gösterir) — **[#30](https://github.com/novaspatial/nova/issues/30) (S20)** olarak issue'laştırıldı; S1(#16) ile aynı quote bileşenini paylaşmalı.
 
 ### Öncelik 1 — ticaret ana hattı (en çok issue'yu açar)
 | Karar | Soru özeti | Açtığı issue'lar |
@@ -48,7 +49,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 ### Öncelik 2 — ticaret detayları
 | Karar | Konu | Açtığı |
 |-------|------|--------|
-| **D2** | Vergi (Stripe Tax vs hesaplanan GST/HST) + nerede gösterilir | #16, #24 |
+| **D2** 🟡 | Vergi — **politika kararı verildi (2026-07-02, Mike):** Kanadalı müşterilere **GST** uygulanacak, **PST yok**; hesaplama mekanizması (Stripe Tax vs kendi hesabımız) bize bırakıldı. **Hâlâ açık:** mekanizma seçimi + verginin nerede gösterileceği (quote/PaymentStep/makbuz) + HST eyaletleri sorusu (ON/NS vb. GST+PST'yi HST olarak birleştirir — "GST var PST yok" oralarda %5 mi tam HST mi, netleştirilmeli). | #16, #24 |
 | **D5** | "Returning" tanımı (ödenmiş mi / teslim edilmiş mi proje) | #25 |
 | **D6** | Tek-kullanımlık kod ne zaman tüketilir | #26 |
 
@@ -76,7 +77,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 Kararlar gelince:
 
 - [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — ✅ **Tamam (2026-06-26)**. D1 kararıyla alanlar `Project`'e kondu: 20260422 ödeme kolonları (required) + sipariş/yaşam-döngüsü yüzeyi (optional+nullable: `song_count`, `stem_count`, `service`, `add_ons`, `subtotal_cents`, `tax_cents`, `applied_coupon_code`, `terms_accepted_at/version`, `delivered_at`, `files_purged_at`) + `DiscountCode` ve `PriceBreakdown` tipleri. build + 344 vitest temiz.
-- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — 🟡 **Taslak, yönetici onayı bekliyor (2026-06-26)**. D4 spec'iyle `computeOrderPrice(OrderInput): PriceBreakdown` taslağı `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar). **Henüz commit/test yok** — finalizasyon (2 defansif düzeltme + exhaustive test) onay sonrası, plan dosyasına göre yapılacak. S4a(#22) matematiğini de kapsar; S1(#16) checkout'a bağlayacak. Eski `computePrice` (düz $299/$149) S1'e kadar canlı.
+- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — ✅ **Tamam (2026-07-02, yönetici onayıyla finalize)**. `computeOrderPrice(OrderInput): PriceBreakdown` `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar); taslak `ed6d575` ile zaten main'deydi, finalizasyonda 2 defansif düzeltme eklendi (yüzde kod 0–100'e klemplenir — negatif kod fiyatı liste üstüne şişiremez; add-on'lar dedupe edilir — duplicate çift ücretlenmez) + 44 testlik suite (bulk tier sınırları, percent/fixed kod, cap/floor, private bastırma, add-on dedupe, defansif kenarlar, 405 noktalık invariant grid). lint + 461 vitest + tsc-baseline temiz. S4a(#22) matematiğini de kapsar; S1(#16) checkout'a bağlayacak. Eski `computePrice` (düz $299/$149) S1'e kadar canlı.
 - [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — ✅ **Tamam (2026-06-26)** (`cf283fb`). D10 apex kararıyla tek kaynak `src/lib/site.ts` (`SITE_URL`/`SITE_NAME`/`absoluteUrl`, `NEXT_PUBLIC_SITE_URL` env + fallback); `layout.tsx` hardcoded `www` → bu kaynaktan okuyor. Blog publish yan-etkileri tek `onPostMutated({type,slug,isPublished})` hook'unda toplandı (POST + PATCH/[id] + DELETE paylaşıyor; duplike `revalidatePath` + lokal `revalidateBlog` kaldırıldı) — draft-create yalnız `/blog`'u, update/delete post sayfasını da bust ediyor (mevcut testler korunuyor). IndexNow(#15) buraya sıfır route değişikliğiyle bağlanacak. build + lint temiz; 41 route+yeni test geçiyor. #14/#15 artık açık.
 
 ---
@@ -145,7 +146,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 2. **#2, #3** (prefactor) ✅
 3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar) ✅
 4. **Kararlar:** D1 ✅, D3 ✅, D4 ✅; D2, D5, D6 (kalan)
-5. **#4 (P1)** ✅; **#5 (P2) + #22 (S4a) saf matematiği** 🟡 taslak, onay bekliyor
+5. **#4 (P1)** ✅; **#5 (P2) + #22 (S4a) saf matematiği** ✅ (2026-07-02, onay geldi, finalize edildi)
 6. **#16 (S1)**
 7. **#17, #18, #19** (paralel)
 8. **#22 (S4a)**
@@ -204,6 +205,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 | S17 | [#13](https://github.com/novaspatial/nova/issues/13) | ready-for-human | Admin file download |
 | S18 | [#27](https://github.com/novaspatial/nova/issues/27) | ready-for-human | delivered_at + 90-day purge |
 | S19 | [#29](https://github.com/novaspatial/nova/issues/29) | ready-for-human | LLM/AI-search visibility (GEO): site+author schema, llms.txt, AI-crawler access |
+| S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-human | Interactive price calculator on the homepage + entry to the new-project flow |
 
 ---
 
