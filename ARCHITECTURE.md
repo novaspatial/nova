@@ -97,14 +97,14 @@ Large audio never streams through the API. Uploads use a **register → PUT → 
 
 ## Payments
 
-`src/lib/stripe/*` + `checkout` / `webhook` / `payment-status` routes. Pricing (`pricing.ts`): $299 full, $149 first-mix. Flow:
+`src/lib/stripe/*` + `checkout` / `webhook` / `payment-status` routes. Pricing (`pricing.ts`): pure `computeOrderPrice` — $325 USD/song list, bulk tiers (3–4: 15%, 5–7: 20%, 8+: 25%), one public/private code, a 35% stacked-percentage cap, and a $225 USD per-song floor. The one-shot first-mix discount rides through it as a **private 50% code** (private codes suppress the bulk tier; the floor bounds the realized discount). Flow:
 
-1. `POST …/checkout` creates the Project in `pending_payment`, atomically reserves the first-mix discount via the `reserve_first_mix_discount` RPC, and creates a Stripe PaymentIntent — returning a `clientSecret`. (If `PAYMENTS_DEV_BYPASS=true`, it skips Stripe and creates a paid `uploading` project at $0.)
+1. `POST …/checkout` validates the order (service format, song count 1–99, stem count, text caps), prices it via `computeOrderPrice`, creates the Project in `pending_payment` with the order fields (`song_count`, `stem_count`, `subtotal_cents`, `reference_tracks` — migration `20260702`), atomically reserves the first-mix discount via the `reserve_first_mix_discount` RPC, and creates a Stripe PaymentIntent for the computed total (redirect-based payment methods disabled so the pre-selected stem list survives to the post-payment upload) — returning a `clientSecret` plus the full `PriceBreakdown`. (If `PAYMENTS_DEV_BYPASS=true`, it skips Stripe and creates a paid `uploading` project at $0 with the real quote persisted.)
 2. The Stripe **webhook** (service-role client, signature-verified) handles `payment_intent.succeeded` idempotently: sets `paid_at` and flips status to `uploading`.
 3. The client may also poll `…/payment-status`, which reconciles against Stripe directly as a fallback.
 4. Deleting an unpaid Project calls `restore_first_mix_discount` so an abandoned checkout doesn't burn the discount.
 
-The payment columns (`stripe_payment_intent_id`, `paid_at`, `amount_cents`, `currency`, `discount_applied`) live on the `projects` row (migration `20260422`). Note the `Project` type in `src/types/portal.ts` is **not yet synced** with these columns; that sync is tracked in [issue #4](https://github.com/novaspatial/nova/issues/4) (pending the order-records decision in [#1](https://github.com/novaspatial/nova/issues/1)).
+The payment + order columns live on the `projects` row (migrations `20260422`, `20260702`) and are mirrored in the `Project` type. DB-side hardening (`20260702_harden_order_writes`): the first-mix RPCs require caller identity (or a studio profile), restore is refused once a paid discounted order exists, and a trigger freezes the money/order columns against client updates (the service-role webhook and studio remain free). Projects are created **only** through the priced checkout — there is deliberately no unpriced insert endpoint.
 
 See `docs/adr/0004-stripe-payment-gating.md`.
 
@@ -136,8 +136,8 @@ See `docs/adr/0004-stripe-payment-gating.md`.
 
 This document describes the **current built system**. A larger commerce/SEO/lifecycle rework is planned but **not yet built** — don't read the items below as existing capabilities:
 
-- **Commerce engine** — replace today's flat **USD** pricing ($299 full / $149 first-mix + first-mix discount) with per-song **CAD** list pricing, album/EP bulk auto-discounts, a `discount_codes` catalog + Studio admin, add-ons (extra revision, 48h rush), a Terms & Conditions page with a recorded agree-checkbox, and an order-confirmation email.
-- **Blog / SEO** — per-post SEO metadata + Article JSON-LD, auto-generated share images, `sitemap`/`robots`, and IndexNow pings on publish.
-- **Lifecycle** — archive RLS hardening ([#12](https://github.com/novaspatial/nova/issues/12)), a `delivered_at` anchor with a 90-day file-retention purge job, and admin file download.
+- **Commerce engine** — per-song **USD** list pricing with bulk auto-discounts is **live** (S1/S2, `20260702`). Still planned: the `discount_codes` catalog + Studio admin ([#17](https://github.com/novaspatial/nova/issues/17)), checkout code redemption ([#25](https://github.com/novaspatial/nova/issues/25), [#26](https://github.com/novaspatial/nova/issues/26)), add-ons ([#19](https://github.com/novaspatial/nova/issues/19)), a Terms & Conditions page with a recorded agree-checkbox ([#23](https://github.com/novaspatial/nova/issues/23)), an order-confirmation email ([#24](https://github.com/novaspatial/nova/issues/24)), tax (D2), and the homepage price calculator ([#30](https://github.com/novaspatial/nova/issues/30)).
+- **Blog / SEO** — shipped (per-post metadata + JSON-LD, share images, sitemap/robots, IndexNow); remaining: GEO/LLM visibility ([#29](https://github.com/novaspatial/nova/issues/29)).
+- **Lifecycle** — a `delivered_at` anchor with a 90-day file-retention purge job ([#27](https://github.com/novaspatial/nova/issues/27)) and admin file download ([#13](https://github.com/novaspatial/nova/issues/13)). *(Archive RLS hardening — [#12](https://github.com/novaspatial/nova/issues/12) — shipped in `20260625`.)*
 
 The sequenced plan (phases, decision gates D1–D13, critical path) lives in [`docs/devplan-issue-plan.md`](docs/devplan-issue-plan.md), sliced across the open [GitHub issues](https://github.com/novaspatial/nova/issues).

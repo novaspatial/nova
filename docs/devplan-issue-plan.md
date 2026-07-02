@@ -77,7 +77,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 Kararlar gelince:
 
 - [#4](https://github.com/novaspatial/nova/issues/4) **P1** `Project` tipini senkronla — ✅ **Tamam (2026-06-26)**. D1 kararıyla alanlar `Project`'e kondu: 20260422 ödeme kolonları (required) + sipariş/yaşam-döngüsü yüzeyi (optional+nullable: `song_count`, `stem_count`, `service`, `add_ons`, `subtotal_cents`, `tax_cents`, `applied_coupon_code`, `terms_accepted_at/version`, `delivered_at`, `files_purged_at`) + `DiscountCode` ve `PriceBreakdown` tipleri. build + 344 vitest temiz.
-- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — ✅ **Tamam (2026-07-02, yönetici onayıyla finalize)**. `computeOrderPrice(OrderInput): PriceBreakdown` `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar); taslak `ed6d575` ile zaten main'deydi, finalizasyonda 2 defansif düzeltme eklendi (yüzde kod 0–100'e klemplenir — negatif kod fiyatı liste üstüne şişiremez; add-on'lar dedupe edilir — duplicate çift ücretlenmez) + 44 testlik suite (bulk tier sınırları, percent/fixed kod, cap/floor, private bastırma, add-on dedupe, defansif kenarlar, 405 noktalık invariant grid). lint + 461 vitest + tsc-baseline temiz. S4a(#22) matematiğini de kapsar; S1(#16) checkout'a bağlayacak. Eski `computePrice` (düz $299/$149) S1'e kadar canlı.
+- [#5](https://github.com/novaspatial/nova/issues/5) **P2** Saf fiyatlandırma modülü — ✅ **Tamam (2026-07-02, yönetici onayıyla finalize)**. `computeOrderPrice(OrderInput): PriceBreakdown` `src/lib/stripe/pricing.ts`'te (per-song liste, bulk tier, tek public/private kod percent+fixed, %35 cap, $225 USD per-song floor, add-on'lar); taslak `ed6d575` ile zaten main'deydi, finalizasyonda 2 defansif düzeltme eklendi (yüzde kod 0–100'e klemplenir — negatif kod fiyatı liste üstüne şişiremez; add-on'lar dedupe edilir — duplicate çift ücretlenmez) + 44 testlik suite (bulk tier sınırları, percent/fixed kod, cap/floor, private bastırma, add-on dedupe, defansif kenarlar, 405 noktalık invariant grid). lint + 461 vitest + tsc-baseline temiz. S4a(#22) matematiğini de kapsar. _(Güncelleme: S1 ile checkout'a bağlandı; eski `computePrice` `3c46ef8` ile kaldırıldı.)_
 - [#6](https://github.com/novaspatial/nova/issues/6) **P3** Site-origin + publish hook — ✅ **Tamam (2026-06-26)** (`cf283fb`). D10 apex kararıyla tek kaynak `src/lib/site.ts` (`SITE_URL`/`SITE_NAME`/`absoluteUrl`, `NEXT_PUBLIC_SITE_URL` env + fallback); `layout.tsx` hardcoded `www` → bu kaynaktan okuyor. Blog publish yan-etkileri tek `onPostMutated({type,slug,isPublished})` hook'unda toplandı (POST + PATCH/[id] + DELETE paylaşıyor; duplike `revalidatePath` + lokal `revalidateBlog` kaldırıldı) — draft-create yalnız `/blog`'u, update/delete post sayfasını da bust ediyor (mevcut testler korunuyor). IndexNow(#15) buraya sıfır route değişikliğiyle bağlanacak. build + lint temiz; 41 route+yeni test geçiyor. #14/#15 artık açık.
 
 ---
@@ -100,6 +100,8 @@ P1(#4) + P2(#5)
 ```
 
 **Önerilen sıra:** #16 → (#18, #19, #17 paralel) → #22 → #25 → #26; #23 ve #24, #16 biter bitmez araya alınabilir.
+
+> **Durum (2026-07-02):** **S1 (#16) ✅ Tamam** (`60bee5d` + `3c46ef8` + `46d08ea` + `5492226`) — migration `20260702_add_order_fields` (song_count/stem_count/subtotal_cents/reference_tracks, remote'ta canlı), sipariş formu (servis seçici, şarkı sayısı, referans parçalar, canlı quote), checkout `computeOrderPrice`'a bağlandı (first-mix = private %50 kod, floor'la $225/şarkı), PaymentStep kalem kalem breakdown. Stem-upload mutabakatı: dosyalar ödeme ÖNCESİ seçilir, ödeme onayı SONRASI yüklenir (402 status kapısı sunucuda da zorlar); `stem_count` seçilen dosyalardan türetilir. Redirect'li ödeme yöntemleri kapalı (in-memory dosya listesi kaybolmasın). **S2 (#18) ✅** aynı slice'la uçtan uca teslim (tier testleri + quote/PaymentStep "Album discount" satırı + charge/persist). Ek: legacy `computePrice` kaldırıldı; ödemesiz `POST /api/portal/projects` endpoint'i kaldırıldı (paywall bypass'ıydı); `20260702_harden_order_writes` — first-mix RPC'lerine kimlik guard'ı + tüketilmiş-indirim ön koşulu, sipariş/para kolonlarını client'a donduran trigger (webhook/service etkilenmez). 28-ajanlık çekişmeli review: 23 bulgu doğrulandı ve giderildi/kaydedildi. 477 test + lint + tsc + build temiz.
 
 ### Hat B — Blog / SEO
 
@@ -147,9 +149,9 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 3. **#8** ✅; **#7** ✅; **#10, #11** (hızlı kazanımlar) ✅
 4. **Kararlar:** D1 ✅, D3 ✅, D4 ✅; D2, D5, D6 (kalan)
 5. **#4 (P1)** ✅; **#5 (P2) + #22 (S4a) saf matematiği** ✅ (2026-07-02, onay geldi, finalize edildi)
-6. **#16 (S1)**
-7. **#17, #18, #19** (paralel)
-8. **#22 (S4a)**
+6. **#16 (S1)** ✅ (2026-07-02, `60bee5d`)
+7. **#18** ✅ (S1 ile teslim); **#17, #19** (paralel, sırada)
+8. **#22 (S4a)** ✅ (#5 modülüyle kapandı)
 9. **#25 (S4b) → #26 (S5)**
 10. **#23 (S7)**
 11. **Karar D10 ✅ → #6 (P3)** ✅
