@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server'
-import {
-  requireApiProfile,
-  requireApiUser,
-} from '@/lib/auth/server'
+import { NextResponse } from 'next/server'
+import { requireApiProfile } from '@/lib/auth/server'
+
+// NOTE: there is deliberately no POST here. Projects are created only via
+// the priced checkout route (/api/portal/projects/checkout) — an unpriced
+// insert endpoint would bypass payment entirely. Removed with S1 (#16).
 
 export async function GET() {
   const auth = await requireApiProfile()
@@ -30,43 +31,4 @@ export async function GET() {
   }
 
   return NextResponse.json(projects)
-}
-
-export async function POST(request: NextRequest) {
-  const auth = await requireApiUser()
-  if ('response' in auth) {
-    return auth.response
-  }
-  const { supabase, user } = auth
-
-  const body = await request.json()
-  const { title, format, notes } = body
-
-  if (!title || typeof title !== 'string') {
-    return NextResponse.json(
-      { error: 'Title is required' },
-      { status: 400 },
-    )
-  }
-
-  const { data: project, error: insertError } = await supabase
-    .from('projects')
-    .insert({
-      owner_id: user.id,
-      title: title.trim(),
-      format: format || 'atmos',
-      notes: notes || null,
-      status: 'uploading',
-    })
-    .select()
-    .single()
-
-  if (insertError || !project) {
-    return NextResponse.json(
-      { error: insertError?.message || 'Failed to create project' },
-      { status: 500 },
-    )
-  }
-
-  return NextResponse.json(project)
 }

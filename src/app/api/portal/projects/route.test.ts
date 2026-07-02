@@ -2,9 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import {
   createSupabaseMock,
   createChainMock,
-  createMockRequest,
 } from '@/test/helpers/supabaseMock'
-import type { NextRequest } from 'next/server'
 
 // Mocks
 const mockCreateClient = vi.fn()
@@ -12,7 +10,7 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
 
-import { GET, POST } from './route'
+import { GET } from './route'
 
 describe('GET /api/portal/projects', () => {
   beforeEach(() => {
@@ -112,106 +110,5 @@ describe('GET /api/portal/projects', () => {
 
     expect(res.status).toBe(500)
     await expect(res.json()).resolves.toEqual({ error: 'Database error' })
-  })
-})
-
-describe('POST /api/portal/projects', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  test('returns 401 when not authenticated', async () => {
-    mockCreateClient.mockResolvedValue(createSupabaseMock({ user: null }))
-
-    const req = createMockRequest({ title: 'New Project' })
-    const res = await POST(req as NextRequest)
-    expect(res.status).toBe(401)
-  })
-
-  test('returns 400 when title is missing', async () => {
-    const supabase = createSupabaseMock()
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({ format: 'atmos' })
-    const res = await POST(req as NextRequest)
-    expect(res.status).toBe(400)
-
-    const body = await res.json()
-    expect(body.error).toBe('Title is required')
-  })
-
-  test('returns 400 when title is empty string', async () => {
-    const supabase = createSupabaseMock()
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({ title: '' })
-    const res = await POST(req as NextRequest)
-    expect(res.status).toBe(400)
-  })
-
-  test('creates project and returns it', async () => {
-    const projectsChain = createChainMock({
-      data: { id: 'proj-new', title: 'Test Project', status: 'uploading' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { projects: projectsChain },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({
-      title: 'Test Project',
-      format: 'atmos',
-      notes: 'Some notes',
-    })
-    const res = await POST(req as NextRequest)
-    expect(res.status).toBe(200)
-
-    const body = await res.json()
-    expect(body.id).toBe('proj-new')
-    expect(body.title).toBe('Test Project')
-  })
-
-  test('trims title and falls back to default format and null notes', async () => {
-    const projectsChain = createChainMock({
-      data: { id: 'proj-new', title: 'Trimmed Title', status: 'uploading' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { projects: projectsChain },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({
-      title: '  Trimmed Title  ',
-    })
-
-    const res = await POST(req as NextRequest)
-
-    expect(res.status).toBe(200)
-    expect(projectsChain.insert).toHaveBeenCalledWith({
-      owner_id: 'user-1',
-      title: 'Trimmed Title',
-      format: 'atmos',
-      notes: null,
-      status: 'uploading',
-    })
-  })
-
-  test('returns 500 when insert fails', async () => {
-    const projectsChain = createChainMock({
-      data: null,
-      error: { message: 'Insert failed' },
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { projects: projectsChain },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({ title: 'New Project' })
-    const res = await POST(req as NextRequest)
-
-    expect(res.status).toBe(500)
-    await expect(res.json()).resolves.toEqual({ error: 'Insert failed' })
   })
 })
