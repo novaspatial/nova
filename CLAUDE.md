@@ -59,7 +59,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 
 ## Deploy / CI
 
-Vercel. `.github/workflows/main.yml` runs install → lint → build on push/PR to `main`; a Vitest step is still a TODO. `next.config.mjs` sets a strict CSP (allows Stripe + the Supabase websocket) and long-lived caching for static media.
+Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build on push/PR to `main`. `next.config.mjs` sets a strict CSP (allows Stripe + the Supabase websocket) and long-lived caching for static media.
 
 ## Agent skills
 
@@ -67,7 +67,7 @@ Vercel. `.github/workflows/main.yml` runs install → lint → build on push/PR 
 
 Issues and PRDs live in novaspatial/nova's GitHub Issues, via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`. The sequenced **dev plan** (phases, decision gates D1–D13, critical path across the open issues) is `docs/devplan-issue-plan.md` — read it before picking up commerce/SEO/lifecycle work.
 
-> **Known gaps (don't treat the clean state as reality):** the `Project` type in `src/types/portal.ts` is **not synced** with the payment columns added in `20260422_add_project_payments.sql` (issue #4). The bulk of the dev plan (per-song/CAD pricing, discount codes, add-ons, T&C, order email, sitemap, purge job) is **planned, not built** — today's pricing is flat USD ($299/$149). _(Archive RLS — issue #12 — is now closed: studio-only `archived_at` write is enforced by a DB trigger; see `20260625` and ARCHITECTURE.md.)_
+> **Known gaps (don't treat the clean state as reality):** the per-song USD pricing exists only as the pure, exhaustively-tested `computeOrderPrice` module in `src/lib/stripe/pricing.ts` — the **live checkout still charges flat USD ($299/$149)** via legacy `computePrice` until S1 (#16) rewires it. The rest of the commerce plan (checkout quote, discount-codes table, add-ons, T&C, order email, purge job) is **planned, not built**. _(Archive RLS — issue #12 — is now closed: studio-only `archived_at` write is enforced by a DB trigger; see `20260625` and ARCHITECTURE.md.)_
 
 ### Triage labels
 
