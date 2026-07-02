@@ -1,21 +1,9 @@
 import type { AddOn, Currency, PriceBreakdown } from '@/types/portal'
 
-// Legacy flat pricing for the current single-product checkout. The live
-// checkout route still calls this until S1 (#16) rewires it to the per-song
-// quote below. Do not delete until that slice lands.
-export const FULL_PRICE_CENTS = 29900
-export const FIRST_MIX_PRICE_CENTS = 14900
-export const CURRENCY = 'usd'
-
-export function computePrice(hasFirstMixDiscount: boolean) {
-  return {
-    amountCents: hasFirstMixDiscount ? FIRST_MIX_PRICE_CENTS : FULL_PRICE_CENTS,
-    currency: CURRENCY,
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Per-song order pricing (P2 #5 + S4a #22 math). Pure: no DB, no UI, no I/O.
+// The legacy flat computePrice ($299/$149) was removed when S1 (#16) rewired
+// the checkout route to computeOrderPrice.
 // Algorithm fixed by D3 (USD list, USD floor) and D4 (cap/floor/order-of-ops):
 //
 //   1. list total      = songCount × $325

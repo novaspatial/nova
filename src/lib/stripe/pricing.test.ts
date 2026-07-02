@@ -1,38 +1,12 @@
 import { describe, test, expect } from 'vitest'
 import type { AddOn, Currency, PriceBreakdown } from '@/types/portal'
 import {
-  computePrice,
-  FULL_PRICE_CENTS,
-  FIRST_MIX_PRICE_CENTS,
-  CURRENCY,
   computeOrderPrice,
   bulkDiscountPct,
   LIST_PRICE_PER_SONG_CENTS,
   FLOOR_PER_SONG_CENTS,
   type OrderCode,
 } from './pricing'
-
-describe('computePrice', () => {
-  test('returns the full price in USD when no discount applies', () => {
-    expect(computePrice(false)).toEqual({
-      amountCents: FULL_PRICE_CENTS,
-      currency: 'usd',
-    })
-    expect(FULL_PRICE_CENTS).toBe(29900)
-  })
-
-  test('returns the first-mix price in USD when discount applies', () => {
-    expect(computePrice(true)).toEqual({
-      amountCents: FIRST_MIX_PRICE_CENTS,
-      currency: 'usd',
-    })
-    expect(FIRST_MIX_PRICE_CENTS).toBe(14900)
-  })
-
-  test('currency is always usd', () => {
-    expect(CURRENCY).toBe('usd')
-  })
-})
 
 const percent = (value: number, scope: 'public' | 'private'): OrderCode => ({
   kind: 'percent',
