@@ -5,6 +5,7 @@ Bu doküman: **hangi sırayla gidilmeli**, neyin neyi blokladığı ve hangi kar
 
 > Kaynak issue'lar: [novaspatial/nova/issues](https://github.com/novaspatial/nova/issues)
 > Açık kararlar şemsiyesi: [#1](https://github.com/novaspatial/nova/issues/1) (`needs-info`)
+> **Gap denetimi (2026-07-04):** docx satır satır issue setiyle yeniden karşılaştırıldı (160 madde; çok-ajanlı çekişmeli doğrulama). 3 atlanmış iş issue'laştı: **[#31](https://github.com/novaspatial/nova/issues/31) (S21, vergi)**, **[#32](https://github.com/novaspatial/nova/issues/32) (S22, Stem Prep Guide)**, **[#33](https://github.com/novaspatial/nova/issues/33) (S23, IndexNow aktivasyonu)**; #23 öne çekildi (lineer sırada); 2 yeni karar maddesi #1'e yazıldı (D-floor-private, D-revisions); #19/#24/#9/#10'a hizalama notları düşüldü.
 
 ## Etiket okuması
 
@@ -49,7 +50,7 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 ### Öncelik 2 — ticaret detayları
 | Karar | Konu | Açtığı |
 |-------|------|--------|
-| **D2** 🟡 | Vergi — **politika kararı verildi (2026-07-02, Mike):** Kanadalı müşterilere **GST** uygulanacak, **PST yok**; hesaplama mekanizması (Stripe Tax vs kendi hesabımız) bize bırakıldı. **Hâlâ açık:** mekanizma seçimi + verginin nerede gösterileceği (quote/PaymentStep/makbuz) + HST eyaletleri sorusu (ON/NS vb. GST+PST'yi HST olarak birleştirir — "GST var PST yok" oralarda %5 mi tam HST mi, netleştirilmeli). | #16, #24 |
+| **D2** 🟡 | Vergi — **politika kararı verildi (2026-07-02, Mike):** Kanadalı müşterilere **GST** uygulanacak, **PST yok**; hesaplama mekanizması (Stripe Tax vs kendi hesabımız) bize bırakıldı. **Hâlâ açık:** mekanizma seçimi + verginin nerede gösterileceği (quote/PaymentStep/makbuz) + HST eyaletleri sorusu (ON/NS vb. GST+PST'yi HST olarak birleştirir — "GST var PST yok" oralarda %5 mi tam HST mi, netleştirilmeli). **İmplementasyon dilimi artık [#31](https://github.com/novaspatial/nova/issues/31) (S21)** — #16 vergiyi stub'layarak kapandı (`taxCents = 0`), #24 yalnız e-posta satırını gösterir. | #31, #24 |
 | **D5** | "Returning" tanımı (ödenmiş mi / teslim edilmiş mi proje) | #25 |
 | **D6** | Tek-kullanımlık kod ne zaman tüketilir | #26 |
 
@@ -68,6 +69,8 @@ Ticaret motorunu açmak için **3 anahtar karar** kritik. Öncelik sırası:
 | **D13** | Inbox sağlayıcı + gönderim subdomain'i | #24 |
 | **D11** | Welcome kod yüzdesi (%10 vs %15) + şimdi mi uygulanır | #9 |
 | **D-refund** | Para-iade mekanizması (uygulama içi mi, manuel mi) | — (yeni slice veya dışlama) |
+| **D-floor-private** | Private kod ~$200 hedefi vs $225 USD floor çelişkisi (docx satır 65 vs D3/D4 — floor tüm kodlara uygulanıyor, indie-kazanım fiyat noktası kapandı): floor istisnası mı, $225 minimum kabul mü? | #26 şekli |
+| **D-revisions** | Dahil 2 revizyon turunun takibi (T&C §3 "used or waived" satış-kesinleşme koşulu + §5 sonradan ek-revizyon satışı): portal'da sayaç/feragat mı, manuel mi? Manuel ise "Build edilmeyen" listesine yazılacak | #19 şekli |
 | **D12** | Nova Studios mimarisi (ayrı deploy / çok-kiracılı / route group) | — (tüm Part B) |
 
 ---
@@ -114,7 +117,7 @@ S11(#10) ─> S12(#20)  per-post meta + JSON-LD + alt + slug   (ayrıca P3, D8)
 ```
 
 - [#14](https://github.com/novaspatial/nova/issues/14) **S14** sitemap + robots — ✅ **Tamam (2026-06-26)** (`bf710fe`). `src/app/sitemap.ts` (pazarlama sayfaları + `loadPublishedPosts` ile yayınlanmış postlar, `updated_at` lastmod, `absoluteUrl`) ve `src/app/robots.ts` (non-public yüzeyi disallow, sitemap'i gösterir). robots statik, sitemap dinamik (publish'te taze); draft sızmaz.
-- [#15](https://github.com/novaspatial/nova/issues/15) **S15** IndexNow ping — ✅ **Tamam (2026-06-26)** (`02d3d02`). `onPostMutated` hook'una bağlı best-effort `pingIndexNow`; `PostMutation`'a `wasPublished` eklendi → publish / canlı-düzenleme / takedown'da ping, hiç-public-olmamış draft'ta yok. Anahtar `/indexnow-key.txt`'te env'den (tek kaynak). Bing/Yandex/Seznam/Naver/Yep'i kapsar (Google katılmaz → robots+sitemap). `INDEXNOW_KEY` set edilene kadar atıl.
+- [#15](https://github.com/novaspatial/nova/issues/15) **S15** IndexNow ping — ✅ **Tamam (2026-06-26)** (`02d3d02`). `onPostMutated` hook'una bağlı best-effort `pingIndexNow`; `PostMutation`'a `wasPublished` eklendi → publish / canlı-düzenleme / takedown'da ping, hiç-public-olmamış draft'ta yok. Anahtar `/indexnow-key.txt`'te env'den (tek kaynak). Bing/Yandex/Seznam/Naver/Yep'i kapsar (Google katılmaz → robots+sitemap). `INDEXNOW_KEY` set edilene kadar atıl. **Aktivasyon: [#33](https://github.com/novaspatial/nova/issues/33) (S23)** — canlıda key 404 + apex→www 307 (D10 ile çelişik); prod key + canlı ping doğrulaması orada.
 - [#20](https://github.com/novaspatial/nova/issues/20) **S12** per-post SEO meta + JSON-LD + alt + slug — ✅ **Tamam (2026-06-26)** (`be6209c`). **D8/D9 verildi** (D8: ilk inline görsel, D10 zaten kapalıydı). `buildPostMetadata`/`buildPostJsonLd` (`src/lib/blog/metadata.ts`): canonical + article OG + Twitter kartı + `BlogPosting` JSON-LD; `rehype-slug` ile temiz başlık anchor'ları (sanitize `clobber`'dan `id` çıkarıldı); admin route'larında slug + alt-metin doğrulaması (400). OG görseli ilk inline görsel, yoksa `/og-image.jpg`.
 - [#21](https://github.com/novaspatial/nova/issues/21) **S13** otomatik share-image — ✅ **Tamam (2026-06-26)** (`8ec148c`). `next/og` `ImageResponse` Node-runtime route'u (`src/app/blog/[slug]/share-image`): post başlığı marka fontunda hero görselin üstünde, koyu gradient scrim + "NOVA Spatial" wordmark + yazar byline'ı. `buildPostMetadata` og/twitter görselini bu route'a bağlar (`postShareImageUrl`); `BlogPosting` JSON-LD gerçek hero'da kalır. **Font:** satori değişken woff2'yi kullanamaz → statik **Mona-Sans Expanded SemiBold** (OFL) commit edildi, diskten `import.meta.url` ile okunur (Noto fallback sayesinde font yüklenemezse 500 yok). **webp/avif koruması:** hero kontrollü fetch'le çekilir, yalnız jpeg/png data-URI olarak gömülür, aksi halde marka gradient'ine düşülür. `outputFileTracingIncludes` fontu Vercel bundle'ına taşır. Co-located testler + canlı doğrulama (1200×630 PNG, og/twitter `share-image`'e işaret ediyor, bilinmeyen slug → 404).
 - [#29](https://github.com/novaspatial/nova/issues/29) **S19** LLM/AI-arama görünürlüğü (GEO) — #20 üstüne: ana sayfada `Organization`+`WebSite`, yazar `Person`+`sameAs`, `BreadcrumbList`, uygun yazılarda `FAQPage`; `/llms.txt`; robots'ta AI-crawler erişimini belgele (GPTBot/ClaudeBot/PerplexityBot/Google-Extended bloklanmıyor). **needs-info:** `sameAs` sosyal/profil URL'leri. İçerik tarafı (soru-formatlı başlık + özet-cevap) editör işi.
@@ -143,30 +146,33 @@ _(Durum 2026-07-04: zincirin S4b(#25) → S5(#26) dışındaki tamamı ✅ — k
 
 ---
 
-## Kalan yol (2026-07-04 — 11 açık issue)
+## Kalan yol (2026-07-04 — 14 açık issue; gap denetimiyle +3)
 
 ### Hemen yapılabilir (karar gerektirmez)
 
-1. **[#19](https://github.com/novaspatial/nova/issues/19) S6 — Add-on'lar (extra revision + 48h rush).** Matematik modülde hazır ve testli (`ADD_ON_CENTS`, indirim sonrası, cap/floor dışı); iş: form checkbox'ları + checkout'a `addOns` + `add_ons` kolonu + PaymentStep satırı. S1 yüzeyinin doğal uzantısı.
-2. **[#23](https://github.com/novaspatial/nova/issues/23) S7 — T&C sayfası + onay checkbox'ı.** P4'ün Checkbox primitifi + Footer seam'i hazır; sayfa + zorunlu checkbox + `terms_accepted_at/version` kaydı bizde, metin Jamie'de (sonradan düşer). Para-iade cümlesi **D-refund**'a dokunur — Jamie'ye hatırlat.
-3. **(Paralel) Karar paketi Mike/Jamie'ye** — kalan her şeyin kilidi, tek seferde sorulmalı: **D5** (returning = ödenmiş mi teslim edilmiş mi), **D6** (tek-kullanımlık kod tüketimi — öneri: mevcut reserve/restore deseni), **D11** (welcome %10 vs %15), **D2-HST** (Ontario'da %5 GST mi tam HST mi — #1'de soruldu, hatırlat), **D13** (inbox + gönderim subdomain'i).
+1. **[#23](https://github.com/novaspatial/nova/issues/23) S7 — T&C sayfası + onay checkbox'ı.** **Öne çekildi (gap denetimi):** docx "T&C checkout canlıya çıkmadan önce" diyordu; checkout 2026-07-02'den beri sözleşmesiz/onaysız para çekiyor — launch-debt, sıradaki ticaret dilimi bu. P4'ün Checkbox primitifi + Footer seam'i hazır; sayfa + zorunlu checkbox + `terms_accepted_at/version` kaydı bizde, metin Jamie'de (sonradan düşer). Para-iade cümlesi **D-refund**'a dokunur — Jamie'ye hatırlat. Kopyadaki "see our Stem Prep Guide" atıfı [#32](https://github.com/novaspatial/nova/issues/32)'ye bakar — asılı referansla yayınlama.
+2. **[#19](https://github.com/novaspatial/nova/issues/19) S6 — Add-on'lar (extra revision + 48h rush).** Matematik modülde hazır ve testli (`ADD_ON_CENTS`, indirim sonrası, cap/floor dışı); iş: form checkbox'ları + checkout'a `addOns` + `add_ons` kolonu + PaymentStep satırı. S1 yüzeyinin doğal uzantısı. **T&C hizalaması (gap denetimi, issue yorumunda):** rush "subject to availability" — müsaitlik kapısı ya da manuel-iade kaydı; sonradan ek-revizyon satışı D-revisions'a bakıyor.
+3. **[#33](https://github.com/novaspatial/nova/issues/33) S23 — IndexNow prod aktivasyonu.** Saf ops + doğrulama: `INDEXNOW_KEY` Vercel'e, canlıda key 200 + kabul edilen ping. Canlı bulgu: key 404 **ve apex→www 307, D10 apex kararıyla çelişik** — yön düzeltilmeli/karar tazelenmeli.
+4. **(Paralel) Karar paketi Mike/Jamie'ye** — kalan her şeyin kilidi, tek seferde sorulmalı: **D5** (returning = ödenmiş mi teslim edilmiş mi), **D6** (tek-kullanımlık kod tüketimi — öneri: mevcut reserve/restore deseni), **D11** (welcome %10 vs %15), **D2-HST** (Ontario'da %5 GST mi tam HST mi — #1'de soruldu, hatırlat), **D13** (inbox + gönderim subdomain'i), **D-floor-private** (private kod ~$200 hedefi vs $225 floor — indie stratejisini etkiler), **D-revisions** (revizyon turu takibi portal'da mı manuel mi).
 
 ### Karar geldikçe (kritik yolun kalanı)
 
-4. **[#25](https://github.com/novaspatial/nova/issues/25) S4b — kod redemption'ı checkout'a bağla** ← D5. Tablo (#17) + modül hazır; iş: formda kod alanı, sunucuda eligibility (aktif/expired/kitle/limit), `applied_coupon_code` persist, charge.
-5. **[#26](https://github.com/novaspatial/nova/issues/26) S5 — tek-kullanımlık kod tüketimi** ← D6 + #25. Sertleştirilmiş first-mix RPC desenini kopyala.
-6. **[#9](https://github.com/novaspatial/nova/issues/9) S10 — %50 promo → welcome kopyası** ← D11. **Araya sokulmalı:** canlı "50% off" vaadi ile floor'lu gerçek indirim (~%31) şu an çelişiyor.
-7. **[#30](https://github.com/novaspatial/nova/issues/30) S20 — ana sayfa fiyat hesaplayıcısı** ← D11. S1 quote mantığını paylaşan client bileşen; #9 ile aynı tura girebilir (ikisi de pazarlama yüzeyi).
-8. **[#24](https://github.com/novaspatial/nova/issues/24) S8 — sipariş onay e-postası** ← D2 (makbuzda vergi) + D13 (gönderici). D13 gecikirse mevcut tek sender'la vergisiz makbuz olarak çıkabilir.
+1. **[#25](https://github.com/novaspatial/nova/issues/25) S4b — kod redemption'ı checkout'a bağla** ← D5. Tablo (#17) + modül hazır; iş: formda kod alanı, sunucuda eligibility (aktif/expired/kitle/limit), `applied_coupon_code` persist, charge.
+2. **[#26](https://github.com/novaspatial/nova/issues/26) S5 — tek-kullanımlık kod tüketimi** ← D6 + #25. Sertleştirilmiş first-mix RPC desenini kopyala.
+3. **[#9](https://github.com/novaspatial/nova/issues/9) S10 — %50 promo → welcome kopyası** ← D11. **Araya sokulmalı:** canlı "50% off" vaadi ile floor'lu gerçek indirim (~%31) şu an çelişiyor. PhD kredisi de bu copy geçişine girebilir (gap-denetimi notu).
+4. **[#30](https://github.com/novaspatial/nova/issues/30) S20 — ana sayfa fiyat hesaplayıcısı** ← D11. S1 quote mantığını paylaşan client bileşen; #9 ile aynı tura girebilir (ikisi de pazarlama yüzeyi).
+5. **[#31](https://github.com/novaspatial/nova/issues/31) S21 — vergiyi checkout'ta hesapla + tahsil et (gap denetimi)** ← D2 mekanizma + HST. `taxCents = 0` stub'ı doldurulur (ya da Stripe Tax `automatic_tax`), `tax_cents` migration+RLS+tip birlikte, quote/PaymentStep vergi satırı, PaymentIntent subtotal+tax çeker. Canlı checkout şu an **vergisiz** tahsilat yapıyor.
+6. **[#24](https://github.com/novaspatial/nova/issues/24) S8 — sipariş onay e-postası** ← #31 (vergi satırı onun persist ettiği değeri tüketir) + D13 (gönderici). D13 gecikirse mevcut tek sender'la vergisiz makbuz olarak çıkabilir. Tahmini-teslim satırı notu issue yorumunda (T&C §6).
 
 ### Bağımsız kuyruk
 
-9. **[#13](https://github.com/novaspatial/nova/issues/13) S17 — admin dosya indirme.** Karara bağlı değil; signed-URL altyapısı hazır, araya her an alınabilir.
-10. **[#27](https://github.com/novaspatial/nova/issues/27) S18 — delivered_at + 90 gün purge** ← D7 (infra; öneri Vercel Cron) + D7b (tombstone vs hard-delete). `projectCleanup.ts` (#3) yeniden kullanılır.
-11. **[#29](https://github.com/novaspatial/nova/issues/29) S19 — GEO/LLM görünürlüğü** ← `sameAs` URL'leri (needs-info); gelince yarım günlük iş.
-12. **D12 → Nova Studios (Part B).** Mimari karar verilmeden dilim açılmaz; karar gelince ayrı `/to-issues` turu.
+1. **[#13](https://github.com/novaspatial/nova/issues/13) S17 — admin dosya indirme.** Karara bağlı değil; signed-URL altyapısı hazır, araya her an alınabilir.
+2. **[#32](https://github.com/novaspatial/nova/issues/32) S22 — Stem Prep Guide sayfası (gap denetimi).** İçerik Part C hand-off'undan (Jamie; T&C-metni deseninin aynısı), FAQ stem cevaplarından seed edilebilir; /terms ve stem-upload adımından linklenir — #23 ile koordine.
+3. **[#27](https://github.com/novaspatial/nova/issues/27) S18 — delivered_at + 90 gün purge** ← D7 (infra; öneri Vercel Cron) + D7b (tombstone vs hard-delete). `projectCleanup.ts` (#3) yeniden kullanılır.
+4. **[#29](https://github.com/novaspatial/nova/issues/29) S19 — GEO/LLM görünürlüğü** ← `sameAs` URL'leri (needs-info); gelince yarım günlük iş.
+5. **D12 → Nova Studios (Part B).** Mimari karar verilmeden dilim açılmaz; karar gelince ayrı `/to-issues` turu.
 
-**Özet akış:** #19 → #23 (bloksuz) + karar paketi paralel gönderilir; D5/D6 → #25 → #26; D11 → #9 + #30; D2/D13 → #24; kuyruk fırsat buldukça.
+**Özet akış:** #23 (launch-debt) → #19 → #33 (bloksuz) + karar paketi paralel gönderilir; D5/D6 → #25 → #26; D11 → #9 + #30; D2 → #31 → #24 (D13); kuyruk (#13, #32, #27, #29) fırsat buldukça.
 
 ---
 
@@ -236,6 +242,9 @@ _(Durum 2026-07-04: zincirin S4b(#25) → S5(#26) dışındaki tamamı ✅ — k
 | S18 | [#27](https://github.com/novaspatial/nova/issues/27) | ready-for-human | delivered_at + 90-day purge |
 | S19 | [#29](https://github.com/novaspatial/nova/issues/29) | ready-for-human | LLM/AI-search visibility (GEO): site+author schema, llms.txt, AI-crawler access |
 | S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-human | Interactive price calculator on the homepage + entry to the new-project flow |
+| S21 | [#31](https://github.com/novaspatial/nova/issues/31) | ready-for-human | Compute + charge GST at checkout (D2 implementation; gap denetimi 2026-07-04) |
+| S22 | [#32](https://github.com/novaspatial/nova/issues/32) | ready-for-human | Stem Prep Guide page + T&C reference resolution (gap denetimi 2026-07-04) |
+| S23 | [#33](https://github.com/novaspatial/nova/issues/33) | ready-for-human | IndexNow production activation + apex/www redirect reconciliation (gap denetimi 2026-07-04) |
 
 ---
 
