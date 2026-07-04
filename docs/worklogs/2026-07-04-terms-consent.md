@@ -1,0 +1,9 @@
+T&C page + required checkout consent (S7)
+
+Date: 2026-07-04.
+
+Closed the top launch-debt: priced checkout has charged real money since 2026-07-02 with no terms and no consent record. Added a `/terms` page (server component on the about-page shell, linked from the Footer Legal group and the sitemap) carrying a minimal, neutral first draft — accurate clauses only, no refund policy (D-refund is open) and no Stem Prep Guide link (#32 unbuilt). `src/lib/legal/terms.ts` holds `TERMS_VERSION` as the single source of truth; any material copy change bumps it, which forces re-consent. Migration `20260704_record_terms_consent` adds `terms_accepted_at` + `terms_version` to `projects` and extends the existing `enforce_studio_only_order_fields` freeze trigger to cover them; applied to the remote and verified.
+
+Consent is captured at order time. `NewProjectForm` gates submit on a required checkbox and echoes the displayed `termsAcceptedVersion`; the checkout route rejects (400) unless it matches the current `TERMS_VERSION` — before any Stripe or discount-reservation side effect, so a rejection never creates a PaymentIntent or burns the first-mix code. The server records its own `TERMS_VERSION` + timestamp (never the client value) via the shared `orderFields`, so both the real Stripe and dev-bypass insert paths persist it. The freeze trigger makes consent immutable after insert: an owner attempting to rewrite `terms_accepted_at` is blocked with `42501`, verified against the remote in a rolled-back transaction.
+
+Four new tests (three version-gate rejections, one submit-blocked-until-consent), plus updated insert-assertion and sitemap expectations. Full suite 507, lint/types/build clean. The copy is a first draft pending Jamie/legal — the version-bump mechanism re-collects consent when it lands; refund wording stays deferred to D-refund.

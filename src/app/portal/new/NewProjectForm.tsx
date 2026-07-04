@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import Link from 'next/link'
 import { FileUploader, PaymentStep } from '@/components/portal'
+import { Checkbox } from '@/components/ui/Checkbox'
 import type { FileUploadItem, PriceBreakdown, Project } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
 import { computeOrderPrice } from '@/lib/stripe/pricing'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { TERMS_VERSION } from '@/lib/legal/terms'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
@@ -80,7 +83,11 @@ export function NewProjectForm() {
   const [files, setFiles] = useState<FileUploadItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
+  // Set right before our own success redirect so the beforeunload guard
+  // doesn't prompt on a navigation the user didn't initiate.
+  const navigatingAwayRef = useRef(false)
 
   // Number() (not parseInt) so exponent notation the number input accepts
   // ('2e1' = 20) can't silently truncate to its mantissa.
@@ -101,6 +108,7 @@ export function NewProjectForm() {
     // paying) would abort the stem uploads just as silently.
     if (phase === 'form') return
     const handler = (e: BeforeUnloadEvent) => {
+      if (navigatingAwayRef.current) return
       e.preventDefault()
       e.returnValue = ''
     }
@@ -250,6 +258,7 @@ export function NewProjectForm() {
         return
       }
 
+      navigatingAwayRef.current = true
       window.location.assign(`/portal/${projectId}/upload`)
     },
     [runUploadLoop],
@@ -285,6 +294,10 @@ export function NewProjectForm() {
         )
         return
       }
+      if (!termsAccepted) {
+        setError('Please accept the Terms & Conditions to continue.')
+        return
+      }
 
       setSubmitting(true)
       setError(null)
@@ -300,6 +313,7 @@ export function NewProjectForm() {
             stemCount: files.length,
             referenceTracks: referenceTracks.trim() || null,
             notes: notes.trim() || null,
+            termsAcceptedVersion: termsAccepted ? TERMS_VERSION : null,
           }),
         })
         if (!res.ok) {
@@ -340,6 +354,7 @@ export function NewProjectForm() {
       referenceTracks,
       notes,
       files,
+      termsAccepted,
       uploadAndNavigate,
     ],
   )
@@ -571,6 +586,26 @@ export function NewProjectForm() {
           </p>
         </div>
       )}
+
+      <div className="space-y-2">
+        <Checkbox
+          isSelected={termsAccepted}
+          onChange={setTermsAccepted}
+          isDisabled={submitting || phase === 'uploading'}
+        >
+          <span className="text-xs text-zinc-300 sm:text-sm">
+            I have read and agree to the Terms &amp; Conditions.
+          </span>
+        </Checkbox>
+        <Link
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-xs text-violet-300 hover:text-violet-200"
+        >
+          View Terms &amp; Conditions ↗
+        </Link>
+      </div>
 
       <button
         type="submit"

@@ -13,10 +13,12 @@ const navigation: FooterNavGroup[] = [
     links: [
       { title: 'About', href: '/about' },
       { title: 'Blog', href: '/blog' },
-      { title: 'Contact', href: '/about' },
     ],
   },
-  // Legal group (Terms, Privacy, …) drops in here — see #23 (T&C).
+  {
+    title: 'Legal',
+    links: [{ title: 'Terms', href: '/terms' }],
+  },
 ]
 
 function Navigation() {

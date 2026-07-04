@@ -17,6 +17,7 @@ describe('sitemap', () => {
       'https://nova-spatial.com/',
       'https://nova-spatial.com/about',
       'https://nova-spatial.com/contact',
+      'https://nova-spatial.com/terms',
       'https://nova-spatial.com/blog',
     ])
     expect(entries.every((e) => e.lastModified === undefined)).toBe(true)
@@ -30,7 +31,7 @@ describe('sitemap', () => {
 
     const entries = await sitemap()
 
-    expect(entries.slice(4)).toEqual([
+    expect(entries.slice(5)).toEqual([
       {
         url: 'https://nova-spatial.com/blog/first-post',
         lastModified: new Date('2026-06-20T10:00:00.000Z'),
@@ -49,6 +50,6 @@ describe('sitemap', () => {
   test('falls back to the static pages only when there are no posts', async () => {
     loadPublishedPosts.mockResolvedValueOnce([])
     const entries = await sitemap()
-    expect(entries).toHaveLength(4)
+    expect(entries).toHaveLength(5)
   })
 })

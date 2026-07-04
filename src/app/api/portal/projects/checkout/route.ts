@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { computeOrderPrice, type OrderCode } from '@/lib/stripe/pricing'
+import { TERMS_VERSION } from '@/lib/legal/terms'
 
 const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_MAX_PENDING = 3
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
         referenceTracks?: unknown
         songCount?: unknown
         stemCount?: unknown
+        termsAcceptedVersion?: unknown
       }
     | null
 
@@ -79,6 +81,20 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json(
       { error: `Notes and reference tracks must be under ${MAX_TEXT_LENGTH} characters` },
+      { status: 400 },
+    )
+  }
+
+  // T&C consent (#23): the client echoes the version it displayed; reject unless
+  // it matches the current terms, which forces re-consent on a stale tab across a
+  // deploy. We record the server-side TERMS_VERSION below, never the client value.
+  // Gate here, before any Stripe/reservation side effect, so a rejection never
+  // creates a PaymentIntent or burns the first-mix discount.
+  const termsAcceptedVersion =
+    typeof body?.termsAcceptedVersion === 'string' ? body.termsAcceptedVersion : ''
+  if (!termsAcceptedVersion || termsAcceptedVersion !== TERMS_VERSION) {
+    return NextResponse.json(
+      { error: 'You must accept the current Terms & Conditions to continue.' },
       { status: 400 },
     )
   }
@@ -137,15 +153,17 @@ export async function POST(request: NextRequest) {
   const amountCents = breakdown.total_cents
   const currency = breakdown.currency
 
+  const nowIso = new Date().toISOString()
   const orderFields = {
     song_count: songCount,
     stem_count: stemCount,
     subtotal_cents: breakdown.subtotal_cents,
     reference_tracks: referenceTracks,
+    terms_accepted_at: nowIso,
+    terms_version: TERMS_VERSION,
   }
 
   if (devBypass) {
-    const nowIso = new Date().toISOString()
     // Dev-only: the charge is skipped (amount 0), but the order fields keep
     // the real quote so the downstream UI can be exercised against it.
     const { data: project, error: insertError } = await supabase

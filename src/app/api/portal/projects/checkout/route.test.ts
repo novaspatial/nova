@@ -4,6 +4,7 @@ import {
   createChainMock,
   createMockRequest,
 } from '@/test/helpers/supabaseMock'
+import { TERMS_VERSION } from '@/lib/legal/terms'
 import type { NextRequest } from 'next/server'
 
 const mockCreateClient = vi.fn()
@@ -41,6 +42,7 @@ function orderBody(overrides: Record<string, unknown> = {}) {
     format: 'atmos',
     songCount: 1,
     stemCount: 12,
+    termsAcceptedVersion: TERMS_VERSION,
     ...overrides,
   }
 }
@@ -127,6 +129,21 @@ describe('POST /api/portal/projects/checkout', () => {
       expect(res.status).toBe(400)
     }
   })
+
+  test.each([
+    ['missing', undefined],
+    ['a stale version', '1999-01-01'],
+    ['non-string', true],
+  ])(
+    'returns 400 when termsAcceptedVersion is %s',
+    async (_label, termsAcceptedVersion) => {
+      mockCreateClient.mockResolvedValue(createSupabaseMock())
+      const req = createMockRequest(orderBody({ termsAcceptedVersion }))
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(400)
+      expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+    },
+  )
 
   test('defaults the format when absent and nulls a non-string referenceTracks', async () => {
     const projectsChain = makeProjectsChain({})
@@ -222,6 +239,8 @@ describe('POST /api/portal/projects/checkout', () => {
         subtotal_cents: 32500,
         reference_tracks: 'Track A — Artist B',
         discount_applied: false,
+        terms_accepted_at: expect.any(String),
+        terms_version: TERMS_VERSION,
       }),
     )
   })
@@ -425,6 +444,8 @@ describe('POST /api/portal/projects/checkout', () => {
           subtotal_cents: 82875,
           reference_tracks: 'Ref X',
           discount_applied: false,
+          terms_accepted_at: expect.any(String),
+          terms_version: TERMS_VERSION,
         }),
       )
     } finally {

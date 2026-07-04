@@ -60,6 +60,11 @@ export interface Project {
   subtotal_cents: number | null
   reference_tracks: string | null
 
+  // T&C consent — live in DB since migration 20260704 (S7 #23). Captured at
+  // checkout; nullable for rows created before consent capture existed.
+  terms_accepted_at: string | null
+  terms_version: string | null
+
   // Order/lifecycle surface the remaining commerce and purge slices will
   // add. Declared optional + nullable so current `select *` reads (whose rows
   // lack these columns) stay type-safe; each column lands in its owning slice.
@@ -67,8 +72,6 @@ export interface Project {
   add_ons?: AddOn[] | null
   tax_cents?: number | null
   applied_coupon_code?: string | null
-  terms_accepted_at?: string | null // T&C accept (#23)
-  terms_version?: string | null
   delivered_at?: string | null // final-masters delivery, drives 90-day purge (#27)
   files_purged_at?: string | null
 }

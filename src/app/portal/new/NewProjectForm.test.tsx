@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { FileUploadItem } from '@/types/portal'
+import { TERMS_VERSION } from '@/lib/legal/terms'
 
 vi.mock('@/components/portal', () => ({
   FileUploader: ({
@@ -43,6 +44,7 @@ function fillRequiredFields(songCount = '1') {
     target: { value: songCount },
   })
   fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
+  fireEvent.click(screen.getByRole('checkbox', { name: /agree to the Terms/i }))
 }
 
 describe('NewProjectForm', () => {
@@ -127,7 +129,25 @@ describe('NewProjectForm', () => {
       stemCount: 2,
       referenceTracks: 'Song X — Artist Y',
       notes: null,
+      termsAcceptedVersion: TERMS_VERSION,
     })
+  })
+
+  test('blocks submit until the terms are accepted', async () => {
+    render(<NewProjectForm />)
+    // Fill everything EXCEPT the consent checkbox.
+    fireEvent.change(screen.getByLabelText('Project Title'), {
+      target: { value: 'My Album' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create Project & Upload' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /accept the Terms/,
+    )
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   test('rejects an invalid song count without calling the API', async () => {
