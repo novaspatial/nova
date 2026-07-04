@@ -21,7 +21,9 @@ export default async function UploadPage({
   const project = await getProjectOrNotFound<{
     id: string
     status: ProjectStatus
-  }>(supabase, projectId, 'id, status', role)
+    notes: string | null
+    reference_tracks: string | null
+  }>(supabase, projectId, 'id, status, notes, reference_tracks', role)
 
   const { data: files } = await supabase
     .from('project_files')
@@ -92,6 +94,32 @@ export default async function UploadPage({
         )}
 
         {!isStudio && <ProgressTimeline status={status} />}
+
+        {(project.notes || project.reference_tracks) && (
+          <div className="rounded-2xl border border-white/10 bg-white/2 p-5 backdrop-blur-sm sm:p-6">
+            <h3 className="text-sm font-semibold text-white">Project details</h3>
+            {project.notes && (
+              <div className="mt-3">
+                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                  Notes
+                </p>
+                <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-300">
+                  {project.notes}
+                </p>
+              </div>
+            )}
+            {project.reference_tracks && (
+              <div className="mt-3">
+                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                  Reference tracks
+                </p>
+                <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-300">
+                  {project.reference_tracks}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {!isStudio && !isClientReadOnly && <UploadPrep collapsible />}
 

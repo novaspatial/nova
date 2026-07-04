@@ -89,7 +89,7 @@ describe('getUnlockedSteps', () => {
 describe('getStatusDisplay', () => {
   test.each([
     ['pending_payment', 'Pending Payment'],
-    ['uploading', 'Uploading'],
+    ['uploading', 'Awaiting Stems'],
     ['in_review', 'In Review'],
     ['processing', 'Mixing'],
     ['mixing', 'Mixing'],

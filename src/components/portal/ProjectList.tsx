@@ -189,6 +189,7 @@ export function ProjectList({
             const isMixing = project.status === 'mixing' || project.status === 'processing'
             const isInReview = project.status === 'in_review'
             const isMixAvailable = project.status === 'review'
+            const isAwaitingUpload = project.status === 'uploading'
             return (
               <FadeIn key={project.id}>
                 <ProjectCard
@@ -203,6 +204,7 @@ export function ProjectList({
                   isInReview={!archivedView && isInReview && (!isStudio || seenIds.has(project.id))}
                   isInProgress={!archivedView && isMixing && (!isStudio || seenIds.has(project.id))}
                   isMixAvailable={!archivedView && isMixAvailable}
+                  isAwaitingUpload={!archivedView && !isStudio && isAwaitingUpload}
                   onOpened={isStudio ? handleOpened : undefined}
                 />
               </FadeIn>
@@ -211,7 +213,7 @@ export function ProjectList({
         </div>
       </FadeInStagger>
 
-      {totalPages >= 1 && (
+      {totalPages > 1 && (
         <div className={`flex items-center justify-center gap-2 ${paginatedProjects.length < perPage ? 'mt-16' : 'mt-8'}`}>
           <button
             type="button"

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { FileUploader, PaymentStep } from '@/components/portal'
 import { Checkbox } from '@/components/ui/Checkbox'
 import type { FileUploadItem, PriceBreakdown, Project } from '@/types/portal'
@@ -94,6 +95,15 @@ export function NewProjectForm() {
   const songCount = songCountInput.trim() === '' ? NaN : Number(songCountInput)
   const songCountValid =
     Number.isInteger(songCount) && songCount >= 1 && songCount <= MAX_SONG_COUNT
+
+  // Custom stepper (native number spinners are hidden for house style).
+  // Empty/invalid input resolves to 1 on the first step.
+  const adjustSongCount = (delta: number) => {
+    setSongCountInput((prev) => {
+      const base = Number.isInteger(Number(prev)) ? Number(prev) : 0
+      return String(Math.min(MAX_SONG_COUNT, Math.max(1, base + delta)))
+    })
+  }
 
   // Live list-price quote. Welcome/first-mix discounts are applied
   // server-side at checkout, so the quote here is the pre-code price;
@@ -481,19 +491,43 @@ export function NewProjectForm() {
           >
             Number of Songs
           </label>
-          <input
-            id="song-count"
-            type="number"
-            inputMode="numeric"
-            required
-            min={1}
-            max={MAX_SONG_COUNT}
-            step={1}
-            value={songCountInput}
-            onChange={(e) => setSongCountInput(e.target.value)}
-            className={`mt-2 ${inputClassName}`}
-            disabled={submitting || phase === 'uploading'}
-          />
+          <div className="relative mt-2">
+            <input
+              id="song-count"
+              type="number"
+              inputMode="numeric"
+              required
+              min={1}
+              max={MAX_SONG_COUNT}
+              step={1}
+              value={songCountInput}
+              onChange={(e) => setSongCountInput(e.target.value)}
+              className={`${inputClassName} pr-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+              disabled={submitting || phase === 'uploading'}
+            />
+            <div className="absolute inset-y-0 right-2 flex flex-col justify-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => adjustSongCount(1)}
+                disabled={submitting || phase === 'uploading' || songCount >= MAX_SONG_COUNT}
+                aria-label="Increase number of songs"
+                tabIndex={-1}
+                className="flex size-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-300 transition hover:border-violet-500/40 hover:bg-violet-500/15 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronUpIcon className="size-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => adjustSongCount(-1)}
+                disabled={submitting || phase === 'uploading' || !(songCount > 1)}
+                aria-label="Decrease number of songs"
+                tabIndex={-1}
+                className="flex size-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-300 transition hover:border-violet-500/40 hover:bg-violet-500/15 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+              >
+                <ChevronDownIcon className="size-3" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -587,25 +621,28 @@ export function NewProjectForm() {
         </div>
       )}
 
-      <div className="space-y-2">
-        <Checkbox
-          isSelected={termsAccepted}
-          onChange={setTermsAccepted}
-          isDisabled={submitting || phase === 'uploading'}
-        >
-          <span className="text-xs text-zinc-300 sm:text-sm">
-            I have read and agree to the Terms &amp; Conditions.
-          </span>
-        </Checkbox>
-        <Link
-          href="/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block text-xs text-violet-300 hover:text-violet-200"
-        >
-          View Terms &amp; Conditions ↗
-        </Link>
-      </div>
+      <Checkbox
+        isSelected={termsAccepted}
+        onChange={setTermsAccepted}
+        isDisabled={submitting || phase === 'uploading'}
+      >
+        <span className="text-xs text-zinc-300 sm:text-sm">
+          I have read and agree to the{' '}
+          {/* Inline link: an <a href> descendant of the label doesn't trigger
+              the checkbox toggle (HTML spec); stopPropagation guards React Aria
+              too. Opens in a new tab so the in-progress form isn't lost. */}
+          <Link
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-violet-300 underline decoration-violet-300/40 underline-offset-2 transition-colors hover:text-violet-200"
+          >
+            Terms &amp; Conditions
+          </Link>
+          .
+        </span>
+      </Checkbox>
 
       <button
         type="submit"

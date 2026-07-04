@@ -5,6 +5,7 @@ import { useState } from 'react'
 import {
   ArchiveBoxArrowDownIcon,
   ArchiveBoxXMarkIcon,
+  ArrowUpTrayIcon,
   TrashIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
@@ -34,6 +35,7 @@ export function ProjectCard({
   isInProgress = false,
   isInReview = false,
   isMixAvailable = false,
+  isAwaitingUpload = false,
   onOpened,
 }: {
   project: ProjectWithOwner
@@ -47,6 +49,7 @@ export function ProjectCard({
   isInProgress?: boolean
   isInReview?: boolean
   isMixAvailable?: boolean
+  isAwaitingUpload?: boolean
   onOpened?: (id: string) => void
 }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -134,7 +137,9 @@ export function ProjectCard({
                 ? 'border-blue-500/40 bg-blue-500/5 shadow-blue-500/15 hover:border-blue-400/60 hover:shadow-blue-500/20'
                 : isInProgress
                   ? 'border-amber-500/40 bg-amber-500/5 shadow-amber-500/15 hover:border-amber-400/60 hover:shadow-amber-500/20'
-                  : 'border-white/10 bg-white/2 shadow-violet-500/5 hover:border-white/20 hover:shadow-violet-500/10'
+                  : isAwaitingUpload
+                    ? 'border-orange-500/40 bg-orange-500/5 shadow-orange-500/15 hover:border-orange-400/60 hover:shadow-orange-500/20'
+                    : 'border-white/10 bg-white/2 shadow-violet-500/5 hover:border-white/20 hover:shadow-violet-500/10'
         }`}
       >
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-white/3 via-transparent to-violet-400/3 opacity-0 transition duration-300 group-hover:opacity-100" />
@@ -182,9 +187,19 @@ export function ProjectCard({
             </span>
           </div>
         )}
+        {/* Client hasn't submitted stems yet — a static upload icon (not a
+            pulsing dot) so it reads as "your move", not an automatic upload. */}
+        {isAwaitingUpload && !isNewProject && !isMixAvailable && !isInReview && !isInProgress && (
+          <div className="flex items-center gap-2 border-b border-orange-500/20 bg-orange-500/10 px-4 py-2">
+            <ArrowUpTrayIcon className="size-3.5 shrink-0 text-orange-300" />
+            <span className="text-xs font-semibold tracking-wide text-orange-300 uppercase">
+              Finish Uploading
+            </span>
+          </div>
+        )}
         {(canArchive || canDelete) && (
           <div
-            className={`absolute right-4 z-10 flex items-center gap-2 ${isNewProject || isInReview || isInProgress || isMixAvailable ? 'top-13' : 'top-4'}`}
+            className={`absolute right-4 z-10 flex items-center gap-2 ${isNewProject || isInReview || isInProgress || isMixAvailable || isAwaitingUpload ? 'top-13' : 'top-4'}`}
           >
             {canArchive && (
               <button

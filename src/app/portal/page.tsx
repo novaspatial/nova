@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ArchiveBoxIcon } from '@heroicons/react/24/outline'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Button } from '@/components/ui/Button'
 import { ProjectList, UploadPrep } from '@/components/portal'
@@ -25,79 +23,58 @@ export default async function PortalDashboard() {
         .is('client_deleted_at', null)
         .order('created_at', { ascending: false }))
 
-  let archivedCount = 0
-  if (isStudio) {
-    const { count } = await supabase
-      .from('projects')
-      .select('id', { count: 'exact', head: true })
-      .is('studio_deleted_at', null)
-      .not('archived_at', 'is', null)
-    archivedCount = count ?? 0
-  }
+  const hasProjects = Boolean(projects && projects.length > 0)
 
   return (
     <div className="mx-auto max-w-4xl">
-      <FadeIn>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              {isStudio ? 'All Projects' : 'Your Projects'}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-              {isStudio
-                ? 'Manage all client mixing projects.'
-                : 'Track your Dolby Atmos mixing projects.'}
-            </p>
-          </div>
-          {isStudio ? (
-            <Link
-              href="/portal/archived"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium text-zinc-300 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-            >
-              <ArchiveBoxIcon className="size-4" />
-              Archived
-              {archivedCount > 0 && (
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white/10 px-1.5 py-0.5 text-xs font-semibold text-zinc-200">
-                  {archivedCount}
-                </span>
-              )}
-            </Link>
-          ) : (
-            <Button href="/portal/new" className="shrink-0">
-              New Project
-            </Button>
+      {hasProjects ? (
+        <div className="space-y-8">
+          {/* Clients can commission more than once — surface a New Project
+              entry point (and the stem-prep guide) even when the list is
+              non-empty. The studio doesn't create projects, so it's opted out. */}
+          {!isStudio && (
+            <FadeIn>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h1 className="font-display text-xl font-semibold text-white sm:text-2xl">
+                    Your Projects
+                  </h1>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    Track a mix in progress or start a new one.
+                  </p>
+                </div>
+                <Button href="/portal/new">New Project</Button>
+              </div>
+            </FadeIn>
           )}
-        </div>
-      </FadeIn>
-
-      <div className="mt-8 sm:mt-10">
-        {projects && projects.length > 0 ? (
+          {!isStudio && (
+            <FadeIn>
+              <UploadPrep collapsible />
+            </FadeIn>
+          )}
           <ProjectList
             projects={projects as Project[]}
             isStudio={isStudio}
             userId={user.id}
           />
-        ) : isStudio ? (
-          <FadeIn>
-            <div className="rounded-2xl border border-white/10 bg-white/2 p-8 text-center shadow-2xl shadow-violet-500/5 backdrop-blur-sm sm:p-12">
-              <p className="text-base text-zinc-400">No projects yet.</p>
-            </div>
-          </FadeIn>
-        ) : (
-          <FadeIn>
-            <UploadPrep
-              footer={
-                <div className="text-center">
-                  <p className="text-base text-zinc-400">No projects yet.</p>
-                  <div className="mt-6">
-                    <Button href="/portal/new">Start Your First Project</Button>
-                  </div>
-                </div>
-              }
-            />
-          </FadeIn>
-        )}
-      </div>
+        </div>
+      ) : isStudio ? (
+        <FadeIn>
+          <div className="rounded-2xl border border-white/10 bg-white/2 p-8 text-center shadow-2xl shadow-violet-500/5 backdrop-blur-sm sm:p-12">
+            <p className="text-base text-zinc-400">No projects yet.</p>
+          </div>
+        </FadeIn>
+      ) : (
+        <FadeIn>
+          <UploadPrep
+            footer={
+              <div className="text-center">
+                <Button href="/portal/new">Start Your First Project</Button>
+              </div>
+            }
+          />
+        </FadeIn>
+      )}
     </div>
   )
 }

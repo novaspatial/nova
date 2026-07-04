@@ -228,9 +228,7 @@ export function UploadPrep({
         </div>
       </div>
 
-      {footer && (
-        <div className="border-t border-white/10 pt-6">{footer}</div>
-      )}
+      {footer && <div className="pt-6">{footer}</div>}
     </>
   )
 
@@ -260,10 +258,7 @@ export function UploadPrep({
   }
 
   return (
-    <section
-      aria-labelledby="upload-prep-title"
-      className="space-y-6 rounded-2xl border border-white/10 bg-white/2 p-6 shadow-2xl shadow-violet-500/5 backdrop-blur-sm sm:p-8"
-    >
+    <section aria-labelledby="upload-prep-title" className="space-y-6">
       <div className="flex items-center gap-2">
         <SparklesIcon
           aria-hidden="true"
