@@ -5,6 +5,7 @@ import {
   getProjectOrNotFound,
   requirePageProfile,
 } from '@/lib/auth/server'
+import { canUploadStems } from '@/lib/portal/workflow'
 import type { ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
 
 export default async function UploadPage({
@@ -32,9 +33,8 @@ export default async function UploadPage({
     .order('created_at', { ascending: true })
 
   const status = project.status as ProjectStatus
-  const isClientReadOnly = status !== 'uploading'
+  const isClientReadOnly = !canUploadStems(status)
   const isStudio = role === 'studio'
-  const studioCanUploadMix = isStudio && ['in_review', 'processing', 'mixing', 'review', 'revision'].includes(status)
   const isReview = !isStudio && status === 'review'
 
   return (
@@ -127,7 +127,6 @@ export default async function UploadPage({
           key={`${status}-${files?.length ?? 0}`}
           existingFiles={(files as ProjectFile[]) || []}
           isReadOnly={isClientReadOnly}
-          studioCanUploadMix={studioCanUploadMix}
         />
       </div>
     </FadeIn>

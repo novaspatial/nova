@@ -186,15 +186,14 @@ describe('PATCH /api/portal/projects/[id]', () => {
       data: { id: 'proj-1', status: 'approved' },
       error: null,
     })
-    projectsChain.single
-      .mockResolvedValueOnce({
-        data: { id: 'proj-1' },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { id: 'proj-1', status: 'approved' },
-        error: null,
-      })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'review' },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'approved' },
+      error: null,
+    })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: { profiles: profileChain, projects: projectsChain },
@@ -207,6 +206,7 @@ describe('PATCH /api/portal/projects/[id]', () => {
 
     const body = await res.json()
     expect(body.status).toBe('approved')
+    expect(projectsChain.eq).toHaveBeenCalledWith('status', 'review')
   })
 
   test('returns 500 when project update fails', async () => {
@@ -218,15 +218,14 @@ describe('PATCH /api/portal/projects/[id]', () => {
       data: null,
       error: { message: 'Update failed' },
     })
-    projectsChain.single
-      .mockResolvedValueOnce({
-        data: { id: 'proj-1' },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: null,
-        error: { message: 'Update failed' },
-      })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'review' },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Update failed' },
+    })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: { profiles: profileChain, projects: projectsChain },
@@ -240,47 +239,100 @@ describe('PATCH /api/portal/projects/[id]', () => {
     await expect(res.json()).resolves.toEqual({ error: 'Update failed' })
   })
 
-  test('accepts all valid status values', async () => {
-    const validStatuses = [
-      'uploading',
-      'processing',
-      'mixing',
-      'review',
-      'revision',
-      'approved',
-      'delivered',
-    ]
+  test.each([
+    ['uploading', 'in_review'],
+    ['in_review', 'mixing'],
+    ['processing', 'review'],
+    ['mixing', 'review'],
+    ['review', 'revision'],
+    ['review', 'approved'],
+    ['review', 'delivered'],
+    ['revision', 'review'],
+    ['revision', 'delivered'],
+    ['approved', 'delivered'],
+  ])('accepts the legal studio transition %s → %s', async (from, to) => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', status: to },
+      error: null,
+    })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: from },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: to },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
 
-    for (const status of validStatuses) {
-      vi.clearAllMocks()
+    const req = createMockRequest({ status: to })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(200)
+  })
 
-      const profileChain = createChainMock({
-        data: { role: 'studio' },
-        error: null,
-      })
-      const projectsChain = createChainMock({
-        data: { id: 'proj-1', status },
-        error: null,
-      })
-      projectsChain.single
-        .mockResolvedValueOnce({
-          data: { id: 'proj-1' },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { id: 'proj-1', status },
-          error: null,
-        })
-      const supabase = createSupabaseMock({
-        user: { id: 'studio-1', email: 'studio@test.com' },
-        fromMocks: { profiles: profileChain, projects: projectsChain },
-      })
-      mockCreateClient.mockResolvedValue(supabase)
+  test.each([
+    ['delivered', 'uploading'],
+    ['delivered', 'in_review'],
+    ['uploading', 'delivered'],
+    ['review', 'review'],
+    ['mixing', 'processing'],
+    ['review', 'pending_payment'],
+  ])('returns 400 for the illegal transition %s → %s', async (from, to) => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: from },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
 
-      const req = createMockRequest({ status })
-      const res = await PATCH(req as NextRequest, makeParams('proj-1'))
-      expect(res.status).toBe(200)
-    }
+    const req = createMockRequest({ status: to })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe(`Cannot change status from ${from} to ${to}`)
+    expect(projectsChain.update).not.toHaveBeenCalled()
+  })
+
+  test('returns 409 when the status changed concurrently', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'review' },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ status: 'approved' })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(409)
+
+    const body = await res.json()
+    expect(body.error).toBe('Project status changed concurrently. Reload and retry.')
   })
 })
 

@@ -4,6 +4,11 @@ import {
   getProjectOrApiNotFound,
   requireApiProfile,
 } from '@/lib/auth/server'
+import {
+  canUploadMix,
+  canUploadStems,
+  type ProjectStatus,
+} from '@/lib/portal/workflow'
 
 export async function POST(
   request: NextRequest,
@@ -19,7 +24,7 @@ export async function POST(
   const projectResult = await getProjectOrApiNotFound<{
     id: string
     owner_id: string
-    status: string
+    status: ProjectStatus
   }>(supabase, projectId, 'id, owner_id, status', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
@@ -43,7 +48,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (!['processing', 'mixing', 'review', 'revision'].includes(project.status)) {
+    if (!canUploadMix(project.status)) {
       return NextResponse.json(
         { error: 'Cannot upload mixes in current project status' },
         { status: 400 },
@@ -51,7 +56,7 @@ export async function POST(
     }
   } else {
     // Stem uploads require a paid project.
-    if (project.status !== 'uploading') {
+    if (!canUploadStems(project.status)) {
       return NextResponse.json(
         { error: 'Payment required before uploading files' },
         { status: 402 },

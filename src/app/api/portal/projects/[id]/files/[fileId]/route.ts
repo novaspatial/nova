@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getProjectOrApiNotFound, requireApiProfile } from '@/lib/auth/server'
+import { canUploadStems, type ProjectStatus } from '@/lib/portal/workflow'
 
 export async function DELETE(
   _request: NextRequest,
@@ -14,7 +15,7 @@ export async function DELETE(
 
   const projectResult = await getProjectOrApiNotFound<{
     id: string
-    status: string
+    status: ProjectStatus
   }>(supabase, projectId, 'id, status', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
@@ -34,7 +35,8 @@ export async function DELETE(
 
   const isStudio = profile?.role === 'studio'
   const isOwner = file.uploaded_by === user.id
-  const clientCanDelete = isOwner && project.status === 'uploading'
+  // Clients may reshape their upload only while stems are still uploadable.
+  const clientCanDelete = isOwner && canUploadStems(project.status)
 
   if (!isStudio && !clientCanDelete) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

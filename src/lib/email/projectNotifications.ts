@@ -1,12 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resend, RESEND_FROM } from '@/lib/resend'
-
-type NotifiableStatus =
-  | 'in_review'
-  | 'processing'
-  | 'mixing'
-  | 'review'
-  | 'delivered'
+import {
+  isNotifiableStatus,
+  type NotifiableStatus,
+} from '@/lib/portal/workflow'
 
 function buildEmail(
   status: NotifiableStatus,
@@ -46,14 +43,7 @@ export async function sendProjectStatusEmail(
   status: string,
   origin: string,
 ): Promise<void> {
-  const notifiable: NotifiableStatus[] = [
-    'in_review',
-    'processing',
-    'mixing',
-    'review',
-    'delivered',
-  ]
-  if (!notifiable.includes(status as NotifiableStatus)) {
+  if (!isNotifiableStatus(status)) {
     return
   }
 
@@ -71,11 +61,7 @@ export async function sendProjectStatusEmail(
     return
   }
 
-  const email = buildEmail(
-    status as NotifiableStatus,
-    project.title,
-    `${origin}/portal/${projectId}`,
-  )
+  const email = buildEmail(status, project.title, `${origin}/portal/${projectId}`)
   if (!email) return
 
   const { error: sendError } = await resend.emails.send({

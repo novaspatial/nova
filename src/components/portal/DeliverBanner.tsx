@@ -5,11 +5,12 @@ import { usePathname, useRouter } from 'next/navigation'
 
 import { useProject } from '@/components/portal/ProjectContext'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
+import { canTransition } from '@/lib/portal/workflow'
 
 export function DeliverBanner() {
   const router = useRouter()
   const pathname = usePathname()
-  const { projectId, projectStatus, isStudio } = useProject()
+  const { projectId, projectStatus, userRole } = useProject()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [delivering, setDelivering] = useState(false)
@@ -42,7 +43,8 @@ export function DeliverBanner() {
   }, [projectId, router])
 
   const onListenPage = pathname.endsWith('/listen')
-  const canDeliver = isStudio && projectStatus !== 'delivered' && onListenPage
+  // Clients never pass the transition table, so no separate isStudio check.
+  const canDeliver = canTransition(projectStatus, 'delivered', userRole) && onListenPage
 
   if (!canDeliver) return null
 

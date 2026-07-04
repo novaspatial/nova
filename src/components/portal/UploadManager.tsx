@@ -13,6 +13,7 @@ import { FileUploader } from '@/components/portal/FileUploader'
 import { useProject } from '@/components/portal/ProjectContext'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
+import { canTransition, canUploadMix } from '@/lib/portal/workflow'
 import type { ProjectFile, ProjectStatus } from '@/types/portal'
 import {
   CheckCircleIcon,
@@ -158,13 +159,11 @@ function FileList({
 export function UploadManager({
   existingFiles: initialFiles,
   isReadOnly,
-  studioCanUploadMix = false,
 }: {
   existingFiles: ProjectFile[]
   isReadOnly: boolean
-  studioCanUploadMix?: boolean
 }) {
-  const { projectId, isStudio, projectStatus } = useProject()
+  const { projectId, isStudio, projectStatus, userRole } = useProject()
   const router = useRouter()
   const [files, setFiles] = useState(initialFiles)
   const [currentStatus, setCurrentStatus] = useState(projectStatus)
@@ -310,7 +309,7 @@ export function UploadManager({
             </p>
           </div>
 
-          {currentStatus === 'in_review' && (
+          {canTransition(currentStatus, 'mixing', userRole) && (
             <div className="flex flex-col items-center rounded-2xl border border-blue-500/20 bg-blue-500/5 px-5 py-5 text-center backdrop-blur-sm">
               <p className="text-sm font-semibold text-blue-300">
                 New project awaiting approval
@@ -344,7 +343,7 @@ export function UploadManager({
             onDeleted={handleDeleted}
           />
 
-          {(studioCanUploadMix || ['processing', 'mixing', 'review', 'revision'].includes(currentStatus)) && currentStatus !== 'in_review' && (
+          {canUploadMix(currentStatus) && (
             <>
               <FileUploader
                 files={mixUpload.files}
@@ -354,7 +353,7 @@ export function UploadManager({
               />
 
               {/* Status transition buttons */}
-              {mixFiles.length > 0 && mixUpload.files.length === 0 && ['in_review', 'processing', 'mixing', 'revision'].includes(currentStatus) && (
+              {mixFiles.length > 0 && mixUpload.files.length === 0 && canTransition(currentStatus, 'review', userRole) && (
                 <div className="flex flex-wrap justify-center gap-3 pt-4">
                   {studioActionError && (
                     <p className="w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -377,9 +376,9 @@ export function UploadManager({
             </>
           )}
 
-          {!studioCanUploadMix && mixFiles.length === 0 && (
+          {!canUploadMix(currentStatus) && currentStatus !== 'in_review' && mixFiles.length === 0 && (
             <p className="text-sm text-zinc-500">
-              {currentStatus === 'uploading' || currentStatus === 'in_review'
+              {currentStatus === 'uploading'
                 ? 'Waiting for client to finish uploading stems.'
                 : 'Mixes will appear here once uploaded.'}
             </p>

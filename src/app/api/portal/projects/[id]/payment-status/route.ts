@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { notFoundResponse, requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
+import { canTransition, type ProjectStatus } from '@/lib/portal/workflow'
 
 type ProjectRow = {
   id: string
   owner_id: string
-  status: string
+  status: ProjectStatus
   paid_at: string | null
   stripe_payment_intent_id: string | null
   client_deleted_at: string | null
@@ -71,10 +72,16 @@ export async function GET(
   }
 
   if (intent.status === 'succeeded') {
+    // Known-dead write path: since 20260702 the order-fields freeze trigger
+    // raises 42501 when a client session writes paid_at, so this update
+    // fails and the route reports paid:false until the webhook lands. The
+    // fix must move this claim to a service-role context — the DB status
+    // fence deliberately excludes client pending_payment→uploading.
+    const shouldAdvance = canTransition(project.status, 'uploading', 'system')
     const { data: updated, error: updateError } = await supabase
       .from('projects')
       .update({
-        status: 'uploading',
+        ...(shouldAdvance ? { status: 'uploading' as const } : {}),
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

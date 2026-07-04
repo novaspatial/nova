@@ -34,9 +34,14 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
   })
 
   test('returns 500 when update fails', async () => {
-    const projectsChain = createChainMock({ 
-      data: null, 
-      error: { message: 'Database error' } 
+    const projectsChain = createChainMock({
+      data: null,
+      error: { message: 'Database error' },
+    })
+    // Pre-read succeeds; the update's terminal read hits the error default.
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'uploading' },
+      error: null,
     })
     const supabase = createSupabaseMock({
       fromMocks: { projects: projectsChain },
@@ -54,6 +59,12 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
 
   test('returns 200 on successful update', async () => {
     const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1', status: 'uploading' },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'proj-1' }, error: null })
     const supabase = createSupabaseMock({
       fromMocks: { projects: projectsChain },
     })
@@ -68,5 +79,64 @@ describe('POST /api/portal/projects/[id]/finish-upload', () => {
     expect(projectsChain.update).toHaveBeenCalledWith({ status: 'in_review' })
     expect(projectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
     expect(projectsChain.eq).toHaveBeenCalledWith('owner_id', 'user-1')
+    expect(projectsChain.eq).toHaveBeenCalledWith('status', 'uploading')
+  })
+
+  test('returns 400 when the project is not uploading', async () => {
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'delivered' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest()
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe(
+      'Project files can only be submitted while uploading',
+    )
+    expect(projectsChain.update).not.toHaveBeenCalled()
+  })
+
+  test('returns 200 without re-updating when already in_review', async () => {
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'in_review' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest()
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(200)
+
+    const body = await res.json()
+    expect(body.success).toBe(true)
+    expect(projectsChain.update).not.toHaveBeenCalled()
+  })
+
+  test('returns 404 when the project is missing or not owned', async () => {
+    const projectsChain = createChainMock({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest()
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(404)
+
+    const body = await res.json()
+    expect(body.error).toBe('Project not found')
+    expect(projectsChain.update).not.toHaveBeenCalled()
   })
 })

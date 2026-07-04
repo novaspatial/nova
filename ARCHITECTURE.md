@@ -124,7 +124,7 @@ See `docs/adr/0004-stripe-payment-gating.md`.
 
 ## Status state machine
 
-`src/lib/portal/workflow.ts` is the single source of truth for the lifecycle: `PROJECT_STATUSES`, the status→step mapping, display labels, and which steps are unlocked. Clients advance only `uploading`→`in_review` (via `finish-upload`); Studio drives the rest via PATCH. Payment events drive `pending_payment`→`uploading`.
+`src/lib/portal/workflow.ts` is the single source of truth for the lifecycle: `PROJECT_STATUSES`, the status→step mapping, display labels, which steps are unlocked, and — since #34 — transition legality (`canTransition(from, to, actor)`) plus the upload gates (`canUploadStems`/`canUploadMix`) and the notifiable-status set. Clients advance only `uploading`→`in_review` (via `finish-upload`); Studio drives the rest via PATCH (illegal jumps are rejected with 400, concurrent transitions with 409). Payment events drive `pending_payment`→`uploading`. The DB backs the client rule per ADR-0002: the `projects_enforce_status_write_roles` trigger (`20260705`) lets service and studio contexts through and limits clients to `uploading`→`in_review`.
 
 ## Testing, migrations, deploy
 

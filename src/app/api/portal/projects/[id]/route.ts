@@ -8,6 +8,11 @@ import {
 } from '@/lib/auth/server'
 import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
 import { cleanupProjectArtifacts } from '@/lib/portal/projectCleanup'
+import {
+  canTransition,
+  isProjectStatus,
+  type ProjectStatus,
+} from '@/lib/portal/workflow'
 
 export async function GET(
   _request: NextRequest,
@@ -71,31 +76,29 @@ export async function PATCH(
   }
   const { supabase, user, profile } = auth
 
-  const projectResult = await getProjectOrApiNotFound<{ id: string }>(
-    supabase,
-    id,
-    'id',
-    profile?.role,
-  )
+  const projectResult = await getProjectOrApiNotFound<{
+    id: string
+    status: ProjectStatus
+  }>(supabase, id, 'id, status', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
   }
+  const currentStatus = projectResult.project.status
 
   const body = await request.json()
   const { status, deliverable_format } = body
 
-  const validStatuses = [
-    'uploading',
-    'in_review',
-    'processing',
-    'mixing',
-    'review',
-    'revision',
-    'approved',
-    'delivered',
-  ]
-  if (!validStatuses.includes(status)) {
+  if (!isProjectStatus(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+
+  // Legality check must precede the deliverables side-write below, so an
+  // illegal jump to `approved` can't mutate deliverables first.
+  if (!canTransition(currentStatus, status, 'studio')) {
+    return NextResponse.json(
+      { error: `Cannot change status from ${currentStatus} to ${status}` },
+      { status: 400 },
+    )
   }
 
   if (status === 'approved' && deliverable_format) {
@@ -109,15 +112,24 @@ export async function PATCH(
     }
   }
 
+  // Compare-and-swap on the status read above: a concurrent transition
+  // makes this a 0-row update instead of silently clobbering it.
   const { data: project, error } = await supabase
     .from('projects')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('status', currentStatus)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  if (!project) {
+    return NextResponse.json(
+      { error: 'Project status changed concurrently. Reload and retry.' },
+      { status: 409 },
+    )
   }
 
   await sendProjectStatusEmail(supabase, id, status, new URL(request.url).origin)

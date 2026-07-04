@@ -123,6 +123,47 @@ describe('POST /api/stripe/webhook', () => {
     expect(projectsChain.update).not.toHaveBeenCalled()
   })
 
+  test('records paid_at without touching status when the project already advanced', async () => {
+    const mockConsoleWarn = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue({
+      type: 'payment_intent.succeeded',
+      data: {
+        object: {
+          id: 'pi_1',
+          metadata: { user_id: 'user-1', project_id: 'proj-1' },
+        },
+      },
+    })
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        status: 'in_review',
+        paid_at: null,
+        stripe_payment_intent_id: 'pi_1',
+      },
+      error: null,
+    })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(projectsChain.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ status: expect.anything() }),
+    )
+    expect(projectsChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ paid_at: expect.any(String) }),
+    )
+    expect(projectsChain.is).toHaveBeenCalledWith('paid_at', null)
+    expect(mockConsoleWarn).toHaveBeenCalled()
+    mockConsoleWarn.mockRestore()
+  })
+
   test('metadata user_id mismatch does not update', async () => {
     mockConstructEvent.mockReturnValue({
       type: 'payment_intent.succeeded',

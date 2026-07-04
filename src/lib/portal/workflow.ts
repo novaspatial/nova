@@ -132,3 +132,85 @@ const progressStageMap: Record<ProjectStatus, ProgressStage> = {
 export function getProgressStage(status: ProjectStatus): ProgressStage {
   return progressStageMap[status]
 }
+
+// --- Lifecycle transitions -------------------------------------------------
+//
+// Three actors drive the lifecycle (ARCHITECTURE.md): the payment machinery
+// ('system': Stripe webhook, payment-status poll) moves pending_payment →
+// uploading; the client submits their stems (uploading → in_review); the
+// studio drives everything after. The table is a forward-only allowlist —
+// no self-loops, nothing targets pending_payment, and delivery is reachable
+// only from review/revision/approved. The DB mirrors the client rule with a
+// role-fence trigger (20260705_harden_status_writes.sql); this table is the
+// single app-level source of transition truth.
+
+export type Actor = 'client' | 'studio' | 'system'
+
+// The one place that knows `processing` is the legacy synonym of `mixing`
+// (CONTEXT.md). Existing rows may still hold it, so it keeps mixing's
+// outgoing edges — but no transition targets it, which retires the value.
+export function canonicalStatus(status: ProjectStatus): ProjectStatus {
+  return status === 'processing' ? 'mixing' : status
+}
+
+const transitions: Record<
+  Actor,
+  Partial<Record<ProjectStatus, readonly ProjectStatus[]>>
+> = {
+  system: {
+    pending_payment: ['uploading'],
+  },
+  client: {
+    uploading: ['in_review'],
+  },
+  studio: {
+    // uploading → in_review lets the studio force-advance a stalled client;
+    // in_review offers only mixing (no mix can exist before mixing starts).
+    uploading: ['in_review'],
+    in_review: ['mixing'],
+    mixing: ['review'],
+    review: ['revision', 'approved', 'delivered'],
+    revision: ['review', 'delivered'],
+    approved: ['delivered'],
+  },
+}
+
+export function canTransition(
+  from: ProjectStatus,
+  to: ProjectStatus,
+  actor: Actor,
+): boolean {
+  return (transitions[actor][canonicalStatus(from)] ?? []).includes(to)
+}
+
+export function canUploadStems(status: ProjectStatus): boolean {
+  return status === 'uploading'
+}
+
+export function canUploadMix(status: ProjectStatus): boolean {
+  const canonical = canonicalStatus(status)
+  return canonical === 'mixing' || canonical === 'review' || canonical === 'revision'
+}
+
+export function isProjectStatus(value: unknown): value is ProjectStatus {
+  return (
+    typeof value === 'string' &&
+    (PROJECT_STATUSES as readonly string[]).includes(value)
+  )
+}
+
+// Statuses that email the client when entered. An explicit list, not derived
+// from the transition table: revision/approved are deliberately silent.
+export const NOTIFIABLE_STATUSES = [
+  'in_review',
+  'processing',
+  'mixing',
+  'review',
+  'delivered',
+] as const
+
+export type NotifiableStatus = (typeof NOTIFIABLE_STATUSES)[number]
+
+export function isNotifiableStatus(value: string): value is NotifiableStatus {
+  return (NOTIFIABLE_STATUSES as readonly string[]).includes(value)
+}
