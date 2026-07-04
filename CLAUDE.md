@@ -67,7 +67,7 @@ Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build 
 
 Issues and PRDs live in novaspatial/nova's GitHub Issues, via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`. The sequenced **dev plan** (phases, decision gates D1–D13, critical path across the open issues) is `docs/devplan-issue-plan.md` — read it before picking up commerce/SEO/lifecycle work.
 
-> **Known gaps (don't treat the clean state as reality):** checkout now charges **per-song USD** via `computeOrderPrice` (S1 #16, live since `20260702`; the one-shot first-mix discount rides as a private 50% code, floor-bounded to $225/song). Still **planned, not built**: the discount-codes table + admin CRUD (#17), add-ons (#19), T&C (#23), order email (#24), the purge job (#27), and the homepage price calculator (#30). Marketing copy still advertises the old 50%-off promo until S10 (#9) — the charge and the copy disagree for single-song first orders.
+> **Known gaps (don't treat the clean state as reality):** checkout now charges **per-song USD** via `computeOrderPrice` (S1 #16, live since `20260702`; the one-shot first-mix discount rides as a private 50% code, floor-bounded to $225/song). The discount-codes catalog + studio admin CRUD exists (#17, `20260704`) but is **client-inert** — redemption at checkout is #25/#26. Still **planned, not built**: add-ons (#19), T&C (#23), order email (#24), the purge job (#27), and the homepage price calculator (#30). Marketing copy still advertises the old 50%-off promo until S10 (#9) — the charge and the copy disagree for single-song first orders.
 
 ### Triage labels
 

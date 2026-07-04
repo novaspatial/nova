@@ -150,7 +150,7 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 4. **Kararlar:** D1 ✅, D3 ✅, D4 ✅; D2, D5, D6 (kalan)
 5. **#4 (P1)** ✅; **#5 (P2) + #22 (S4a) saf matematiği** ✅ (2026-07-02, onay geldi, finalize edildi)
 6. **#16 (S1)** ✅ (2026-07-02, `60bee5d`)
-7. **#18** ✅ (S1 ile teslim); **#17, #19** (paralel, sırada)
+7. **#18** ✅ (S1 ile teslim); **#17** ✅ (2026-07-04, `daf4748` — discount_codes tablosu + studio-only RLS + `/blog/admin/discount-codes` CRUD; S4b'ye kadar client-inert); **#19** (sırada)
 8. **#22 (S4a)** ✅ (#5 modülüyle kapandı)
 9. **#25 (S4b) → #26 (S5)**
 10. **#23 (S7)**
