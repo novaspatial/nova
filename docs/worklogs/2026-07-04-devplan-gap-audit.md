@@ -1,4 +1,4 @@
-Devplan gap audit — 3 missed slices found
+Devplan gap audit — 3 missed slices found; plan rewritten around 20 open issues
 
 Date: 2026-07-04.
 
@@ -8,4 +8,4 @@ New issues: #31 (S21) — no open issue owned computing/charging GST after #16 c
 
 Decision items added to #1: D-floor-private (devplan wants private codes down to ~$200 USD for indie acquisition, but the shipped $225 USD/song floor applies to all codes and forecloses it) and D-revisions (T&C makes the sale final only when included revisions are "used or waived", yet nothing tracks rounds or waiver). Notes on #19 (rush is sold unconditionally vs T&C "subject to availability"; post-order revision purchase unowned), #24 (estimated-delivery promise unowned; tax line should consume #31), #9 (PhD credential missing from marketing copy), #10 (body-font idea recorded as implicitly dropped).
 
-Biggest sequencing change: #23 pulled to the front of the commerce lane — the devplan required T&C before checkout went live, and checkout has been charging real money without terms or consent since 2026-07-02. Plan doc and CLAUDE.md known-gaps updated accordingly.
+Biggest sequencing change: #23 pulled to the front of the commerce lane — the devplan required T&C before checkout went live, and checkout has been charging real money without terms or consent since 2026-07-02; CLAUDE.md known-gaps updated. Later the same day an /improve-codebase-architecture review filed 6 refactor issues (#34–#39, labeled architecture + needs-triage; #34 also bug — finish-upload and PATCH allow illegal Status jumps), and devplan-issue-plan.md was rewritten wholesale in English, agent-first: a goal statement, a Now queue of unblocked work (#23, #34, #19, #33, then #38/#35+#37/#36 as fill), decision-gated chains that preempt it, decided constraints (D1/D3/D4, D2 policy half, D8–D10) inlined so agents stop re-deriving them, refactors slotted into the path (#38 before #25, #35 before #27/#13, #39 inside #29), and the completed history compressed to a table (full Turkish revision remains in git history).
