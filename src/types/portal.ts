@@ -75,17 +75,26 @@ export interface Project {
 
 export type DiscountKind = 'percent' | 'fixed'
 
-// A redeemable discount code (#17 admin CRUD, #25 checkout redemption).
-// Audience/cap/floor interaction (D4/D5) is refined in the pricing slices.
+// A redeemable discount code — lives in DB since migration 20260704 (#17
+// admin CRUD; #25 wires checkout redemption; consumption timing is D6/#26).
+// is_public maps to the pricing CodeScope: public stacks with bulk, private
+// suppresses it. Returning-vs-new eligibility semantics are D5.
 export interface DiscountCode {
   id: string
   code: string
   kind: DiscountKind
   value: number // percent: whole percent (15 = 15%); fixed: amount in cents
+  is_public: boolean
   single_use: boolean
+  usage_limit: number | null
+  new_clients_only: boolean
+  returning_clients_only: boolean
+  referral_attribution: string | null
   active: boolean
   expires_at: string | null
+  created_by: string
   created_at: string
+  updated_at: string
 }
 
 // Computed quote breakdown produced by the pure pricing module (#22) and

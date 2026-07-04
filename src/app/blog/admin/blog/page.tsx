@@ -20,6 +20,12 @@ export default async function AdminBlogList() {
           <div className="flex shrink-0 items-center gap-2">
             <Button href="/blog/admin/blog/new">New post</Button>
             <Link
+              href="/blog/admin/discount-codes"
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+            >
+              Discount codes
+            </Link>
+            <Link
               href="/blog"
               className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
             >
