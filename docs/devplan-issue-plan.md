@@ -139,6 +139,34 @@ D1 ─> P1(#4) ─> S1(#16) ─> S2(#18) ─> S4a(#22) ─> S4b(#25) ─> S5(#26
 ```
 
 6 issue derinliğinde. `S3(#17)` paralel ilerleyip `S4b`'yi besler. Bu zincir projenin en uzun bağımlılığı — D1/D3/D4 ne kadar erken kapanırsa o kadar erken akar.
+_(Durum 2026-07-04: zincirin S4b(#25) → S5(#26) dışındaki tamamı ✅ — kalan iki halka D5/D6 kararlarına bakıyor.)_
+
+---
+
+## Kalan yol (2026-07-04 — 11 açık issue)
+
+### Hemen yapılabilir (karar gerektirmez)
+
+1. **[#19](https://github.com/novaspatial/nova/issues/19) S6 — Add-on'lar (extra revision + 48h rush).** Matematik modülde hazır ve testli (`ADD_ON_CENTS`, indirim sonrası, cap/floor dışı); iş: form checkbox'ları + checkout'a `addOns` + `add_ons` kolonu + PaymentStep satırı. S1 yüzeyinin doğal uzantısı.
+2. **[#23](https://github.com/novaspatial/nova/issues/23) S7 — T&C sayfası + onay checkbox'ı.** P4'ün Checkbox primitifi + Footer seam'i hazır; sayfa + zorunlu checkbox + `terms_accepted_at/version` kaydı bizde, metin Jamie'de (sonradan düşer). Para-iade cümlesi **D-refund**'a dokunur — Jamie'ye hatırlat.
+3. **(Paralel) Karar paketi Mike/Jamie'ye** — kalan her şeyin kilidi, tek seferde sorulmalı: **D5** (returning = ödenmiş mi teslim edilmiş mi), **D6** (tek-kullanımlık kod tüketimi — öneri: mevcut reserve/restore deseni), **D11** (welcome %10 vs %15), **D2-HST** (Ontario'da %5 GST mi tam HST mi — #1'de soruldu, hatırlat), **D13** (inbox + gönderim subdomain'i).
+
+### Karar geldikçe (kritik yolun kalanı)
+
+4. **[#25](https://github.com/novaspatial/nova/issues/25) S4b — kod redemption'ı checkout'a bağla** ← D5. Tablo (#17) + modül hazır; iş: formda kod alanı, sunucuda eligibility (aktif/expired/kitle/limit), `applied_coupon_code` persist, charge.
+5. **[#26](https://github.com/novaspatial/nova/issues/26) S5 — tek-kullanımlık kod tüketimi** ← D6 + #25. Sertleştirilmiş first-mix RPC desenini kopyala.
+6. **[#9](https://github.com/novaspatial/nova/issues/9) S10 — %50 promo → welcome kopyası** ← D11. **Araya sokulmalı:** canlı "50% off" vaadi ile floor'lu gerçek indirim (~%31) şu an çelişiyor.
+7. **[#30](https://github.com/novaspatial/nova/issues/30) S20 — ana sayfa fiyat hesaplayıcısı** ← D11. S1 quote mantığını paylaşan client bileşen; #9 ile aynı tura girebilir (ikisi de pazarlama yüzeyi).
+8. **[#24](https://github.com/novaspatial/nova/issues/24) S8 — sipariş onay e-postası** ← D2 (makbuzda vergi) + D13 (gönderici). D13 gecikirse mevcut tek sender'la vergisiz makbuz olarak çıkabilir.
+
+### Bağımsız kuyruk
+
+9. **[#13](https://github.com/novaspatial/nova/issues/13) S17 — admin dosya indirme.** Karara bağlı değil; signed-URL altyapısı hazır, araya her an alınabilir.
+10. **[#27](https://github.com/novaspatial/nova/issues/27) S18 — delivered_at + 90 gün purge** ← D7 (infra; öneri Vercel Cron) + D7b (tombstone vs hard-delete). `projectCleanup.ts` (#3) yeniden kullanılır.
+11. **[#29](https://github.com/novaspatial/nova/issues/29) S19 — GEO/LLM görünürlüğü** ← `sameAs` URL'leri (needs-info); gelince yarım günlük iş.
+12. **D12 → Nova Studios (Part B).** Mimari karar verilmeden dilim açılmaz; karar gelince ayrı `/to-issues` turu.
+
+**Özet akış:** #19 → #23 (bloksuz) + karar paketi paralel gönderilir; D5/D6 → #25 → #26; D11 → #9 + #30; D2/D13 → #24; kuyruk fırsat buldukça.
 
 ---
 
