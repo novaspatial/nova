@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
+import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { computeOrderPrice, type OrderCode } from '@/lib/stripe/pricing'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 
@@ -122,10 +124,25 @@ export async function POST(request: NextRequest) {
 
   // Resolve the Stripe client BEFORE reserving the discount: getStripe()
   // throws on missing config, and a throw after the reservation would burn
-  // the user's one-shot discount with nothing left to restore it.
+  // the user's one-shot discount with nothing left to restore it. The
+  // dev-bypass service client is resolved here for the same reason — its
+  // born-paid insert is a system write (the 20260708 insert fence 42501s
+  // client sessions creating anything but unpaid pending_payment rows), so
+  // it needs SUPABASE_SERVICE_ROLE_KEY. Dev-only path; prod never sets
+  // PAYMENTS_DEV_BYPASS.
   const devBypass = process.env.PAYMENTS_DEV_BYPASS === 'true'
   let stripe: ReturnType<typeof getStripe> | null = null
-  if (!devBypass) {
+  let serviceSupabase: SupabaseClient | null = null
+  if (devBypass) {
+    try {
+      serviceSupabase = createServiceClient()
+    } catch {
+      return NextResponse.json(
+        { error: 'Payments not configured' },
+        { status: 500 },
+      )
+    }
+  } else {
     try {
       stripe = getStripe()
     } catch {
@@ -164,9 +181,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (devBypass) {
+    if (!serviceSupabase) {
+      return NextResponse.json(
+        { error: 'Payments not configured' },
+        { status: 500 },
+      )
+    }
     // Dev-only: the charge is skipped (amount 0), but the order fields keep
-    // the real quote so the downstream UI can be exercised against it.
-    const { data: project, error: insertError } = await supabase
+    // the real quote so the downstream UI can be exercised against it. The
+    // insert runs on the service client — it creates a born-paid row, which
+    // the insert fence reserves for the payment system.
+    const { data: project, error: insertError } = await serviceSupabase
       .from('projects')
       .insert({
         owner_id: user.id,

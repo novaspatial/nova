@@ -65,18 +65,19 @@ describe('POST /api/stripe/webhook', () => {
       },
     })
     const projectsChain = createChainMock({ data: null, error: null })
-    projectsChain.maybeSingle.mockResolvedValue({
-      data: {
-        id: 'proj-1',
-        owner_id: 'user-1',
-        status: 'pending_payment',
-        paid_at: null,
-        stripe_payment_intent_id: 'pi_1',
-      },
-      error: null,
-    })
-    // The update terminal call awaits the chain (not .single()). The `then`
-    // on the chain resolves to { data: null, error: null } → treated as success.
+    // Two maybeSingle terminals: the project load, then the claim write.
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          status: 'pending_payment',
+          paid_at: null,
+          stripe_payment_intent_id: 'pi_1',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
     mockCreateServiceClient.mockReturnValue({
       from: vi.fn(() => projectsChain),
     })
@@ -91,6 +92,44 @@ describe('POST /api/stripe/webhook', () => {
     )
     expect(projectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
     expect(projectsChain.is).toHaveBeenCalledWith('paid_at', null)
+  })
+
+  test('returns 500 when the claim write fails so Stripe retries', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue({
+      type: 'payment_intent.succeeded',
+      data: {
+        object: {
+          id: 'pi_1',
+          metadata: { user_id: 'user-1', project_id: 'proj-1' },
+        },
+      },
+    })
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          status: 'pending_payment',
+          paid_at: null,
+          stripe_payment_intent_id: 'pi_1',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'update failed' },
+      })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(500)
+    mockConsoleError.mockRestore()
   })
 
   test('replay on already-paid project is a no-op', async () => {
@@ -137,16 +176,18 @@ describe('POST /api/stripe/webhook', () => {
       },
     })
     const projectsChain = createChainMock({ data: null, error: null })
-    projectsChain.maybeSingle.mockResolvedValue({
-      data: {
-        id: 'proj-1',
-        owner_id: 'user-1',
-        status: 'in_review',
-        paid_at: null,
-        stripe_payment_intent_id: 'pi_1',
-      },
-      error: null,
-    })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          status: 'in_review',
+          paid_at: null,
+          stripe_payment_intent_id: 'pi_1',
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { status: 'in_review' }, error: null })
     mockCreateServiceClient.mockReturnValue({
       from: vi.fn(() => projectsChain),
     })
@@ -192,5 +233,39 @@ describe('POST /api/stripe/webhook', () => {
     const res = await POST(buildRequest('{}', 'sig_ok'))
     expect(res.status).toBe(200)
     expect(projectsChain.update).not.toHaveBeenCalled()
+  })
+
+  test('metadata project_id mismatch does not update', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue({
+      type: 'payment_intent.succeeded',
+      data: {
+        object: {
+          id: 'pi_1',
+          metadata: { user_id: 'user-1', project_id: 'proj-other' },
+        },
+      },
+    })
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        status: 'pending_payment',
+        paid_at: null,
+        stripe_payment_intent_id: 'pi_1',
+      },
+      error: null,
+    })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(projectsChain.update).not.toHaveBeenCalled()
+    mockConsoleError.mockRestore()
   })
 })

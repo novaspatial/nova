@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
-import { canTransition, type ProjectStatus } from '@/lib/portal/workflow'
+import { claimProjectPayment } from '@/lib/portal/paymentClaim'
+import type { ProjectStatus } from '@/lib/portal/workflow'
 
 export const runtime = 'nodejs'
 
@@ -104,23 +105,16 @@ export async function POST(request: NextRequest) {
   // Always record the payment fact; move status only along the legal edge.
   // A project that somehow advanced past pending_payment before payment
   // confirmed keeps its status instead of being dragged back to uploading.
-  const shouldAdvance = canTransition(project.status, 'uploading', 'system')
-  if (!shouldAdvance) {
+  const { advanced, error: updateError } = await claimProjectPayment(
+    supabase,
+    project,
+  )
+  if (!advanced) {
     console.warn('[stripe webhook] project already advanced; recording paid_at only', {
       project: project.id,
       status: project.status,
     })
   }
-
-  const { error: updateError } = await supabase
-    .from('projects')
-    .update({
-      ...(shouldAdvance ? { status: 'uploading' as const } : {}),
-      paid_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', project.id)
-    .is('paid_at', null)
 
   if (updateError) {
     console.error('[stripe webhook] project update failed', updateError)

@@ -12,6 +12,11 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
 
+const mockCreateServiceClient = vi.fn()
+vi.mock('@/lib/supabase/supabaseService', () => ({
+  createServiceClient: () => mockCreateServiceClient(),
+}))
+
 const mockPaymentIntentsCreate = vi.fn()
 const mockPaymentIntentsUpdate = vi.fn()
 const mockPaymentIntentsCancel = vi.fn()
@@ -243,6 +248,13 @@ describe('POST /api/portal/projects/checkout', () => {
         terms_version: TERMS_VERSION,
       }),
     )
+    // The client-session insert must be born unpaid or the 20260708 fence
+    // 42501s every real checkout: no paid_at, no born-past-pending status.
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.not.objectContaining({ paid_at: expect.anything() }),
+    )
+    // The Stripe branch stays on the user's session — RLS applies.
+    expect(mockCreateServiceClient).not.toHaveBeenCalled()
   })
 
   test('applies the bulk tier on a multi-song order', async () => {
@@ -402,6 +414,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass skips Stripe and stores the real quote on a $0 project', async () => {
     const projectsChain = makeProjectsChain({})
+    const serviceProjectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({
@@ -409,6 +422,9 @@ describe('POST /api/portal/projects/checkout', () => {
         rpc,
       }),
     )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
@@ -434,8 +450,11 @@ describe('POST /api/portal/projects/checkout', () => {
         },
       })
       expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-      expect(projectsChain.insert).toHaveBeenCalledWith(
+      // The born-paid insert is a system write: service client, not the
+      // session — the 20260708 insert fence rejects the latter.
+      expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
         expect.objectContaining({
+          owner_id: 'user-1',
           status: 'uploading',
           amount_cents: 0,
           paid_at: expect.any(String),
@@ -448,6 +467,77 @@ describe('POST /api/portal/projects/checkout', () => {
           terms_version: TERMS_VERSION,
         }),
       )
+      expect(projectsChain.insert).not.toHaveBeenCalled()
+    } finally {
+      if (prev === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prev
+      }
+    }
+  })
+
+  test('dev bypass returns 500 before reserving when the service client is unavailable', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn()
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+    mockCreateServiceClient.mockImplementation(() => {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
+    })
+    const prev = process.env.PAYMENTS_DEV_BYPASS
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+
+    try {
+      const req = createMockRequest(orderBody())
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(500)
+      // The pre-flight throw must land before the reservation so the
+      // one-shot discount is never burned.
+      expect(rpc).not.toHaveBeenCalled()
+      expect(projectsChain.insert).not.toHaveBeenCalled()
+    } finally {
+      if (prev === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prev
+      }
+    }
+  })
+
+  test('dev bypass restores the reservation when the insert fails', async () => {
+    const projectsChain = makeProjectsChain({})
+    const serviceProjectsChain = makeProjectsChain({
+      insertResult: { data: null, error: { message: 'insert failed' } },
+    })
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: true, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
+    const prev = process.env.PAYMENTS_DEV_BYPASS
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+
+    try {
+      const req = createMockRequest(orderBody())
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(500)
+      // The restore rides the user's own session, not the service client.
+      expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
+        p_user_id: 'user-1',
+      })
     } finally {
       if (prev === undefined) {
         delete process.env.PAYMENTS_DEV_BYPASS
