@@ -24,9 +24,11 @@ A Client can go from an interactive homepage price quote to a **paid, taxed, T&C
 
 ---
 
-## Where we are (2026-07-08)
+## Where we are (2026-07-13)
 
 **Live and shipped:** priced per-song USD checkout (S1/S2 — `computeOrderPrice`, Stripe PaymentIntent, bulk tiers, first-mix private 50% code floor-bounded to $225/song), **T&C page + recorded checkout consent** (S7, `20260704`), discount-codes catalog + Studio CRUD (S3, client-inert), **lifecycle transition guards** (#34 — `canTransition` seam in `workflow.ts` + `20260705` DB status fence), **payment-write hardening** (#40/#41 — `20260708` INSERT fence + shared `claimProjectPayment` seam; the poll fallback confirms paid orders again), full blog/SEO stack (sitemap, robots, per-post meta + JSON-LD, share images, IndexNow *code*), portal hardening (archive RLS trigger, storage-cleanup module, order-write freeze triggers), a11y/motion pass. Compact list in **Completed** below.
+
+**Decision package answered (2026-07-13, Mike — recorded in #1):** D2 complete (full HST in HST provinces + computed-in-module mechanism), D5 (returning = prior paid), D6 (consume on payment success), D-floor-private (per-code override flag), D11 (welcome = 15%). Every commerce gate is open; #9 and #31 (the debt below) are in flight, then #38 → #25 → #26 and #30.
 
 **Launch-debt on live checkout** (charging real money since 2026-07-02):
 
@@ -42,20 +44,19 @@ Also inert in production: IndexNow ([#33](https://github.com/novaspatial/nova/is
 - **D1** — Order data lives on the `projects` row (1 order = 1 Project). Stripe Elements/PaymentIntent flow stays.
 - **D3** — List prices in **USD**; the $225 floor is per-song in the charge currency.
 - **D4** — $325/song list · bulk 15/20/25% (3–4 / 5–7 / 8+ songs) · one code max, private suppresses bulk · 35% cap on the percent stack only · fixed codes bounded by floor only · add-ons after discount, outside cap/floor · integer cents, half-up. Single source: `src/lib/stripe/pricing.ts`.
-- **D2 (policy half)** — Canadian Clients pay **GST, no PST**; the computation mechanism is ours to choose. *Still open:* the HST-province question (asked in #1) — gates #31.
+- **D2** — Canadian Clients pay **GST/HST at the full provincial rate**: ON 13% · NS 14% (cut 2025-04-01) · NB/NL/PE 15% · all other provinces/territories 5% GST; no PST/QST. Non-Canadian buyers zero-rated. Mechanism: computed in `src/lib/stripe/pricing.ts` from a billing country + province select on the order form (not Stripe Tax); `tax_cents` + buyer location persisted on the order row. (2026-07-13)
+- **D5** — "Returning client" = any prior **paid** Project (`paid_at` set); delivery not required. (#25's eligibility helper)
+- **D6** — Single-use codes are **consumed on confirmed payment** (webhook finalize). Reserve-at-checkout + restore-on-abandon stays as the concurrency mechanism — a hold, not consumption. (#26)
+- **D-floor-private** — Private codes may price **below the $225/song floor** via an explicit per-code override flag set at creation. The floor remains the default everywhere else. (#26 shape: `discount_codes` column + `computeOrderPrice`)
+- **D11** — Welcome discount = **15%** (replaces the 50% launch promo). Copy + charged constant now (#9); code-based enforcement with #25.
 - **D8/D9/D10** — OG image = first inline image (fallback `/og-image.jpg`); share images via `next/og` Node runtime; canonical origin is the **apex** `https://nova-spatial.com` (the live apex→www 307 contradicts this — reconcile inside #33).
 - **ADRs 0001–0004** — native Supabase audio, RLS-first authorization, signed-URL direct uploads, Stripe gating + atomic first-mix RPC. Settled architecture; the refactor lane works *within* them.
 
-## Open decisions (all tracked in #1 — send to Mike/Jamie as one package)
+## Open decisions (all tracked in #1)
 
 | Decision | Question | Gates |
 | --- | --- | --- |
-| **D5** | "Returning client" = paid or delivered Project? | #25 |
-| **D6** | When is a single-use code consumed? (suggest: existing reserve/restore pattern) | #26 |
-| **D11** | Welcome code 10% vs 15%, and when it replaces the promo | #9, #30 |
-| **D2-HST** | Ontario etc.: 5% GST or full HST? | #31 → #24 |
 | **D13** | Inbox provider + sending subdomain | #24 (sender only) |
-| **D-floor-private** | Private codes targeting ~$200 vs the $225 floor | #26 shape |
 | **D-revisions** | Track included revision rounds in-portal or manually? | #19 note |
 | **D7 / D7b** | Purge infra (suggest Vercel Cron) / tombstone vs hard-delete | #27 |
 | **D-refund** | Refund mechanism (in-app or manual) | new slice or exclusion |
@@ -81,11 +82,11 @@ Also inert in production: IndexNow ([#33](https://github.com/novaspatial/nova/is
 **Commerce chain (critical path):**
 
 ```text
-D5 ─> #25 S4b  wire code redemption at checkout        (builds on #38's seam; #17 table ready)
-        └─ D6 ─> #26 S5  single-use consumption         (copy the hardened first-mix RPC pattern; D-floor-private shapes it)
-D11 ─> #9 S10  promo → welcome-code copy               (live copy currently over-promises — insert ASAP once decided)
-   └─> #30 S20 homepage price calculator               (shares the S1 quote component; same round as #9)
-D2-HST ─> #31 S21  GST at checkout                     (fill taxCents stub or Stripe Tax; migration+RLS+types together; quote/PaymentStep/PaymentIntent)
+D5 ✅ ─> #25 S4b  wire code redemption at checkout      (builds on #38's seam; #17 table ready)
+        └─ D6 ✅ ─> #26 S5  single-use consumption       (copy the hardened first-mix RPC pattern; D-floor-private ✅ shapes it)
+D11 ✅ ─> #9 S10  promo → welcome-code copy             (in flight 2026-07-13 — live copy over-promises)
+   └─> #30 S20 homepage price calculator               (shares the S1 quote component; pass `buyer` for the tax line)
+D2 ✅ ─> #31 S21  GST/HST at checkout                   (in flight 2026-07-13 — computed in-module; migration+RLS+types together; quote/PaymentStep/PaymentIntent)
               └─> #24 S8  order-confirmation email      (consumes #31's persisted tax line; D13 for sender — can ship earlier with the existing sender) (reads NOTIFIABLE_STATUSES from the shipped #34 seam)
 ```
 
@@ -98,11 +99,11 @@ D2-HST ─> #31 S21  GST at checkout                     (fill taxCents stub or 
 ### Critical path
 
 ```text
-D5 ─> #25 ─> D6 ─> #26 ─> D11 ─> #9 + #30            ← code redemption + honest marketing
-D2-HST ─> #31 ─> #24                                  ← tax + receipt
+D5 ✅ ─> #25 ─> D6 ✅ ─> #26 ─> D11 ✅ ─> #9 + #30    ← code redemption + honest marketing
+D2 ✅ ─> #31 ─> #24                                   ← tax + receipt
 ```
 
-(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. The single biggest unlock is sending the **decision package** — it opens every gated chain at once.
+(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. The **decision package landed 2026-07-13** — every commerce gate is open; #9 and #31 are in flight, the redemption chain (#38 seam first) is next.
 
 ---
 
@@ -156,14 +157,14 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | — | [#1](https://github.com/novaspatial/nova/issues/1) | needs-info | Open decisions (D1–D13 + D-floor-private, D-revisions, D-refund) |
 | S6 | [#19](https://github.com/novaspatial/nova/issues/19) | ready-for-human | Add-ons: extra revision + 48h rush |
 | S8 | [#24](https://github.com/novaspatial/nova/issues/24) | ready-for-human | Order-confirmation email |
-| S4b | [#25](https://github.com/novaspatial/nova/issues/25) | ready-for-human | Wire code redemption at checkout |
-| S5 | [#26](https://github.com/novaspatial/nova/issues/26) | ready-for-human | Single-use private code consumption |
-| S10 | [#9](https://github.com/novaspatial/nova/issues/9) | ready-for-human | Replace 50% promo with welcome code |
+| S4b | [#25](https://github.com/novaspatial/nova/issues/25) | ready-for-agent | Wire code redemption at checkout |
+| S5 | [#26](https://github.com/novaspatial/nova/issues/26) | ready-for-agent | Single-use private code consumption |
+| S10 | [#9](https://github.com/novaspatial/nova/issues/9) | ready-for-agent | Replace 50% promo with welcome code |
 | S17 | [#13](https://github.com/novaspatial/nova/issues/13) | ready-for-human | Admin file download |
 | S18 | [#27](https://github.com/novaspatial/nova/issues/27) | ready-for-human | delivered_at + 90-day purge |
 | S19 | [#29](https://github.com/novaspatial/nova/issues/29) | ready-for-human | LLM/AI-search visibility (GEO) |
-| S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-human | Homepage price calculator |
-| S21 | [#31](https://github.com/novaspatial/nova/issues/31) | ready-for-human | Compute + charge GST at checkout |
+| S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-agent | Homepage price calculator |
+| S21 | [#31](https://github.com/novaspatial/nova/issues/31) | ready-for-agent | Compute + charge GST at checkout |
 | S22 | [#32](https://github.com/novaspatial/nova/issues/32) | ready-for-human | Stem Prep Guide page |
 | S23 | [#33](https://github.com/novaspatial/nova/issues/33) | ready-for-human | IndexNow production activation |
 | arch | [#35](https://github.com/novaspatial/nova/issues/35) | needs-triage | One storage seam (buckets/paths/signed URLs) |
