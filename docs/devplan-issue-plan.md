@@ -28,12 +28,9 @@ A Client can go from an interactive homepage price quote to a **paid, taxed, T&C
 
 **Live and shipped:** priced per-song USD checkout (S1/S2 — `computeOrderPrice`, Stripe PaymentIntent, bulk tiers, first-mix private 50% code floor-bounded to $225/song), **T&C page + recorded checkout consent** (S7, `20260704`), discount-codes catalog + Studio CRUD (S3, client-inert), **lifecycle transition guards** (#34 — `canTransition` seam in `workflow.ts` + `20260705` DB status fence), **payment-write hardening** (#40/#41 — `20260708` INSERT fence + shared `claimProjectPayment` seam; the poll fallback confirms paid orders again), full blog/SEO stack (sitemap, robots, per-post meta + JSON-LD, share images, IndexNow *code*), portal hardening (archive RLS trigger, storage-cleanup module, order-write freeze triggers), a11y/motion pass. Compact list in **Completed** below.
 
-**Decision package answered (2026-07-13, Mike — recorded in #1):** D2 complete (full HST in HST provinces + computed-in-module mechanism), D5 (returning = prior paid), D6 (consume on payment success), D-floor-private (per-code override flag), D11 (welcome = 15%). Every commerce gate is open; #9 and #31 (the debt below) are in flight, then #38 → #25 → #26 and #30.
+**Decision package answered (2026-07-13, Mike — recorded in #1):** D2 complete (full HST in HST provinces + computed-in-module mechanism), D5 (returning = prior paid), D6 (consume on payment success), D-floor-private (per-code override flag), D11 (welcome = 15%). Every commerce gate is open; next up: #38 → #25 → #26 and #30.
 
-**Launch-debt on live checkout** (charging real money since 2026-07-02):
-
-- **No tax** ([#31](https://github.com/novaspatial/nova/issues/31)) — `taxCents = 0` stub; Canadian GST is owed per D2.
-- **Marketing promises "50% off"** ([#9](https://github.com/novaspatial/nova/issues/9)) while the floored real discount is ~31% for a single-song first order.
+**Launch-debt cleared 2026-07-13** (had been charging real money without it since 2026-07-02): checkout now computes and charges **GST/HST** per D2 ([#31](https://github.com/novaspatial/nova/issues/31), `20260713` migration + billing country/province on the order form), and the marketing copy matches the charged **15% welcome offer** from one shared constant ([#9](https://github.com/novaspatial/nova/issues/9)).
 
 The payment-write hardening pair (#40 INSERT forgery, #41 dead poll fallback) **shipped 2026-07-08** — `20260708` insert fence + a shared service-side claim seam; see Completed. Two narrower residuals it surfaced were filed as [#42](https://github.com/novaspatial/nova/issues/42) (delete-then-reattach DB floor) and [#43](https://github.com/novaspatial/nova/issues/43) (direct-insert rate/consent bypass).
 
@@ -84,9 +81,9 @@ Also inert in production: IndexNow ([#33](https://github.com/novaspatial/nova/is
 ```text
 D5 ✅ ─> #25 S4b  wire code redemption at checkout      (builds on #38's seam; #17 table ready)
         └─ D6 ✅ ─> #26 S5  single-use consumption       (copy the hardened first-mix RPC pattern; D-floor-private ✅ shapes it)
-D11 ✅ ─> #9 S10  promo → welcome-code copy             (in flight 2026-07-13 — live copy over-promises)
+D11 ✅ ─> #9 S10  ✅ shipped 2026-07-13                 (15% welcome copy + charged constant, `29701e4`)
    └─> #30 S20 homepage price calculator               (shares the S1 quote component; pass `buyer` for the tax line)
-D2 ✅ ─> #31 S21  GST/HST at checkout                   (in flight 2026-07-13 — computed in-module; migration+RLS+types together; quote/PaymentStep/PaymentIntent)
+D2 ✅ ─> #31 S21  ✅ shipped 2026-07-13                 (computed GST/HST, `20260713` migration + `95d4ba1`)
               └─> #24 S8  order-confirmation email      (consumes #31's persisted tax line; D13 for sender — can ship earlier with the existing sender) (reads NOTIFIABLE_STATUSES from the shipped #34 seam)
 ```
 
@@ -99,11 +96,11 @@ D2 ✅ ─> #31 S21  GST/HST at checkout                   (in flight 2026-07-13
 ### Critical path
 
 ```text
-D5 ✅ ─> #25 ─> D6 ✅ ─> #26 ─> D11 ✅ ─> #9 + #30    ← code redemption + honest marketing
-D2 ✅ ─> #31 ─> #24                                   ← tax + receipt
+D5 ✅ ─> #25 ─> D6 ✅ ─> #26 ─> #30                   ← code redemption (+ #9 shipped 2026-07-13)
+#31 ✅ ─> #24                                         ← receipt (tax shipped 2026-07-13; D13 still gates the sender)
 ```
 
-(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. The **decision package landed 2026-07-13** — every commerce gate is open; #9 and #31 are in flight, the redemption chain (#38 seam first) is next.
+(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08; #9/#31 shipped 2026-07-13.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. The **decision package landed 2026-07-13** — the redemption chain (#38 seam first) is now the critical path, and #24 is unblocked for its tax line.
 
 ---
 
@@ -141,6 +138,8 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | S7 | #23 | T&C page + required checkout consent, recorded as `terms_accepted_at/version` (`b437c99`, `20260704`) |
 | arch | #34 | Lifecycle guards: `canTransition`/upload gates/`NOTIFIABLE_STATUSES` in `workflow.ts`, CAS route writes, `20260705` status fence (`aa5b70f`); spawned #40/#41 |
 | bug | #40, #41 | Payment-write hardening: `20260708` BEFORE INSERT fence (client rows born unpaid/pending), dev-bypass + poll claims moved to the service client, shared `claimProjectPayment` seam revives the poll fallback; verified on the remote. Spawned #42/#43 |
+| S10 | #9 | 15% welcome offer from one shared constant (`WELCOME_DISCOUNT_PCT`); promo token now value-agnostic `welcome`; PaymentStep rebranded to "Welcome discount" (`29701e4`) |
+| S21 | #31 | Computed GST/HST at checkout: `CA_TAX_RATES` in the pricing module, billing country/province on the order form, `tax_cents` + buyer location persisted + frozen (`20260713`), tax line on quote/PaymentStep, intent metadata reconciliation (`95d4ba1`) |
 
 ## Definition of Done (every issue)
 
@@ -159,12 +158,10 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | S8 | [#24](https://github.com/novaspatial/nova/issues/24) | ready-for-human | Order-confirmation email |
 | S4b | [#25](https://github.com/novaspatial/nova/issues/25) | ready-for-agent | Wire code redemption at checkout |
 | S5 | [#26](https://github.com/novaspatial/nova/issues/26) | ready-for-agent | Single-use private code consumption |
-| S10 | [#9](https://github.com/novaspatial/nova/issues/9) | ready-for-agent | Replace 50% promo with welcome code |
 | S17 | [#13](https://github.com/novaspatial/nova/issues/13) | ready-for-human | Admin file download |
 | S18 | [#27](https://github.com/novaspatial/nova/issues/27) | ready-for-human | delivered_at + 90-day purge |
 | S19 | [#29](https://github.com/novaspatial/nova/issues/29) | ready-for-human | LLM/AI-search visibility (GEO) |
 | S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-agent | Homepage price calculator |
-| S21 | [#31](https://github.com/novaspatial/nova/issues/31) | ready-for-agent | Compute + charge GST at checkout |
 | S22 | [#32](https://github.com/novaspatial/nova/issues/32) | ready-for-human | Stem Prep Guide page |
 | S23 | [#33](https://github.com/novaspatial/nova/issues/33) | ready-for-human | IndexNow production activation |
 | arch | [#35](https://github.com/novaspatial/nova/issues/35) | needs-triage | One storage seam (buckets/paths/signed URLs) |
@@ -175,7 +172,7 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | bug | [#42](https://github.com/novaspatial/nova/issues/42) | needs-triage, bug | Delete-then-reattach of a freed Stripe intent id (DB floor) |
 | bug | [#43](https://github.com/novaspatial/nova/issues/43) | needs-triage, bug | Direct PostgREST inserts bypass the checkout rate limit + consent gate |
 
-Closed: #2–#8, #10–#12, #14–#18, #20–#23, #28, #34, #40, #41 (see Completed).
+Closed: #2–#12, #14–#18, #20–#23, #28, #31, #34, #40, #41 (see Completed).
 
 ## Deliberately not built
 
