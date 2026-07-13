@@ -26,6 +26,8 @@ function makeBreakdown(overrides: Partial<PriceBreakdown> = {}): PriceBreakdown 
     add_ons_cents: 0,
     subtotal_cents: 32500,
     tax_cents: 0,
+    tax_rate_pct: 0,
+    tax_label: null,
     total_cents: 32500,
     ...overrides,
   }
@@ -86,6 +88,39 @@ describe('PaymentStep', () => {
     expect(
       screen.getByRole('button', { name: 'Pay $2,210 & Start Upload' }),
     ).toBeInTheDocument()
+  })
+
+  test('itemizes GST/HST without a discount strikethrough on a taxed order', () => {
+    render(
+      <PaymentStep
+        clientSecret="cs_test"
+        amountCents={36725}
+        currency="usd"
+        discountApplied={false}
+        breakdown={makeBreakdown({
+          tax_cents: 4225,
+          tax_rate_pct: 13,
+          tax_label: 'HST (13%)',
+          total_cents: 36725,
+        })}
+        onSucceeded={noop}
+        onCancel={noop}
+      />,
+    )
+
+    expect(screen.getByText('HST (13%)')).toBeInTheDocument()
+    expect(screen.getByText('$42.25')).toBeInTheDocument()
+    expect(
+      screen.getByText('Charged in USD; GST/HST is calculated on the USD amount.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Pay $367.25 & Start Upload' }),
+    ).toBeInTheDocument()
+    // amountCents (36725) exceeds the list total (32500) because of tax, yet
+    // nothing was discounted — no strikethrough may render (pins the
+    // hasDiscount fix: discounts, not an amount comparison).
+    expect(screen.getAllByText('$325')).toHaveLength(1)
+    expect(screen.getByText('$325')).not.toHaveClass('line-through')
   })
 
   test('shows the album discount row when the bulk tier applies', () => {

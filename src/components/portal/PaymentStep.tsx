@@ -58,7 +58,10 @@ function PaymentForm({
     setSubmitting(false)
   }
 
-  const hasDiscount = amountCents < breakdown.list_total_cents
+  // Not amountCents < list_total: amountCents includes GST/HST (#31), so a
+  // taxed order would compare a taxed total against an untaxed list price.
+  const hasDiscount =
+    breakdown.bulk_discount_cents + breakdown.code_discount_cents > 0
 
   return (
     <div className="space-y-6">
@@ -82,6 +85,12 @@ function PaymentForm({
             <span>−{formatCurrency(breakdown.code_discount_cents, currency)}</span>
           </div>
         )}
+        {breakdown.tax_cents > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
+            <span>{breakdown.tax_label}</span>
+            <span>{formatCurrency(breakdown.tax_cents, currency)}</span>
+          </div>
+        )}
         <div className="mt-2 border-t border-white/10 pt-2">
           <div className="text-xs text-zinc-400 sm:text-sm">Amount due</div>
           <div className="mt-1 flex items-baseline gap-3">
@@ -99,6 +108,11 @@ function PaymentForm({
               </span>
             )}
           </div>
+          {breakdown.tax_cents > 0 && (
+            <div className="mt-1 text-xs text-zinc-500">
+              Charged in USD; GST/HST is calculated on the USD amount.
+            </div>
+          )}
         </div>
       </div>
 

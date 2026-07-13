@@ -1,4 +1,10 @@
-import type { AddOn, Currency, PriceBreakdown } from '@/types/portal'
+import type {
+  AddOn,
+  BuyerLocation,
+  CAProvince,
+  Currency,
+  PriceBreakdown,
+} from '@/types/portal'
 
 // ---------------------------------------------------------------------------
 // Per-song order pricing (P2 #5 + S4a #22 math). Pure: no DB, no UI, no I/O.
@@ -12,6 +18,8 @@ import type { AddOn, Currency, PriceBreakdown } from '@/types/portal'
 //   4. 35% cap           limits the *stacked percentage* (bulk + percent code) only
 //   5. floor             $225 USD per song × songCount — fixed codes obey only this
 //   6. add-ons           added AFTER discounts, excluded from cap/floor base
+//   7. GST/HST           on the discounted subtotal incl. add-ons when the
+//                        buyer is Canadian (D2); non-CA buyers zero-rated
 //   all math in integer cents, half-up rounding.
 //
 // Note: with a $225 USD per-song floor the floor binds at ~30.8%, so the 35%
@@ -37,6 +45,29 @@ export const WELCOME_DISCOUNT_PCT = 15
 // already-recorded metadata.
 export const WELCOME_PROMO_TOKEN = 'welcome'
 
+export type CATaxKind = 'gst' | 'hst'
+
+// D2 (2026-07-13): full HST in HST provinces, 5% GST everywhere else in
+// Canada (no PST/QST), non-CA buyers zero-rated. NS dropped to 14% on
+// 2025-04-01. Whole percents, applied to the discounted subtotal including
+// add-ons (tax on the whole consideration), half-up rounding. Rates are
+// "as of now" — a CRA change is a one-line edit here plus a test update.
+export const CA_TAX_RATES: Record<CAProvince, { pct: number; kind: CATaxKind }> = {
+  AB: { pct: 5, kind: 'gst' },
+  BC: { pct: 5, kind: 'gst' },
+  MB: { pct: 5, kind: 'gst' },
+  NB: { pct: 15, kind: 'hst' },
+  NL: { pct: 15, kind: 'hst' },
+  NS: { pct: 14, kind: 'hst' },
+  NT: { pct: 5, kind: 'gst' },
+  NU: { pct: 5, kind: 'gst' },
+  ON: { pct: 13, kind: 'hst' },
+  PE: { pct: 15, kind: 'hst' },
+  QC: { pct: 5, kind: 'gst' }, // GST only — no QST per D2
+  SK: { pct: 5, kind: 'gst' },
+  YT: { pct: 5, kind: 'gst' },
+}
+
 export type CodeScope = 'public' | 'private'
 
 export type OrderCode =
@@ -48,6 +79,9 @@ export interface OrderInput {
   addOns?: AddOn[]
   code?: OrderCode | null
   currency?: Currency
+  // Billing location for GST/HST (#31). Absent/null → tax 0, so non-checkout
+  // callers (e.g. the homepage calculator, #30) opt in explicitly.
+  buyer?: BuyerLocation | null
 }
 
 // Album/EP bulk auto-discount by song count (#18).
@@ -107,7 +141,22 @@ export function computeOrderPrice(input: OrderInput): PriceBreakdown {
   const addOnsCents = addOns.reduce((sum, addOn) => sum + (ADD_ON_CENTS[addOn] ?? 0), 0)
 
   const subtotalCents = mixPriceCents + addOnsCents
-  const taxCents = 0 // tax owned by D2 / S8 (#24); not computed here.
+
+  // GST/HST on the whole consideration: the discounted, floored mix price
+  // plus add-ons (D2). Defensive: a CA buyer with no valid province still
+  // owes at least 5% GST — a Canadian sale is never zero-rated (the checkout
+  // route validates the province, so this fallback is unreachable there).
+  let taxCents = 0
+  let taxRatePct = 0
+  let taxLabel: string | null = null
+  if (input.buyer?.country === 'CA') {
+    const rate =
+      (input.buyer.province && CA_TAX_RATES[input.buyer.province]) ||
+      ({ pct: 5, kind: 'gst' } as const)
+    taxRatePct = rate.pct
+    taxLabel = `${rate.kind.toUpperCase()} (${rate.pct}%)`
+    taxCents = roundHalfUp((subtotalCents * rate.pct) / 100)
+  }
 
   return {
     currency,
@@ -119,6 +168,8 @@ export function computeOrderPrice(input: OrderInput): PriceBreakdown {
     add_ons_cents: addOnsCents,
     subtotal_cents: subtotalCents,
     tax_cents: taxCents,
+    tax_rate_pct: taxRatePct,
+    tax_label: taxLabel,
     total_cents: subtotalCents + taxCents,
   }
 }

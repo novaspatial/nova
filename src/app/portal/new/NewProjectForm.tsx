@@ -5,7 +5,14 @@ import Link from 'next/link'
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { FileUploader, PaymentStep } from '@/components/portal'
 import { Checkbox } from '@/components/ui/Checkbox'
-import type { FileUploadItem, PriceBreakdown, Project } from '@/types/portal'
+import type {
+  BuyerCountry,
+  BuyerLocation,
+  CAProvince,
+  FileUploadItem,
+  PriceBreakdown,
+  Project,
+} from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
 import { computeOrderPrice } from '@/lib/stripe/pricing'
 import { formatCurrency } from '@/lib/formatCurrency'
@@ -24,7 +31,50 @@ const SERVICE_OPTIONS: { value: ServiceFormat; label: string }[] = [
   { value: 'both', label: 'Both (Atmos + Binaural)' },
 ]
 
+// Billing location for GST/HST (#31, D2). Values are what the checkout API
+// validates and the DB CHECKs mirror; province full names are display-only.
+const COUNTRY_OPTIONS: { value: BuyerCountry; label: string }[] = [
+  { value: 'CA', label: 'Canada' },
+  { value: 'US', label: 'United States' },
+  { value: 'OTHER', label: 'Other / International' },
+]
+
+const PROVINCE_OPTIONS: { value: CAProvince; label: string }[] = [
+  { value: 'AB', label: 'Alberta' },
+  { value: 'BC', label: 'British Columbia' },
+  { value: 'MB', label: 'Manitoba' },
+  { value: 'NB', label: 'New Brunswick' },
+  { value: 'NL', label: 'Newfoundland and Labrador' },
+  { value: 'NS', label: 'Nova Scotia' },
+  { value: 'NT', label: 'Northwest Territories' },
+  { value: 'NU', label: 'Nunavut' },
+  { value: 'ON', label: 'Ontario' },
+  { value: 'PE', label: 'Prince Edward Island' },
+  { value: 'QC', label: 'Quebec' },
+  { value: 'SK', label: 'Saskatchewan' },
+  { value: 'YT', label: 'Yukon' },
+]
+
 const MAX_SONG_COUNT = 99
+
+function SelectChevron() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      fill="none"
+      className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 type CheckoutResponse = {
   projectId: string
@@ -85,6 +135,10 @@ export function NewProjectForm() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
+  // Empty defaults on purpose: a Canadian must never be silently quoted
+  // untaxed, so an explicit choice is required before submit (#31).
+  const [billingCountry, setBillingCountry] = useState<'' | BuyerCountry>('')
+  const [billingProvince, setBillingProvince] = useState<'' | CAProvince>('')
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
   // Set right before our own success redirect so the beforeunload guard
   // doesn't prompt on a navigation the user didn't initiate.
@@ -105,12 +159,26 @@ export function NewProjectForm() {
     })
   }
 
+  // Tax needs a complete location — a country, plus a province when Canadian
+  // (place of supply picks the GST/HST rate). Until the selection completes,
+  // the quote renders untaxed; the selects are required to submit.
+  const buyer: BuyerLocation | null = useMemo(() => {
+    if (billingCountry === '') return null
+    if (billingCountry === 'CA') {
+      return billingProvince === ''
+        ? null
+        : { country: 'CA', province: billingProvince }
+    }
+    return { country: billingCountry }
+  }, [billingCountry, billingProvince])
+
   // Live list-price quote. Welcome/first-mix discounts are applied
   // server-side at checkout, so the quote here is the pre-code price;
-  // the payment step shows the final charge.
+  // the payment step shows the final charge (tax follows the actual
+  // discounted consideration there).
   const quote = useMemo(
-    () => (songCountValid ? computeOrderPrice({ songCount }) : null),
-    [songCountValid, songCount],
+    () => (songCountValid ? computeOrderPrice({ songCount, buyer }) : null),
+    [songCountValid, songCount, buyer],
   )
 
   useEffect(() => {
@@ -293,6 +361,15 @@ export function NewProjectForm() {
         )
         return
       }
+      // Mirrors the checkout route's validation (same error strings).
+      if (billingCountry === '') {
+        setError('Select a billing country')
+        return
+      }
+      if (billingCountry === 'CA' && billingProvince === '') {
+        setError('Select a province or territory')
+        return
+      }
       if (files.length === 0) {
         setError('Please add at least one file.')
         return
@@ -323,6 +400,8 @@ export function NewProjectForm() {
             stemCount: files.length,
             referenceTracks: referenceTracks.trim() || null,
             notes: notes.trim() || null,
+            billingCountry,
+            billingProvince: billingCountry === 'CA' ? billingProvince : null,
             termsAcceptedVersion: termsAccepted ? TERMS_VERSION : null,
           }),
         })
@@ -361,6 +440,8 @@ export function NewProjectForm() {
       format,
       songCount,
       songCountValid,
+      billingCountry,
+      billingProvince,
       referenceTracks,
       notes,
       files,
@@ -467,20 +548,7 @@ export function NewProjectForm() {
                 </option>
               ))}
             </select>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 16 16"
-              fill="none"
-              className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
-            >
-              <path
-                d="M4 6l4 4 4-4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <SelectChevron />
           </div>
         </div>
 
@@ -588,6 +656,82 @@ export function NewProjectForm() {
         )}
       </div>
 
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="billing-country"
+            className="block text-xs font-medium text-zinc-300 sm:text-sm"
+          >
+            Billing Country
+          </label>
+          <div className="relative mt-2">
+            <select
+              id="billing-country"
+              required
+              value={billingCountry}
+              onChange={(e) => {
+                const value = e.target.value as '' | BuyerCountry
+                setBillingCountry(value)
+                if (value !== 'CA') setBillingProvince('')
+              }}
+              className={`appearance-none pr-10 ${inputClassName}`}
+              disabled={submitting || phase === 'uploading'}
+            >
+              <option value="" disabled className="bg-zinc-900">
+                Select country…
+              </option>
+              {COUNTRY_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  className="bg-zinc-900"
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
+        </div>
+
+        {billingCountry === 'CA' && (
+          <div>
+            <label
+              htmlFor="billing-province"
+              className="block text-xs font-medium text-zinc-300 sm:text-sm"
+            >
+              Province / Territory
+            </label>
+            <div className="relative mt-2">
+              <select
+                id="billing-province"
+                required
+                value={billingProvince}
+                onChange={(e) =>
+                  setBillingProvince(e.target.value as '' | CAProvince)
+                }
+                className={`appearance-none pr-10 ${inputClassName}`}
+                disabled={submitting || phase === 'uploading'}
+              >
+                <option value="" disabled className="bg-zinc-900">
+                  Select province…
+                </option>
+                {PROVINCE_OPTIONS.map((option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    className="bg-zinc-900"
+                  >
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
+          </div>
+        )}
+      </div>
+
       {quote && (
         <div
           data-testid="live-quote"
@@ -607,6 +751,12 @@ export function NewProjectForm() {
               <span>−{formatCurrency(quote.bulk_discount_cents)}</span>
             </div>
           )}
+          {quote.tax_cents > 0 && (
+            <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
+              <span>{quote.tax_label}</span>
+              <span>{formatCurrency(quote.tax_cents)}</span>
+            </div>
+          )}
           <div className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2">
             <span className="text-xs font-medium text-zinc-300 sm:text-sm">
               Estimated total
@@ -616,7 +766,8 @@ export function NewProjectForm() {
             </span>
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Eligible welcome discounts are applied at payment.
+            Prices are in USD. Eligible welcome discounts are applied at
+            payment; GST/HST is calculated on the discounted total.
           </p>
         </div>
       )}

@@ -4,11 +4,13 @@ import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
+  CA_TAX_RATES,
   computeOrderPrice,
   WELCOME_DISCOUNT_PCT,
   type OrderCode,
 } from '@/lib/stripe/pricing'
 import { TERMS_VERSION } from '@/lib/legal/terms'
+import type { BuyerCountry, BuyerLocation, CAProvince } from '@/types/portal'
 
 const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_MAX_PENDING = 3
@@ -51,6 +53,8 @@ export async function POST(request: NextRequest) {
         referenceTracks?: unknown
         songCount?: unknown
         stemCount?: unknown
+        billingCountry?: unknown
+        billingProvince?: unknown
         termsAcceptedVersion?: unknown
       }
     | null
@@ -94,6 +98,36 @@ export async function POST(request: NextRequest) {
       { error: `Notes and reference tracks must be under ${MAX_TEXT_LENGTH} characters` },
       { status: 400 },
     )
+  }
+
+  // Billing location for GST/HST (#31, D2): the tax rate keys off the
+  // buyer's country + Canadian province (place of supply). A stray province
+  // sent with a non-CA country is force-nulled, matching the DB pairing
+  // constraint. Membership in CA_TAX_RATES keeps route and module on one
+  // source for what counts as a province.
+  const billingCountry =
+    typeof body?.billingCountry === 'string' ? body.billingCountry : ''
+  if (!['CA', 'US', 'OTHER'].includes(billingCountry)) {
+    return NextResponse.json(
+      { error: 'Select a billing country' },
+      { status: 400 },
+    )
+  }
+  let billingProvince: CAProvince | null = null
+  if (billingCountry === 'CA') {
+    const province =
+      typeof body?.billingProvince === 'string' ? body.billingProvince : ''
+    if (!(province in CA_TAX_RATES)) {
+      return NextResponse.json(
+        { error: 'Select a province or territory' },
+        { status: 400 },
+      )
+    }
+    billingProvince = province as CAProvince
+  }
+  const buyer: BuyerLocation = {
+    country: billingCountry as BuyerCountry,
+    province: billingProvince,
   }
 
   // T&C consent (#23): the client echoes the version it displayed; reject unless
@@ -175,6 +209,7 @@ export async function POST(request: NextRequest) {
   const breakdown = computeOrderPrice({
     songCount,
     code: discountApplied ? FIRST_MIX_CODE : null,
+    buyer,
   })
   const amountCents = breakdown.total_cents
   const currency = breakdown.currency
@@ -187,6 +222,11 @@ export async function POST(request: NextRequest) {
     reference_tracks: referenceTracks,
     terms_accepted_at: nowIso,
     terms_version: TERMS_VERSION,
+    // 0 = computed, zero-rated (non-CA); null is reserved for rows that
+    // predate tax computation (20260713 migration).
+    tax_cents: breakdown.tax_cents,
+    buyer_country: billingCountry,
+    buyer_province: billingProvince,
   }
 
   if (devBypass) {
@@ -262,6 +302,8 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         discount_applied: String(discountApplied),
         song_count: String(songCount),
+        tax_cents: String(breakdown.tax_cents),
+        tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
       },
     })
   } catch (err) {
@@ -328,6 +370,8 @@ export async function POST(request: NextRequest) {
         project_id: project.id,
         discount_applied: String(discountApplied),
         song_count: String(songCount),
+        tax_cents: String(breakdown.tax_cents),
+        tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
       },
     })
   } catch (err) {

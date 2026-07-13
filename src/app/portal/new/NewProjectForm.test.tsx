@@ -43,6 +43,9 @@ function fillRequiredFields(songCount = '1') {
   fireEvent.change(screen.getByLabelText('Number of Songs'), {
     target: { value: songCount },
   })
+  fireEvent.change(screen.getByLabelText('Billing Country'), {
+    target: { value: 'US' },
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
   fireEvent.click(screen.getByRole('checkbox', { name: /agree to the Terms/i }))
 }
@@ -96,6 +99,8 @@ describe('NewProjectForm', () => {
           add_ons_cents: 0,
           subtotal_cents: 130000,
           tax_cents: 0,
+          tax_rate_pct: 0,
+          tax_label: null,
           total_cents: 130000,
         },
       }),
@@ -129,8 +134,62 @@ describe('NewProjectForm', () => {
       stemCount: 2,
       referenceTracks: 'Song X — Artist Y',
       notes: null,
+      billingCountry: 'US',
+      billingProvince: null,
       termsAcceptedVersion: TERMS_VERSION,
     })
+  })
+
+  test('reveals the province select for Canada and taxes the live quote', () => {
+    render(<NewProjectForm />)
+
+    expect(
+      screen.queryByLabelText('Province / Territory'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Billing Country'), {
+      target: { value: 'CA' },
+    })
+    const provinceSelect = screen.getByLabelText('Province / Territory')
+    expect(provinceSelect).toBeRequired()
+
+    // Country alone isn't a complete location — still untaxed. (The footnote
+    // always mentions "GST/HST", so assert on the tax-row label.)
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).not.toHaveTextContent('HST (13%)')
+
+    fireEvent.change(provinceSelect, { target: { value: 'ON' } })
+    expect(quote).toHaveTextContent('HST (13%)')
+    expect(quote).toHaveTextContent('$42.25')
+    expect(quote).toHaveTextContent('$367.25')
+
+    // Switching away from Canada drops the tax line and the province field.
+    fireEvent.change(screen.getByLabelText('Billing Country'), {
+      target: { value: 'US' },
+    })
+    expect(quote).not.toHaveTextContent('HST (13%)')
+    expect(quote).toHaveTextContent('$325')
+    expect(
+      screen.queryByLabelText('Province / Territory'),
+    ).not.toBeInTheDocument()
+  })
+
+  test('blocks submit until a billing country is selected', async () => {
+    render(<NewProjectForm />)
+    fireEvent.change(screen.getByLabelText('Project Title'), {
+      target: { value: 'My Album' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
+    fireEvent.submit(
+      screen
+        .getByRole('button', { name: 'Create Project & Upload' })
+        .closest('form') as HTMLFormElement,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Select a billing country',
+    )
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   test('blocks submit until the terms are accepted', async () => {
@@ -138,6 +197,9 @@ describe('NewProjectForm', () => {
     // Fill everything EXCEPT the consent checkbox.
     fireEvent.change(screen.getByLabelText('Project Title'), {
       target: { value: 'My Album' },
+    })
+    fireEvent.change(screen.getByLabelText('Billing Country'), {
+      target: { value: 'US' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
     fireEvent.click(

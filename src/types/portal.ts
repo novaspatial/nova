@@ -32,6 +32,35 @@ export type Currency = 'usd' | 'cad'
 // Paid order add-ons (#19): an extra revision round and a 48-hour rush.
 export type AddOn = 'extra_revision' | 'rush_48h'
 
+// Canadian province/territory postal abbreviations — the place-of-supply key
+// for GST/HST (D2, 2026-07-13). The DB CHECK on projects.buyer_province
+// mirrors this list.
+export type CAProvince =
+  | 'AB'
+  | 'BC'
+  | 'MB'
+  | 'NB'
+  | 'NL'
+  | 'NS'
+  | 'NT'
+  | 'NU'
+  | 'ON'
+  | 'PE'
+  | 'QC'
+  | 'SK'
+  | 'YT'
+
+// Order-form billing country. Matches the DB CHECK on projects.buyer_country.
+export type BuyerCountry = 'CA' | 'US' | 'OTHER'
+
+// Billing location collected at checkout (#31). Feeds the pricing module's
+// GST/HST computation and is persisted on the order row.
+export interface BuyerLocation {
+  country: BuyerCountry
+  // Required (route-validated) when country === 'CA'; null/ignored otherwise.
+  province?: CAProvince | null
+}
+
 export interface Project {
   id: string
   owner_id: string
@@ -65,12 +94,19 @@ export interface Project {
   terms_accepted_at: string | null
   terms_version: string | null
 
+  // Tax + buyer location — live in DB since migration 20260713 (S21 #31; D2:
+  // GST/HST computed in-module from the billing country + province collected
+  // at checkout). Null = created before tax existed (charge contained no
+  // tax); 0 = computed, zero-rated (non-CA buyer).
+  tax_cents: number | null
+  buyer_country: BuyerCountry | null
+  buyer_province: CAProvince | null
+
   // Order/lifecycle surface the remaining commerce and purge slices will
   // add. Declared optional + nullable so current `select *` reads (whose rows
   // lack these columns) stay type-safe; each column lands in its owning slice.
   // Service/format selection rides the existing `format` column (#16).
   add_ons?: AddOn[] | null
-  tax_cents?: number | null
   applied_coupon_code?: string | null
   delivered_at?: string | null // final-masters delivery, drives 90-day purge (#27)
   files_purged_at?: string | null
@@ -112,7 +148,9 @@ export interface PriceBreakdown {
   code_discount_cents: number // public/private code (#22, #25)
   add_ons_cents: number // extra revision, 48h rush (#19)
   subtotal_cents: number // after discounts + add-ons, cap/floor applied
-  tax_cents: number
+  tax_cents: number // GST/HST on the subtotal per D2 (#31); 0 when untaxed
+  tax_rate_pct: number // whole percent applied; 0 when untaxed
+  tax_label: string | null // render-ready, e.g. 'HST (13%)' / 'GST (5%)'
   total_cents: number
 }
 

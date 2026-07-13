@@ -47,6 +47,9 @@ function orderBody(overrides: Record<string, unknown> = {}) {
     format: 'atmos',
     songCount: 1,
     stemCount: 12,
+    // US default keeps the pre-tax cent amounts of the existing vectors;
+    // the taxed (CA) paths get their own tests.
+    billingCountry: 'US',
     termsAcceptedVersion: TERMS_VERSION,
     ...overrides,
   }
@@ -150,6 +153,42 @@ describe('POST /api/portal/projects/checkout', () => {
     },
   )
 
+  test.each([
+    ['missing', undefined],
+    ['not in the allowlist', 'DE'],
+    ['lowercase', 'ca'],
+    ['non-string', 42],
+  ])('returns 400 when billingCountry is %s', async (_label, billingCountry) => {
+    mockCreateClient.mockResolvedValue(createSupabaseMock())
+    const req = createMockRequest(orderBody({ billingCountry }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('Select a billing country')
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['missing', undefined],
+    ['not a province code', 'ONT'],
+    ['lowercase', 'on'],
+    ['non-string', 13],
+  ])(
+    'returns 400 when billingCountry is CA and billingProvince is %s',
+    async (_label, billingProvince) => {
+      const rpc = vi.fn()
+      mockCreateClient.mockResolvedValue(createSupabaseMock({ rpc }))
+      const req = createMockRequest(
+        orderBody({ billingCountry: 'CA', billingProvince }),
+      )
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(400)
+      expect((await res.json()).error).toBe('Select a province or territory')
+      // Rejected before any side effect: no intent, no discount reservation.
+      expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+      expect(rpc).not.toHaveBeenCalled()
+    },
+  )
+
   test('defaults the format when absent and nulls a non-string referenceTracks', async () => {
     const projectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
@@ -246,6 +285,9 @@ describe('POST /api/portal/projects/checkout', () => {
         discount_applied: false,
         terms_accepted_at: expect.any(String),
         terms_version: TERMS_VERSION,
+        tax_cents: 0,
+        buyer_country: 'US',
+        buyer_province: null,
       }),
     )
     // The client-session insert must be born unpaid or the 20260708 fence
@@ -373,6 +415,116 @@ describe('POST /api/portal/projects/checkout', () => {
     )
   })
 
+  test('charges GST/HST on top of the subtotal for a Canadian order', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // 1 song CA-ON: subtotal 32500, HST 13% -> 4225, charge 36725.
+    const req = createMockRequest(
+      orderBody({ billingCountry: 'CA', billingProvince: 'ON' }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 36725,
+        currency: 'usd',
+        metadata: expect.objectContaining({
+          tax_cents: '4225',
+          tax_region: 'CA-ON',
+        }),
+      }),
+    )
+    const body = await res.json()
+    expect(body).toMatchObject({
+      amountCents: 36725,
+      breakdown: {
+        subtotal_cents: 32500,
+        tax_cents: 4225,
+        tax_rate_pct: 13,
+        tax_label: 'HST (13%)',
+        total_cents: 36725,
+      },
+    })
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount_cents: 36725,
+        subtotal_cents: 32500,
+        tax_cents: 4225,
+        buyer_country: 'CA',
+        buyer_province: 'ON',
+      }),
+    )
+    // The post-insert metadata patch carries the same reconciliation fields.
+    expect(mockPaymentIntentsUpdate).toHaveBeenCalledWith(
+      'pi_test_123',
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          project_id: 'proj-new',
+          tax_cents: '4225',
+          tax_region: 'CA-ON',
+        }),
+      }),
+    )
+  })
+
+  test('taxes the discounted subtotal when the welcome code applies', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: true, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // 1 song CA-ON with the 15% welcome code: subtotal 27625, HST 3591
+    // (3591.25 rounds down), charge 31216 — tax follows the actual
+    // consideration, not the list price.
+    const req = createMockRequest(
+      orderBody({ billingCountry: 'CA', billingProvince: 'ON' }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    const body = await res.json()
+    expect(body).toMatchObject({
+      amountCents: 31216,
+      discountApplied: true,
+      breakdown: {
+        code_discount_cents: 4875,
+        subtotal_cents: 27625,
+        tax_cents: 3591,
+        total_cents: 31216,
+      },
+    })
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 31216 }),
+    )
+  })
+
+  test('force-nulls a stray province on a non-Canadian order', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(
+      orderBody({ billingCountry: 'US', billingProvince: 'ON' }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tax_cents: 0,
+        buyer_country: 'US',
+        buyer_province: null,
+      }),
+    )
+  })
+
   test('returns 429 when the user has too many recent pending checkouts', async () => {
     const projectsChain = makeProjectsChain({ pendingCount: 3 })
     const rpc = vi.fn()
@@ -432,8 +584,17 @@ describe('POST /api/portal/projects/checkout', () => {
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
     try {
+      // CA-ON so the bypass proves the real quote keeps its tax fields:
+      // 3 songs bulk-discounted to 82875, HST 13% -> 10774 (10773.75 rounds
+      // up) — while the charge stays $0.
       const req = createMockRequest(
-        orderBody({ songCount: 3, stemCount: 30, referenceTracks: 'Ref X' }),
+        orderBody({
+          songCount: 3,
+          stemCount: 30,
+          referenceTracks: 'Ref X',
+          billingCountry: 'CA',
+          billingProvince: 'ON',
+        }),
       )
       const res = await POST(req as NextRequest)
       expect(res.status).toBe(200)
@@ -450,6 +611,8 @@ describe('POST /api/portal/projects/checkout', () => {
           list_total_cents: 97500,
           bulk_discount_cents: 14625,
           subtotal_cents: 82875,
+          tax_cents: 10774,
+          total_cents: 93649,
         },
       })
       expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
@@ -464,6 +627,9 @@ describe('POST /api/portal/projects/checkout', () => {
           song_count: 3,
           stem_count: 30,
           subtotal_cents: 82875,
+          tax_cents: 10774,
+          buyer_country: 'CA',
+          buyer_province: 'ON',
           reference_tracks: 'Ref X',
           discount_applied: false,
           terms_accepted_at: expect.any(String),

@@ -1,8 +1,15 @@
 import { describe, test, expect } from 'vitest'
-import type { AddOn, Currency, PriceBreakdown } from '@/types/portal'
+import type {
+  AddOn,
+  BuyerLocation,
+  CAProvince,
+  Currency,
+  PriceBreakdown,
+} from '@/types/portal'
 import {
   computeOrderPrice,
   bulkDiscountPct,
+  CA_TAX_RATES,
   LIST_PRICE_PER_SONG_CENTS,
   FLOOR_PER_SONG_CENTS,
   type OrderCode,
@@ -27,6 +34,9 @@ function breakdown(row: {
   code: number
   add_ons: number
   subtotal: number
+  tax?: number
+  tax_pct?: number
+  tax_label?: string | null
   currency?: Currency
 }): PriceBreakdown {
   return {
@@ -38,8 +48,10 @@ function breakdown(row: {
     code_discount_cents: row.code,
     add_ons_cents: row.add_ons,
     subtotal_cents: row.subtotal,
-    tax_cents: 0,
-    total_cents: row.subtotal,
+    tax_cents: row.tax ?? 0,
+    tax_rate_pct: row.tax_pct ?? 0,
+    tax_label: row.tax_label ?? null,
+    total_cents: row.subtotal + (row.tax ?? 0),
   }
 }
 
@@ -383,6 +395,123 @@ describe('computeOrderPrice', () => {
     })
   })
 
+  describe('GST/HST by buyer location (D2)', () => {
+    const halfUp = (value: number) => Math.floor(value + 0.5)
+
+    test.each(Object.entries(CA_TAX_RATES))(
+      'CA-%s charges its full statutory rate on a single-song order',
+      (province, rate) => {
+        const r = computeOrderPrice({
+          songCount: 1,
+          buyer: { country: 'CA', province: province as CAProvince },
+        })
+        expect(r).toEqual(
+          breakdown({
+            songs: 1,
+            list_total: 32500,
+            bulk: 0,
+            code: 0,
+            add_ons: 0,
+            subtotal: 32500,
+            tax: halfUp((32500 * rate.pct) / 100),
+            tax_pct: rate.pct,
+            tax_label: `${rate.kind.toUpperCase()} (${rate.pct}%)`,
+          }),
+        )
+      },
+    )
+
+    test('spot rates: full HST in HST provinces, NS reduction, GST-only QC', () => {
+      const cases: [CAProvince, number, string][] = [
+        ['ON', 4225, 'HST (13%)'],
+        ['NS', 4550, 'HST (14%)'], // reduced from 15% effective 2025-04-01
+        ['NB', 4875, 'HST (15%)'],
+        ['NL', 4875, 'HST (15%)'],
+        ['PE', 4875, 'HST (15%)'],
+        ['AB', 1625, 'GST (5%)'],
+        ['QC', 1625, 'GST (5%)'], // GST only — no QST per D2
+      ]
+      for (const [province, tax, label] of cases) {
+        const r = computeOrderPrice({
+          songCount: 1,
+          buyer: { country: 'CA', province },
+        })
+        expect(r.tax_cents).toBe(tax)
+        expect(r.tax_label).toBe(label)
+        expect(r.total_cents).toBe(32500 + tax)
+      }
+    })
+
+    test('non-Canadian and absent buyers are untaxed', () => {
+      const buyers: (BuyerLocation | null | undefined)[] = [
+        { country: 'US' },
+        { country: 'OTHER' },
+        null,
+        undefined,
+      ]
+      for (const buyer of buyers) {
+        const r = computeOrderPrice({ songCount: 1, buyer })
+        expect(r.tax_cents).toBe(0)
+        expect(r.tax_rate_pct).toBe(0)
+        expect(r.tax_label).toBeNull()
+        expect(r.total_cents).toBe(r.subtotal_cents)
+      }
+    })
+
+    test('rounds half-up on the discounted subtotal', () => {
+      // 30% public code: subtotal 22750; 13% of it is 2957.5 -> 2958.
+      const up = computeOrderPrice({
+        songCount: 1,
+        code: percent(30, 'public'),
+        buyer: { country: 'CA', province: 'ON' },
+      })
+      expect(up.subtotal_cents).toBe(22750)
+      expect(up.tax_cents).toBe(2958)
+
+      // 15% private (the welcome rate): subtotal 27625; 13% is 3591.25 -> 3591.
+      const down = computeOrderPrice({
+        songCount: 1,
+        code: percent(15, 'private'),
+        buyer: { country: 'CA', province: 'ON' },
+      })
+      expect(down.subtotal_cents).toBe(27625)
+      expect(down.tax_cents).toBe(3591)
+    })
+
+    test('taxes the whole consideration including add-ons', () => {
+      // 1 song + rush: subtotal 47400; 13% -> 6162 exactly.
+      const r = computeOrderPrice({
+        songCount: 1,
+        addOns: ['rush_48h'],
+        buyer: { country: 'CA', province: 'ON' },
+      })
+      expect(r.subtotal_cents).toBe(47400)
+      expect(r.tax_cents).toBe(6162)
+      expect(r.total_cents).toBe(53562)
+    })
+
+    test('taxes the floor-clamped price, not the intended discount', () => {
+      // Fixed $500 off would sell below the floor; tax applies to the
+      // clamped 22500.
+      const r = computeOrderPrice({
+        songCount: 1,
+        code: fixed(50000, 'public'),
+        buyer: { country: 'CA', province: 'ON' },
+      })
+      expect(r.subtotal_cents).toBe(22500)
+      expect(r.tax_cents).toBe(2925)
+    })
+
+    test('defensively falls back to 5% GST for CA with no province', () => {
+      // The checkout route validates the province, but the pure module must
+      // never zero-rate a Canadian sale on bad input.
+      const r = computeOrderPrice({ songCount: 1, buyer: { country: 'CA' } })
+      expect(r.tax_cents).toBe(1625)
+      expect(r.tax_rate_pct).toBe(5)
+      expect(r.tax_label).toBe('GST (5%)')
+    })
+  })
+
   describe('invariants across the input grid', () => {
     const songCounts = [0, 1, 2, 3, 4, 5, 7, 8, 12]
     const codes: (OrderCode | null)[] = [null]
@@ -391,49 +520,67 @@ describe('computeOrderPrice', () => {
       for (const value of [5000, 30000, 50000]) codes.push(fixed(value, scope))
     }
     const addOnSets: AddOn[][] = [[], ['extra_revision'], ['extra_revision', 'rush_48h']]
+    const buyers: (BuyerLocation | undefined)[] = [
+      undefined,
+      { country: 'CA', province: 'ON' },
+      { country: 'CA', province: 'NS' },
+      { country: 'CA', province: 'AB' },
+      { country: 'US' },
+    ]
 
     test('every grid point satisfies the pricing invariants', () => {
       for (const songCount of songCounts) {
         for (const code of codes) {
           for (const addOns of addOnSets) {
-            const r = computeOrderPrice({ songCount, code, addOns })
+            for (const buyer of buyers) {
+              const r = computeOrderPrice({ songCount, code, addOns, buyer })
 
-            // Lines sum exactly to the subtotal.
-            expect(
-              r.list_total_cents - r.bulk_discount_cents - r.code_discount_cents + r.add_ons_cents
-            ).toBe(r.subtotal_cents)
+              // Lines sum exactly to the subtotal.
+              expect(
+                r.list_total_cents - r.bulk_discount_cents - r.code_discount_cents + r.add_ons_cents
+              ).toBe(r.subtotal_cents)
 
-            // The mix price never sells below the per-song floor.
-            expect(r.subtotal_cents - r.add_ons_cents).toBeGreaterThanOrEqual(
-              r.song_count * FLOOR_PER_SONG_CENTS
-            )
+              // The mix price never sells below the per-song floor.
+              expect(r.subtotal_cents - r.add_ons_cents).toBeGreaterThanOrEqual(
+                r.song_count * FLOOR_PER_SONG_CENTS
+              )
 
-            // Discounts are non-negative and never exceed the list total.
-            const discount = r.bulk_discount_cents + r.code_discount_cents
-            expect(discount).toBeGreaterThanOrEqual(0)
-            expect(discount).toBeLessThanOrEqual(r.list_total_cents)
+              // Discounts are non-negative and never exceed the list total.
+              const discount = r.bulk_discount_cents + r.code_discount_cents
+              expect(discount).toBeGreaterThanOrEqual(0)
+              expect(discount).toBeLessThanOrEqual(r.list_total_cents)
 
-            // Tax is not computed here (owned by D2 / S8).
-            expect(r.total_cents).toBe(r.subtotal_cents + r.tax_cents)
-            expect(r.tax_cents).toBe(0)
+              // Tax follows the buyer (D2): the province's GST/HST rate,
+              // half-up on the discounted subtotal for CA, zero otherwise.
+              const pct =
+                buyer?.country === 'CA' && buyer.province
+                  ? CA_TAX_RATES[buyer.province].pct
+                  : 0
+              expect(r.tax_rate_pct).toBe(pct)
+              expect(r.tax_cents).toBe(
+                Math.floor((r.subtotal_cents * pct) / 100 + 0.5)
+              )
+              expect(r.total_cents).toBe(r.subtotal_cents + r.tax_cents)
 
-            // All money fields are integer cents.
-            for (const value of [
-              r.list_unit_cents,
-              r.list_total_cents,
-              r.bulk_discount_cents,
-              r.code_discount_cents,
-              r.add_ons_cents,
-              r.subtotal_cents,
-              r.tax_cents,
-              r.total_cents,
-            ]) {
-              expect(Number.isInteger(value)).toBe(true)
+              // All money fields are integer cents.
+              for (const value of [
+                r.list_unit_cents,
+                r.list_total_cents,
+                r.bulk_discount_cents,
+                r.code_discount_cents,
+                r.add_ons_cents,
+                r.subtotal_cents,
+                r.tax_cents,
+                r.tax_rate_pct,
+                r.total_cents,
+              ]) {
+                expect(Number.isInteger(value)).toBe(true)
+              }
+
+              // List math is exact.
+              expect(r.list_unit_cents).toBe(LIST_PRICE_PER_SONG_CENTS)
+              expect(r.list_total_cents).toBe(r.song_count * LIST_PRICE_PER_SONG_CENTS)
             }
-
-            // List math is exact.
-            expect(r.list_unit_cents).toBe(LIST_PRICE_PER_SONG_CENTS)
-            expect(r.list_total_cents).toBe(r.song_count * LIST_PRICE_PER_SONG_CENTS)
           }
         }
       }
