@@ -49,25 +49,25 @@ describe('PaymentStep', () => {
 
     expect(screen.getByText('1 song × $325')).toBeInTheDocument()
     expect(screen.queryByText('Album discount')).not.toBeInTheDocument()
-    expect(screen.queryByText('First mix discount')).not.toBeInTheDocument()
+    expect(screen.queryByText('Welcome discount')).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Pay $325 & Start Upload' }),
     ).toBeInTheDocument()
   })
 
-  test('itemizes bulk and first-mix discounts and strikes through the list total', () => {
+  test('itemizes the welcome discount and strikes through the list total', () => {
     render(
       <PaymentStep
         clientSecret="cs_test"
-        amountCents={180000}
+        amountCents={221000}
         currency="usd"
         discountApplied
         breakdown={makeBreakdown({
           song_count: 8,
           list_total_cents: 260000,
-          code_discount_cents: 80000,
-          subtotal_cents: 180000,
-          total_cents: 180000,
+          code_discount_cents: 39000,
+          subtotal_cents: 221000,
+          total_cents: 221000,
         })}
         onSucceeded={noop}
         onCancel={noop}
@@ -75,16 +75,16 @@ describe('PaymentStep', () => {
     )
 
     expect(screen.getByText('8 songs × $325')).toBeInTheDocument()
-    expect(screen.getByText('−$800')).toBeInTheDocument()
-    // Discount row label + badge both say "First mix discount".
-    expect(screen.getAllByText('First mix discount')).toHaveLength(2)
+    expect(screen.getByText('−$390')).toBeInTheDocument()
+    // Discount row label + badge both say "Welcome discount".
+    expect(screen.getAllByText('Welcome discount')).toHaveLength(2)
     // The list total renders twice: as the line item and as the strikethrough.
     const listTotals = screen.getAllByText('$2,600')
     expect(listTotals.some((el) => el.classList.contains('line-through'))).toBe(
       true,
     )
     expect(
-      screen.getByRole('button', { name: 'Pay $1,800 & Start Upload' }),
+      screen.getByRole('button', { name: 'Pay $2,210 & Start Upload' }),
     ).toBeInTheDocument()
   })
 

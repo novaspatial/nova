@@ -4,6 +4,10 @@ import { FadeIn } from '@/components/ui/FadeIn'
 import { Footer } from '@/components/layout/Footer'
 import { GridPattern } from '@/components/ui/GridPattern'
 import { Logo } from '@/components/ui/Logo'
+import {
+  WELCOME_DISCOUNT_PCT,
+  WELCOME_PROMO_TOKEN,
+} from '@/lib/stripe/pricing'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
@@ -51,7 +55,7 @@ function LoginForm() {
 
   const defaultMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
   const defaultEmail = searchParams.get('email') || ''
-  const hasPromo = searchParams.get('promo') === '50off'
+  const hasPromo = searchParams.get('promo') === WELCOME_PROMO_TOKEN
   const nextPath = searchParams.get('next') || '/portal'
 
   const [mode, setMode] = useState<AuthMode>(defaultMode)
@@ -96,7 +100,7 @@ function LoginForm() {
         const { error } = await submitAuthRequest('/api/auth/signup', {
           email,
           password,
-          promoCode: hasPromo ? '50off' : null,
+          promoCode: hasPromo ? WELCOME_PROMO_TOKEN : null,
           next: nextPath,
         })
         if (error) {
@@ -166,7 +170,7 @@ function LoginForm() {
 
                 {hasPromo && mode === 'signup' && (
                   <div className="mx-auto mt-6 flex max-w-fit items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300">
-                    ✨ 50% Off Promo Applied
+                    ✨ {WELCOME_DISCOUNT_PCT}% Welcome Offer
                   </div>
                 )}
 

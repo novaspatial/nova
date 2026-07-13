@@ -3,7 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
-import { computeOrderPrice, type OrderCode } from '@/lib/stripe/pricing'
+import {
+  computeOrderPrice,
+  WELCOME_DISCOUNT_PCT,
+  type OrderCode,
+} from '@/lib/stripe/pricing'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 
 const RATE_LIMIT_WINDOW_SECONDS = 60
@@ -15,11 +19,16 @@ const MAX_STEM_COUNT = 999
 const MAX_TEXT_LENGTH = 5000
 
 // The one-shot first-mix discount rides the per-song pricing module as a
-// private percent code: private codes do not stack with the bulk tier, and
-// the $225/song floor bounds what "50% off" can actually realize (D4 guard
-// rails, approved 2026-07-02). The percentage moves to the welcome code
-// system in S4b (#25) / D11.
-const FIRST_MIX_CODE: OrderCode = { kind: 'percent', value: 50, scope: 'private' }
+// private percent code: private codes do not stack with the bulk tier. At
+// the 15% welcome rate (D11, 2026-07-13) the $225/song floor never binds —
+// it stays as a guard for the arbitrary codes S4b (#25) will feed through
+// this same path, which is also where the percentage moves to the welcome
+// code system.
+const FIRST_MIX_CODE: OrderCode = {
+  kind: 'percent',
+  value: WELCOME_DISCOUNT_PCT,
+  scope: 'private',
+}
 
 function parseCount(value: unknown, min: number, max: number): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value)) return null

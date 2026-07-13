@@ -298,7 +298,7 @@ describe('POST /api/portal/projects/checkout', () => {
     )
   })
 
-  test('first-mix reservation rides as a private 50% code bounded by the floor', async () => {
+  test('first-mix reservation rides as the private welcome-percent code', async () => {
     const projectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: true, error: null })
     mockCreateClient.mockResolvedValue(
@@ -308,7 +308,10 @@ describe('POST /api/portal/projects/checkout', () => {
       }),
     )
 
-    // 1 song: 50% intends 16250 off, the $225 floor clamps to 22500.
+    // 1 song: the 15% welcome code takes 4875 off list 32500 -> 27625. The
+    // $225/song floor (22500) never binds at 15%; floor behavior stays
+    // covered by the module vectors in pricing.test.ts (fixed-code floor
+    // bound, >100% percent clamp, invariant grid).
     const req = createMockRequest(orderBody())
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
@@ -317,24 +320,24 @@ describe('POST /api/portal/projects/checkout', () => {
       p_user_id: 'user-1',
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 22500, currency: 'usd' }),
+      expect.objectContaining({ amount: 27625, currency: 'usd' }),
     )
     const body = await res.json()
     expect(body).toMatchObject({
-      amountCents: 22500,
+      amountCents: 27625,
       discountApplied: true,
       breakdown: {
         list_total_cents: 32500,
         bulk_discount_cents: 0,
-        code_discount_cents: 10000,
-        subtotal_cents: 22500,
-        total_cents: 22500,
+        code_discount_cents: 4875,
+        subtotal_cents: 27625,
+        total_cents: 27625,
       },
     })
     expect(projectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        amount_cents: 22500,
-        subtotal_cents: 22500,
+        amount_cents: 27625,
+        subtotal_cents: 27625,
         discount_applied: true,
       }),
     )
@@ -350,8 +353,8 @@ describe('POST /api/portal/projects/checkout', () => {
       }),
     )
 
-    // 8 songs: private code disables the 25% bulk tier; 50% intends 130000
-    // off, the floor (8 x 22500 = 180000) clamps the total.
+    // 8 songs: the private code disables the 25% bulk tier; 15% takes 39000
+    // off list 260000 -> 221000 (the floor, 8 x 22500 = 180000, stays clear).
     const req = createMockRequest(orderBody({ songCount: 8, stemCount: 96 }))
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
@@ -361,12 +364,12 @@ describe('POST /api/portal/projects/checkout', () => {
       song_count: 8,
       list_total_cents: 260000,
       bulk_discount_cents: 0,
-      code_discount_cents: 80000,
-      subtotal_cents: 180000,
-      total_cents: 180000,
+      code_discount_cents: 39000,
+      subtotal_cents: 221000,
+      total_cents: 221000,
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 180000 }),
+      expect.objectContaining({ amount: 221000 }),
     )
   })
 

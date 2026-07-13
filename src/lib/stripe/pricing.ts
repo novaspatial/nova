@@ -27,6 +27,16 @@ export const ADD_ON_CENTS: Record<AddOn, number> = {
   rush_48h: 14900, // +$149 (#19)
 }
 
+// D11 (2026-07-13): the welcome offer that replaced the 50% launch promo.
+// Single source for every surface that names the percentage — marketing copy
+// and the checkout route's private code alike. Code-based enforcement lands
+// with S4b (#25).
+export const WELCOME_DISCOUNT_PCT = 15
+// Marketing-attribution token stashed in user_metadata at signup (was
+// '50off'). Value-agnostic on purpose: a future D11 revision must not orphan
+// already-recorded metadata.
+export const WELCOME_PROMO_TOKEN = 'welcome'
+
 export type CodeScope = 'public' | 'private'
 
 export type OrderCode =

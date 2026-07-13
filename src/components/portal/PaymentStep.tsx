@@ -78,7 +78,7 @@ function PaymentForm({
         )}
         {breakdown.code_discount_cents > 0 && (
           <div className="mt-1 flex items-center justify-between text-xs text-violet-300 sm:text-sm">
-            <span>First mix discount</span>
+            <span>Welcome discount</span>
             <span>−{formatCurrency(breakdown.code_discount_cents, currency)}</span>
           </div>
         )}
@@ -95,7 +95,7 @@ function PaymentForm({
             )}
             {discountApplied && (
               <span className="rounded-md bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">
-                First mix discount
+                Welcome discount
               </span>
             )}
           </div>

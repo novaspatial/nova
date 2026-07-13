@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
 import { FadeIn } from '@/components/ui/FadeIn'
 import { Logo } from '@/components/ui/Logo'
+import { WELCOME_DISCOUNT_PCT } from '@/lib/stripe/pricing'
 
 type FooterNavLink = { title: string; href: string }
 type FooterNavGroup = { title: string; links: FooterNavLink[] }
@@ -72,7 +73,8 @@ function NewsletterForm() {
         Subscribe
       </h2>
       <p className="mt-2 text-[10px] text-white/70 sm:mt-4 sm:text-sm 3xl:text-base">
-        Get a 50% discount on your first Atmos mix.
+        Get a {WELCOME_DISCOUNT_PCT}% welcome discount on your first Atmos
+        mix.
       </p>
       <div className="relative mt-3 sm:mt-6">
         <input

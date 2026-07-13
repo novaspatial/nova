@@ -4,6 +4,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { checkEmail } from '../../app/actions/checkEmail'
+import {
+  WELCOME_DISCOUNT_PCT,
+  WELCOME_PROMO_TOKEN,
+} from '@/lib/stripe/pricing'
 
 function CloseIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -60,7 +64,9 @@ export function PromoPopup() {
 
     setSubmitted(true)
     setTimeout(() => {
-      router.push(`/login?mode=signup&email=${encodeURIComponent(email)}&promo=50off`)
+      router.push(
+        `/login?mode=signup&email=${encodeURIComponent(email)}&promo=${WELCOME_PROMO_TOKEN}`,
+      )
       handleDismiss()
     }, 1500)
   }
@@ -106,11 +112,12 @@ export function PromoPopup() {
               </div>
 
               <h3 className="mt-3 font-display text-xl font-bold tracking-tight text-white sm:text-2xl">
-                50% off your first mixes
+                {WELCOME_DISCOUNT_PCT}% off your first mix
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                Create an account today and get an exclusive 50% discount on
-                your first Atmos mix session.
+                Create an account today and get an exclusive{' '}
+                {WELCOME_DISCOUNT_PCT}% welcome discount on your first Atmos
+                mix session.
               </p>
 
               {submitted ? (
@@ -134,7 +141,9 @@ export function PromoPopup() {
                       disabled={loading}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
                     >
-                      {loading ? 'Checking...' : 'Claim 50% Off'}
+                      {loading
+                        ? 'Checking...'
+                        : `Claim ${WELCOME_DISCOUNT_PCT}% Off`}
                     </button>
                   </div>
                   {errorMsg && (
