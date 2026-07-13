@@ -7,6 +7,7 @@ type ChainableMock = {
   delete: ReturnType<typeof vi.fn>
   eq: ReturnType<typeof vi.fn>
   is: ReturnType<typeof vi.fn>
+  not: ReturnType<typeof vi.fn>
   gte: ReturnType<typeof vi.fn>
   lte: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
@@ -31,6 +32,7 @@ export function createChainMock(
     delete: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    not: vi.fn(),
     gte: vi.fn(),
     lte: vi.fn(),
     order: vi.fn(),

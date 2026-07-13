@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         billingCountry?: unknown
         billingProvince?: unknown
         termsAcceptedVersion?: unknown
+        code?: unknown
       }
     | null
 
@@ -114,6 +115,12 @@ export async function POST(request: NextRequest) {
     province: billingProvince,
   }
 
+  // Discount code (#25): an empty or non-string field means no code — the
+  // server resolves whatever arrives (typed-but-unapplied codes included),
+  // so the client-side preview is UX only, never trusted.
+  const submittedCode =
+    typeof body?.code === 'string' && body.code.trim() ? body.code.trim() : null
+
   // T&C consent (#23): the client echoes the version it displayed; reject unless
   // it matches the current terms, which forces re-consent on a stale tab across a
   // deploy. We record the server-side TERMS_VERSION below, never the client value.
@@ -180,16 +187,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Atomically reserve the order's discount (the #38 seam; today the one-shot
-  // first-mix flag, catalog codes with #25). Every failure path past this
-  // point must end in `reservation.release()`.
-  const { reservation, error: reserveError } = await reserveOrderDiscount(
-    supabase,
-    user.id,
-  )
-  if (!reservation) {
-    return NextResponse.json({ error: reserveError }, { status: 500 })
+  // Atomically reserve the order's discount (the #38 seam): a submitted code
+  // is re-validated and resolved server-side (welcome per D11/D5, catalog
+  // per #17) and skips the first-mix reserve — one code per order (D4); with
+  // no code, the one-shot first-mix flag. A code rejection maps to 400; only
+  // infrastructure failures stay 500. Every failure path past this point
+  // must end in `reservation.release()`. NOTE (#26/D6): single-use and
+  // usage-limited codes charge correctly here but are NOT consumed yet — do
+  // not distribute such codes before #26 ships.
+  const reserved = await reserveOrderDiscount(supabase, user.id, {
+    submittedCode,
+  })
+  if (!reserved.reservation) {
+    return NextResponse.json(
+      { error: reserved.error },
+      { status: 'rejection' in reserved ? 400 : 500 },
+    )
   }
+  const { reservation } = reserved
   const discountApplied = reservation.applied
 
   const breakdown = computeOrderPrice({
@@ -213,6 +228,8 @@ export async function POST(request: NextRequest) {
     tax_cents: breakdown.tax_cents,
     buyer_country: billingCountry,
     buyer_province: billingProvince,
+    // Frozen after insert by the 20260713 trigger, like the fields above.
+    applied_coupon_code: reservation.couponCode,
   }
 
   if (devBypass) {
@@ -258,6 +275,7 @@ export async function POST(request: NextRequest) {
       amountCents: 0,
       currency,
       discountApplied,
+      appliedCouponCode: reservation.couponCode,
       breakdown,
     })
   }
@@ -282,6 +300,11 @@ export async function POST(request: NextRequest) {
         song_count: String(songCount),
         tax_cents: String(breakdown.tax_cents),
         tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
+        // Stripe metadata values must be strings — omit rather than "null".
+        // #26's webhook finalize reads this to consume the code on payment.
+        ...(reservation.couponCode
+          ? { applied_coupon_code: reservation.couponCode }
+          : {}),
       },
     })
   } catch (err) {
@@ -334,6 +357,9 @@ export async function POST(request: NextRequest) {
         song_count: String(songCount),
         tax_cents: String(breakdown.tax_cents),
         tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
+        ...(reservation.couponCode
+          ? { applied_coupon_code: reservation.couponCode }
+          : {}),
       },
     })
   } catch (err) {
@@ -346,6 +372,7 @@ export async function POST(request: NextRequest) {
     amountCents,
     currency,
     discountApplied,
+    appliedCouponCode: reservation.couponCode,
     breakdown,
   })
 }

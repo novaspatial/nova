@@ -5,6 +5,7 @@ import {
   createMockRequest,
 } from '@/test/helpers/supabaseMock'
 import { TERMS_VERSION } from '@/lib/legal/terms'
+import { computeOrderPrice, WELCOME_DISCOUNT_PCT } from '@/lib/stripe/pricing'
 import type { NextRequest } from 'next/server'
 
 const mockCreateClient = vi.fn()
@@ -53,6 +54,37 @@ function orderBody(overrides: Record<string, unknown> = {}) {
     termsAcceptedVersion: TERMS_VERSION,
     ...overrides,
   }
+}
+
+/** One active catalog row as `lookup_discount_code` returns it. */
+function catalogRow(overrides: Record<string, unknown> = {}) {
+  return {
+    code: 'SUMMER10',
+    kind: 'percent',
+    value: 10,
+    is_public: true,
+    single_use: false,
+    usage_limit: null,
+    new_clients_only: false,
+    returning_clients_only: false,
+    active: true,
+    expires_at: null,
+    ...overrides,
+  }
+}
+
+// The single supabase rpc mock serves every RPC name — dispatch on the name
+// so the catalog lookup and the first-mix reserve/restore can't shadow each
+// other.
+function lookupRpc(result: {
+  data: unknown
+  error: { message: string } | null
+}) {
+  return vi.fn((fn: string) =>
+    Promise.resolve(
+      fn === 'lookup_discount_code' ? result : { data: null, error: null },
+    ),
+  )
 }
 
 describe('POST /api/portal/projects/checkout', () => {
@@ -256,6 +288,10 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 32500, currency: 'usd' }),
     )
+    // No code: the conditional metadata key is omitted entirely, never "null".
+    expect(
+      mockPaymentIntentsCreate.mock.calls[0][0].metadata,
+    ).not.toHaveProperty('applied_coupon_code')
     const body = await res.json()
     expect(body).toMatchObject({
       projectId: 'proj-new',
@@ -263,6 +299,7 @@ describe('POST /api/portal/projects/checkout', () => {
       amountCents: 32500,
       currency: 'usd',
       discountApplied: false,
+      appliedCouponCode: null,
       breakdown: {
         song_count: 1,
         list_total_cents: 32500,
@@ -288,6 +325,7 @@ describe('POST /api/portal/projects/checkout', () => {
         tax_cents: 0,
         buyer_country: 'US',
         buyer_province: null,
+        applied_coupon_code: null,
       }),
     )
     // The client-session insert must be born unpaid or the 20260708 fence
@@ -368,6 +406,8 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(body).toMatchObject({
       amountCents: 27625,
       discountApplied: true,
+      // The legacy flag path is code-less: no coupon code rides the order.
+      appliedCouponCode: null,
       breakdown: {
         list_total_cents: 32500,
         bulk_discount_cents: 0,
@@ -381,6 +421,7 @@ describe('POST /api/portal/projects/checkout', () => {
         amount_cents: 27625,
         subtotal_cents: 27625,
         discount_applied: true,
+        applied_coupon_code: null,
       }),
     )
   })
@@ -606,6 +647,7 @@ describe('POST /api/portal/projects/checkout', () => {
         clientSecret: null,
         amountCents: 0,
         currency: 'usd',
+        appliedCouponCode: null,
         breakdown: {
           song_count: 3,
           list_total_cents: 97500,
@@ -632,6 +674,7 @@ describe('POST /api/portal/projects/checkout', () => {
           buyer_province: 'ON',
           reference_tracks: 'Ref X',
           discount_applied: false,
+          applied_coupon_code: null,
           terms_accepted_at: expect.any(String),
           terms_version: TERMS_VERSION,
         }),
@@ -737,5 +780,281 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
+  })
+
+  test('redeems a public catalog code stacked with the bulk tier and persists it', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    // Expected total from the same module the route charges with — the
+    // acceptance criterion is charge === computeOrderPrice, not a hand sum.
+    const expected = computeOrderPrice({
+      songCount: 5,
+      code: { kind: 'percent', value: 10, scope: 'public' },
+      buyer: { country: 'US' },
+    })
+    const req = createMockRequest(
+      orderBody({ songCount: 5, stemCount: 60, code: 'SUMMER10' }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(rpc).toHaveBeenCalledWith('lookup_discount_code', {
+      p_code: 'SUMMER10',
+    })
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: expected.total_cents }),
+    )
+    expect(
+      mockPaymentIntentsCreate.mock.calls[0][0].metadata,
+    ).toMatchObject({ applied_coupon_code: 'SUMMER10' })
+    const body = await res.json()
+    expect(body).toMatchObject({
+      amountCents: expected.total_cents,
+      // Public codes stack with the bulk tier (both discounts non-zero);
+      // discount_applied stays the first-mix flag, untouched by a code.
+      discountApplied: false,
+      appliedCouponCode: 'SUMMER10',
+      breakdown: {
+        bulk_discount_cents: expected.bulk_discount_cents,
+        code_discount_cents: expected.code_discount_cents,
+        total_cents: expected.total_cents,
+      },
+    })
+    expect(body.breakdown.bulk_discount_cents).toBeGreaterThan(0)
+    expect(body.breakdown.code_discount_cents).toBeGreaterThan(0)
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount_cents: expected.total_cents,
+        discount_applied: false,
+        applied_coupon_code: 'SUMMER10',
+      }),
+    )
+  })
+
+  test('a fixed catalog code is floored at $225/song', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({
+      data: [catalogRow({ code: 'INDIE150', kind: 'fixed', value: 15000 })],
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    // 1 song: fixed 15000 off list 32500 would land at 17500 — the D4 floor
+    // clamps the charge to 22500.
+    const req = createMockRequest(orderBody({ code: 'INDIE150' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 22500 }),
+    )
+    const body = await res.json()
+    expect(body.breakdown).toMatchObject({
+      code_discount_cents: 10000,
+      subtotal_cents: 22500,
+      total_cents: 22500,
+    })
+  })
+
+  test('a submitted code skips the first-mix reserve entirely', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    // One code per order (D4): the flag is never reserved alongside a code,
+    // so there is nothing to restore on failure either.
+    expect(rpc).not.toHaveBeenCalledWith(
+      'reserve_first_mix_discount',
+      expect.anything(),
+    )
+  })
+
+  test('rejects an unknown code with 400 before any side effect', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [], error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'NOPE99' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe("That code isn't valid.")
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+    expect(projectsChain.insert).not.toHaveBeenCalled()
+  })
+
+  test('rejects an expired code with 400 and its message', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({
+      data: [catalogRow({ expires_at: '2026-01-01T00:00:00.000Z' })],
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe('That code has expired.')
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  test('WELCOME charges the private welcome percent for a first-time buyer', async () => {
+    // count 0 serves both the rate-limit query and the D5 paid-count query:
+    // no pending checkouts, no prior paid project.
+    const projectsChain = makeProjectsChain({ pendingCount: 0 })
+    const rpc = vi.fn()
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    // The welcome offer resolves in code (D11) — no catalog lookup, no flag
+    // reserve; the charge matches the shared-constant private percent.
+    expect(rpc).not.toHaveBeenCalled()
+    const expected = computeOrderPrice({
+      songCount: 1,
+      code: { kind: 'percent', value: WELCOME_DISCOUNT_PCT, scope: 'private' },
+      buyer: { country: 'US' },
+    })
+    expect(expected.total_cents).toBe(27625)
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: expected.total_cents }),
+    )
+    const body = await res.json()
+    expect(body).toMatchObject({
+      amountCents: expected.total_cents,
+      discountApplied: false,
+      appliedCouponCode: 'WELCOME',
+    })
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount_cents: expected.total_cents,
+        discount_applied: false,
+        applied_coupon_code: 'WELCOME',
+      }),
+    )
+  })
+
+  test('WELCOME returns 400 for a returning client', async () => {
+    // count 1 passes the rate limit (1 < 3) and trips the D5 paid-count
+    // (1 > 0): a prior paid project makes the caller returning.
+    const projectsChain = makeProjectsChain({ pendingCount: 1 })
+    const rpc = vi.fn()
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe('That code is only valid on your first order.')
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+    expect(projectsChain.insert).not.toHaveBeenCalled()
+  })
+
+  test('returns 500 when the catalog lookup RPC fails', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: null, error: { message: 'rpc down' } })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    // Infrastructure failure, not a rejection — the 400 mapping must not
+    // swallow it.
+    expect(res.status).toBe(500)
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  test('dev bypass persists the redeemed code on the born-paid row', async () => {
+    const projectsChain = makeProjectsChain({})
+    const serviceProjectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
+    const prev = process.env.PAYMENTS_DEV_BYPASS
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+
+    try {
+      const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(200)
+
+      const body = await res.json()
+      expect(body).toMatchObject({
+        devBypass: true,
+        amountCents: 0,
+        appliedCouponCode: 'SUMMER10',
+      })
+      expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount_cents: 0,
+          discount_applied: false,
+          applied_coupon_code: 'SUMMER10',
+        }),
+      )
+    } finally {
+      if (prev === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prev
+      }
+    }
   })
 })

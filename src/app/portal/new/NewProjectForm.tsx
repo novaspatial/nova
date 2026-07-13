@@ -14,7 +14,15 @@ import type {
   Project,
 } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
-import { computeOrderPrice } from '@/lib/stripe/pricing'
+import {
+  computeOrderPrice,
+  WELCOME_DISCOUNT_PCT,
+  type OrderCode,
+} from '@/lib/stripe/pricing'
+import {
+  discountBadgeLabel,
+  WELCOME_COUPON_CODE,
+} from '@/lib/portal/orderDiscount'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 
@@ -82,8 +90,16 @@ type CheckoutResponse = {
   amountCents: number
   currency: string
   discountApplied: boolean
+  appliedCouponCode: string | null
   breakdown: PriceBreakdown
   devBypass?: boolean
+}
+
+// The validate endpoint's success shape (#25): the resolved OrderCode feeds
+// the same computeOrderPrice the charge uses, so preview and charge agree.
+type AppliedCode = {
+  couponCode: string
+  code: OrderCode
 }
 
 
@@ -139,6 +155,13 @@ export function NewProjectForm() {
   // untaxed, so an explicit choice is required before submit (#31).
   const [billingCountry, setBillingCountry] = useState<'' | BuyerCountry>('')
   const [billingProvince, setBillingProvince] = useState<'' | CAProvince>('')
+  // Discount code (#25): the preview applies via the validate endpoint; the
+  // checkout re-validates server-side, so an un-applied typed code is still
+  // honored (or rejected) at submit.
+  const [codeInput, setCodeInput] = useState('')
+  const [appliedCode, setAppliedCode] = useState<AppliedCode | null>(null)
+  const [applyingCode, setApplyingCode] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
   // Set right before our own success redirect so the beforeunload guard
   // doesn't prompt on a navigation the user didn't initiate.
@@ -172,14 +195,55 @@ export function NewProjectForm() {
     return { country: billingCountry }
   }, [billingCountry, billingProvince])
 
-  // Live list-price quote. Welcome/first-mix discounts are applied
-  // server-side at checkout, so the quote here is the pre-code price;
-  // the payment step shows the final charge (tax follows the actual
-  // discounted consideration there).
+  // Live quote, priced with the applied code's resolved OrderCode — the same
+  // shape the server charge uses, so preview and charge cannot disagree. The
+  // server remains authoritative: checkout re-validates from scratch and the
+  // payment step renders the server's breakdown.
   const quote = useMemo(
-    () => (songCountValid ? computeOrderPrice({ songCount, buyer }) : null),
-    [songCountValid, songCount, buyer],
+    () =>
+      songCountValid
+        ? computeOrderPrice({
+            songCount,
+            buyer,
+            code: appliedCode?.code ?? null,
+          })
+        : null,
+    [songCountValid, songCount, buyer, appliedCode],
   )
+
+  const handleApplyCode = useCallback(async () => {
+    const trimmed = codeInput.trim()
+    if (!trimmed) {
+      setCodeError('Enter a discount code')
+      return
+    }
+    setApplyingCode(true)
+    setCodeError(null)
+    try {
+      const res = await fetch('/api/portal/discount-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmed }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        couponCode?: string
+        code?: OrderCode
+      }
+      if (!res.ok || !data.couponCode || !data.code) {
+        throw new Error(data.error || 'Unable to validate the code right now.')
+      }
+      setAppliedCode({ couponCode: data.couponCode, code: data.code })
+      setCodeInput(data.couponCode)
+    } catch (err) {
+      setAppliedCode(null)
+      setCodeError(
+        err instanceof Error ? err.message : 'Unable to validate the code',
+      )
+    } finally {
+      setApplyingCode(false)
+    }
+  }, [codeInput])
 
   useEffect(() => {
     // Guard both payment AND upload: closing the tab mid-upload (after
@@ -403,6 +467,11 @@ export function NewProjectForm() {
             billingCountry,
             billingProvince: billingCountry === 'CA' ? billingProvince : null,
             termsAcceptedVersion: termsAccepted ? TERMS_VERSION : null,
+            // The server re-validates whatever is sent; a typed-but-unapplied
+            // code is honored (or rejected with a clear 400) at checkout.
+            code:
+              appliedCode?.couponCode ??
+              (codeInput.trim() ? codeInput.trim().toUpperCase() : null),
           }),
         })
         if (!res.ok) {
@@ -446,6 +515,8 @@ export function NewProjectForm() {
       notes,
       files,
       termsAccepted,
+      appliedCode,
+      codeInput,
       uploadAndNavigate,
     ],
   )
@@ -479,6 +550,7 @@ export function NewProjectForm() {
           amountCents={checkout.amountCents}
           currency={checkout.currency}
           discountApplied={checkout.discountApplied}
+          appliedCouponCode={checkout.appliedCouponCode ?? null}
           breakdown={checkout.breakdown}
           onSucceeded={handlePaymentSucceeded}
           onCancel={handlePaymentCancel}
@@ -732,6 +804,59 @@ export function NewProjectForm() {
         )}
       </div>
 
+      <div>
+        <label
+          htmlFor="discount-code"
+          className="block text-xs font-medium text-zinc-300 sm:text-sm"
+        >
+          Discount Code <span className="text-zinc-500">(optional)</span>
+        </label>
+        <div className="mt-2 flex gap-2">
+          <input
+            id="discount-code"
+            type="text"
+            value={codeInput}
+            onChange={(e) => {
+              // Editing after Apply de-applies: the preview must never show
+              // a discount for a code that is no longer in the field.
+              setCodeInput(e.target.value)
+              setAppliedCode(null)
+              setCodeError(null)
+            }}
+            placeholder="e.g. WELCOME"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className={inputClassName}
+            disabled={submitting || phase === 'uploading'}
+          />
+          <button
+            type="button"
+            onClick={handleApplyCode}
+            disabled={applyingCode || submitting || phase === 'uploading'}
+            className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-xs font-semibold text-zinc-200 transition hover:border-violet-500/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+          >
+            {applyingCode ? 'Checking…' : 'Apply'}
+          </button>
+        </div>
+        {codeError && (
+          <p role="alert" className="mt-2 text-xs text-red-300">
+            {codeError}
+          </p>
+        )}
+        {appliedCode && !codeError && (
+          <p className="mt-2 text-xs text-emerald-300">
+            {appliedCode.couponCode} applied — reflected in the quote below.
+          </p>
+        )}
+        {!appliedCode && !codeError && (
+          <p className="mt-2 text-xs text-zinc-500">
+            New here? Use code {WELCOME_COUPON_CODE} for {WELCOME_DISCOUNT_PCT}
+            % off your first mix.
+          </p>
+        )}
+      </div>
+
       {quote && (
         <div
           data-testid="live-quote"
@@ -751,6 +876,12 @@ export function NewProjectForm() {
               <span>−{formatCurrency(quote.bulk_discount_cents)}</span>
             </div>
           )}
+          {appliedCode && quote.code_discount_cents > 0 && (
+            <div className="mt-1 flex items-center justify-between text-xs text-violet-300 sm:text-sm">
+              <span>{discountBadgeLabel(appliedCode.couponCode, false)}</span>
+              <span>−{formatCurrency(quote.code_discount_cents)}</span>
+            </div>
+          )}
           {quote.tax_cents > 0 && (
             <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
               <span>{quote.tax_label}</span>
@@ -766,8 +897,8 @@ export function NewProjectForm() {
             </span>
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Prices are in USD. Eligible welcome discounts are applied at
-            payment; GST/HST is calculated on the discounted total.
+            Prices are in USD. Discount codes are verified at payment; GST/HST
+            is calculated on the discounted total.
           </p>
         </div>
       )}

@@ -43,6 +43,7 @@ describe('PaymentStep', () => {
         amountCents={32500}
         currency="usd"
         discountApplied={false}
+        appliedCouponCode={null}
         breakdown={makeBreakdown()}
         onSucceeded={noop}
         onCancel={noop}
@@ -64,6 +65,7 @@ describe('PaymentStep', () => {
         amountCents={221000}
         currency="usd"
         discountApplied
+        appliedCouponCode="WELCOME"
         breakdown={makeBreakdown({
           song_count: 8,
           list_total_cents: 260000,
@@ -97,6 +99,7 @@ describe('PaymentStep', () => {
         amountCents={36725}
         currency="usd"
         discountApplied={false}
+        appliedCouponCode={null}
         breakdown={makeBreakdown({
           tax_cents: 4225,
           tax_rate_pct: 13,
@@ -130,6 +133,7 @@ describe('PaymentStep', () => {
         amountCents={130000}
         currency="usd"
         discountApplied={false}
+        appliedCouponCode={null}
         breakdown={makeBreakdown({
           song_count: 5,
           list_total_cents: 162500,
@@ -148,5 +152,68 @@ describe('PaymentStep', () => {
     expect(listTotals.some((el) => el.classList.contains('line-through'))).toBe(
       true,
     )
+  })
+
+  test('labels a catalog-code discount with the literal code', () => {
+    render(
+      <PaymentStep
+        clientSecret="cs_test"
+        amountCents={29250}
+        currency="usd"
+        discountApplied={false}
+        appliedCouponCode="SUMMER10"
+        breakdown={makeBreakdown({
+          code_discount_cents: 3250,
+          subtotal_cents: 29250,
+          total_cents: 29250,
+        })}
+        onSucceeded={noop}
+        onCancel={noop}
+      />,
+    )
+
+    // Discount row label + badge both show the literal code (#25).
+    expect(screen.getAllByText('Discount · SUMMER10')).toHaveLength(2)
+    expect(screen.queryByText('Welcome discount')).not.toBeInTheDocument()
+  })
+
+  test('keeps the Welcome badge for the first-mix flag path', () => {
+    render(
+      <PaymentStep
+        clientSecret="cs_test"
+        amountCents={27625}
+        currency="usd"
+        discountApplied
+        appliedCouponCode={null}
+        breakdown={makeBreakdown({
+          code_discount_cents: 4875,
+          subtotal_cents: 27625,
+          total_cents: 27625,
+        })}
+        onSucceeded={noop}
+        onCancel={noop}
+      />,
+    )
+
+    // No coupon code, but the legacy first-mix flag still reads as welcome.
+    expect(screen.getAllByText('Welcome discount')).toHaveLength(2)
+  })
+
+  test('shows no badge when no discount applied', () => {
+    render(
+      <PaymentStep
+        clientSecret="cs_test"
+        amountCents={32500}
+        currency="usd"
+        discountApplied={false}
+        appliedCouponCode={null}
+        breakdown={makeBreakdown()}
+        onSucceeded={noop}
+        onCancel={noop}
+      />,
+    )
+
+    expect(screen.queryByText('Welcome discount')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Discount ·/)).not.toBeInTheDocument()
   })
 })

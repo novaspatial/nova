@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { FileUploadItem } from '@/types/portal'
 import { TERMS_VERSION } from '@/lib/legal/terms'
+import { WELCOME_COUPON_CODE } from '@/lib/portal/orderDiscount'
+import { WELCOME_DISCOUNT_PCT } from '@/lib/stripe/pricing'
 
 vi.mock('@/components/portal', () => ({
   FileUploader: ({
@@ -35,6 +37,46 @@ import { NewProjectForm } from './NewProjectForm'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+function validateOk(
+  couponCode: string,
+  code: { kind: 'percent' | 'fixed'; value: number; scope: 'public' | 'private' },
+) {
+  return { ok: true, json: async () => ({ couponCode, code }) }
+}
+
+function applyCode(code: string) {
+  fireEvent.change(screen.getByLabelText(/Discount Code/), {
+    target: { value: code },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+}
+
+const checkoutResponse = {
+  ok: true,
+  json: async () => ({
+    projectId: 'proj-1',
+    clientSecret: 'cs_test',
+    amountCents: 29250,
+    currency: 'usd',
+    discountApplied: false,
+    appliedCouponCode: 'SUMMER10',
+    breakdown: {
+      currency: 'usd',
+      song_count: 1,
+      list_unit_cents: 32500,
+      list_total_cents: 32500,
+      bulk_discount_cents: 0,
+      code_discount_cents: 3250,
+      add_ons_cents: 0,
+      subtotal_cents: 29250,
+      tax_cents: 0,
+      tax_rate_pct: 0,
+      tax_label: null,
+      total_cents: 29250,
+    },
+  }),
+}
 
 function fillRequiredFields(songCount = '1') {
   fireEvent.change(screen.getByLabelText('Project Title'), {
@@ -137,6 +179,7 @@ describe('NewProjectForm', () => {
       billingCountry: 'US',
       billingProvince: null,
       termsAcceptedVersion: TERMS_VERSION,
+      code: null,
     })
   })
 
@@ -250,5 +293,140 @@ describe('NewProjectForm', () => {
       /Checkout could not be initialized/,
     )
     expect(screen.queryByTestId('payment-step')).not.toBeInTheDocument()
+  })
+
+  test('applies a code and the live quote shows the discount', async () => {
+    mockFetch.mockResolvedValue(
+      validateOk('SUMMER10', { kind: 'percent', value: 10, scope: 'public' }),
+    )
+
+    render(<NewProjectForm />)
+    applyCode('SUMMER10')
+
+    await screen.findByText(/SUMMER10 applied/)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/portal/discount-codes/validate',
+      expect.objectContaining({ method: 'POST' }),
+    )
+
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).toHaveTextContent('Discount · SUMMER10')
+    expect(quote).toHaveTextContent('−$32.50')
+    expect(quote).toHaveTextContent('$292.50')
+  })
+
+  test('a private code suppresses the album discount in the live preview', async () => {
+    mockFetch.mockResolvedValue(
+      validateOk('VIP20', { kind: 'percent', value: 20, scope: 'private' }),
+    )
+
+    render(<NewProjectForm />)
+    fireEvent.change(screen.getByLabelText('Number of Songs'), {
+      target: { value: '5' },
+    })
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).toHaveTextContent('Album discount')
+
+    applyCode('VIP20')
+    await screen.findByText(/VIP20 applied/)
+
+    expect(quote).not.toHaveTextContent('Album discount')
+    expect(quote).toHaveTextContent('Discount · VIP20')
+    expect(quote).toHaveTextContent('−$325')
+    expect(quote).toHaveTextContent('$1,300')
+  })
+
+  test('shows the rejection message and keeps the quote undiscounted', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "That code isn't valid." }),
+    })
+
+    render(<NewProjectForm />)
+    applyCode('BOGUS')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "That code isn't valid.",
+    )
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).not.toHaveTextContent('Discount ·')
+    expect(quote).toHaveTextContent('$325')
+  })
+
+  test('editing the code input clears the applied state', async () => {
+    mockFetch.mockResolvedValue(
+      validateOk('SUMMER10', { kind: 'percent', value: 10, scope: 'public' }),
+    )
+
+    render(<NewProjectForm />)
+    applyCode('SUMMER10')
+    await screen.findByText(/SUMMER10 applied/)
+
+    fireEvent.change(screen.getByLabelText(/Discount Code/), {
+      target: { value: 'SUMMER1' },
+    })
+
+    expect(screen.queryByText(/SUMMER10 applied/)).not.toBeInTheDocument()
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).not.toHaveTextContent('Discount ·')
+    expect(quote).toHaveTextContent('$325')
+  })
+
+  test('submits the applied couponCode', async () => {
+    mockFetch.mockImplementation(async (url: string) =>
+      url.includes('/discount-codes/validate')
+        ? validateOk('SUMMER10', { kind: 'percent', value: 10, scope: 'public' })
+        : checkoutResponse,
+    )
+
+    render(<NewProjectForm />)
+    fillRequiredFields()
+    applyCode('SUMMER10')
+    await screen.findByText(/SUMMER10 applied/)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create Project & Upload' }),
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-step')).toBeInTheDocument()
+    })
+
+    const checkoutCall = mockFetch.mock.calls.find(
+      ([url]) => url === '/api/portal/projects/checkout',
+    )
+    expect(checkoutCall).toBeDefined()
+    const body = JSON.parse(checkoutCall![1].body as string)
+    expect(body.code).toBe('SUMMER10')
+  })
+
+  test('submits the normalized typed-but-unapplied code', async () => {
+    mockFetch.mockResolvedValue(checkoutResponse)
+
+    render(<NewProjectForm />)
+    fillRequiredFields()
+    fireEvent.change(screen.getByLabelText(/Discount Code/), {
+      target: { value: 'summer10' },
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create Project & Upload' }),
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-step')).toBeInTheDocument()
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
+    expect(body.code).toBe('SUMMER10')
+  })
+
+  test('renders the welcome hint from the shared constants', () => {
+    render(<NewProjectForm />)
+
+    expect(
+      screen.getByText(
+        `New here? Use code ${WELCOME_COUPON_CODE} for ${WELCOME_DISCOUNT_PCT}% off your first mix.`,
+      ),
+    ).toBeInTheDocument()
   })
 })

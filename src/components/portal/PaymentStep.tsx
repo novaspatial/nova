@@ -9,6 +9,7 @@ import {
 } from '@stripe/react-stripe-js'
 import { getStripePromise } from '@/lib/stripe/client'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { discountBadgeLabel } from '@/lib/portal/orderDiscount'
 import type { PriceBreakdown } from '@/types/portal'
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
   amountCents: number
   currency: string
   discountApplied: boolean
+  appliedCouponCode: string | null
   breakdown: PriceBreakdown
   onSucceeded: () => void
   onCancel: () => void
@@ -25,6 +27,7 @@ function PaymentForm({
   amountCents,
   currency,
   discountApplied,
+  appliedCouponCode,
   breakdown,
   onSucceeded,
   onCancel,
@@ -62,6 +65,9 @@ function PaymentForm({
   // taxed order would compare a taxed total against an untaxed list price.
   const hasDiscount =
     breakdown.bulk_discount_cents + breakdown.code_discount_cents > 0
+  // 'Welcome discount' for the welcome code and the first-mix flag path;
+  // any other redeemed code is shown literally (#25).
+  const codeLabel = discountBadgeLabel(appliedCouponCode, discountApplied)
 
   return (
     <div className="space-y-6">
@@ -81,7 +87,7 @@ function PaymentForm({
         )}
         {breakdown.code_discount_cents > 0 && (
           <div className="mt-1 flex items-center justify-between text-xs text-violet-300 sm:text-sm">
-            <span>Welcome discount</span>
+            <span>{codeLabel ?? 'Welcome discount'}</span>
             <span>−{formatCurrency(breakdown.code_discount_cents, currency)}</span>
           </div>
         )}
@@ -102,9 +108,9 @@ function PaymentForm({
                 {formatCurrency(breakdown.list_total_cents, currency)}
               </span>
             )}
-            {discountApplied && (
+            {codeLabel && (
               <span className="rounded-md bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">
-                Welcome discount
+                {codeLabel}
               </span>
             )}
           </div>
@@ -153,6 +159,7 @@ export function PaymentStep({
   amountCents,
   currency,
   discountApplied,
+  appliedCouponCode,
   breakdown,
   onSucceeded,
   onCancel,
@@ -166,6 +173,7 @@ export function PaymentStep({
         amountCents={amountCents}
         currency={currency}
         discountApplied={discountApplied}
+        appliedCouponCode={appliedCouponCode}
         breakdown={breakdown}
         onSucceeded={onSucceeded}
         onCancel={onCancel}

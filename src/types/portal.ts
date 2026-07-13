@@ -102,12 +102,17 @@ export interface Project {
   buyer_country: BuyerCountry | null
   buyer_province: CAProvince | null
 
+  // Redeemed discount code — live in DB since migration 20260713 (S4b #25).
+  // The normalized code the charge was priced with ('WELCOME' or a catalog
+  // code); null for no-code orders and pre-#25 rows. Distinct from
+  // discount_applied, which still means the first-mix flag was reserved.
+  applied_coupon_code: string | null
+
   // Order/lifecycle surface the remaining commerce and purge slices will
   // add. Declared optional + nullable so current `select *` reads (whose rows
   // lack these columns) stay type-safe; each column lands in its owning slice.
   // Service/format selection rides the existing `format` column (#16).
   add_ons?: AddOn[] | null
-  applied_coupon_code?: string | null
   delivered_at?: string | null // final-masters delivery, drives 90-day purge (#27)
   files_purged_at?: string | null
 }

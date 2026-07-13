@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireApiStudioUser } from '@/lib/auth/server'
-
 // CODE NAME rules: uppercase alphanumeric with _ or -, 3–40 chars. The DB
 // CHECK mirrors this; the route normalizes (trim + uppercase) before it.
-const CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,39}$/
+import { CODE_PATTERN, WELCOME_COUPON_CODE } from '@/lib/portal/orderDiscount'
+
 const KINDS = ['percent', 'fixed'] as const
 
 export async function GET() {
@@ -55,6 +55,14 @@ export async function POST(request: NextRequest) {
         error:
           'Code must be 3–40 characters: letters, numbers, underscores, or dashes',
       },
+      { status: 400 },
+    )
+  }
+  // The welcome offer resolves in code (D11) and would shadow a catalog row
+  // of the same name — refuse to create one that could never apply.
+  if (code === WELCOME_COUPON_CODE) {
+    return NextResponse.json(
+      { error: `"${WELCOME_COUPON_CODE}" is reserved for the welcome offer` },
       { status: 400 },
     )
   }
