@@ -3,12 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
-import {
-  CA_TAX_RATES,
-  computeOrderPrice,
-  WELCOME_DISCOUNT_PCT,
-  type OrderCode,
-} from '@/lib/stripe/pricing'
+import { CA_TAX_RATES, computeOrderPrice } from '@/lib/stripe/pricing'
+import { reserveOrderDiscount } from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 import type { BuyerCountry, BuyerLocation, CAProvince } from '@/types/portal'
 
@@ -19,18 +15,6 @@ const FORMATS = ['atmos', 'binaural', 'both'] as const
 const MAX_SONG_COUNT = 99
 const MAX_STEM_COUNT = 999
 const MAX_TEXT_LENGTH = 5000
-
-// The one-shot first-mix discount rides the per-song pricing module as a
-// private percent code: private codes do not stack with the bulk tier. At
-// the 15% welcome rate (D11, 2026-07-13) the $225/song floor never binds —
-// it stays as a guard for the arbitrary codes S4b (#25) will feed through
-// this same path, which is also where the percentage moves to the welcome
-// code system.
-const FIRST_MIX_CODE: OrderCode = {
-  kind: 'percent',
-  value: WELCOME_DISCOUNT_PCT,
-  scope: 'private',
-}
 
 function parseCount(value: unknown, min: number, max: number): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value)) return null
@@ -196,19 +180,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Atomically reserve the first-mix discount (flip true -> false).
-  const { data: reservedData, error: reserveError } = await supabase.rpc(
-    'reserve_first_mix_discount',
-    { p_user_id: user.id },
+  // Atomically reserve the order's discount (the #38 seam; today the one-shot
+  // first-mix flag, catalog codes with #25). Every failure path past this
+  // point must end in `reservation.release()`.
+  const { reservation, error: reserveError } = await reserveOrderDiscount(
+    supabase,
+    user.id,
   )
-  if (reserveError) {
-    return NextResponse.json({ error: reserveError.message }, { status: 500 })
+  if (!reservation) {
+    return NextResponse.json({ error: reserveError }, { status: 500 })
   }
-  const discountApplied = reservedData === true
+  const discountApplied = reservation.applied
 
   const breakdown = computeOrderPrice({
     songCount,
-    code: discountApplied ? FIRST_MIX_CODE : null,
+    code: reservation.code,
     buyer,
   })
   const amountCents = breakdown.total_cents
@@ -258,15 +244,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError || !project) {
-      if (discountApplied) {
-        const { error: restoreError } = await supabase.rpc(
-          'restore_first_mix_discount',
-          { p_user_id: user.id },
-        )
-        if (restoreError) {
-          console.error('[checkout] discount restore failed', restoreError)
-        }
-      }
+      await reservation.release()
       return NextResponse.json(
         { error: insertError?.message || 'Failed to create project' },
         { status: 500 },
@@ -307,15 +285,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err) {
-    if (discountApplied) {
-      const { error: restoreError } = await supabase.rpc(
-        'restore_first_mix_discount',
-        { p_user_id: user.id },
-      )
-      if (restoreError) {
-        console.error('[checkout] discount restore failed', restoreError)
-      }
-    }
+    await reservation.release()
     const message =
       err instanceof Error ? err.message : 'Failed to create payment intent'
     return NextResponse.json({ error: message }, { status: 502 })
@@ -345,15 +315,7 @@ export async function POST(request: NextRequest) {
     } catch (cancelErr) {
       console.error('[checkout] intent cancel failed', cancelErr)
     }
-    if (discountApplied) {
-      const { error: restoreError } = await supabase.rpc(
-        'restore_first_mix_discount',
-        { p_user_id: user.id },
-      )
-      if (restoreError) {
-        console.error('[checkout] discount restore failed', restoreError)
-      }
-    }
+    await reservation.release()
     return NextResponse.json(
       { error: insertError?.message || 'Failed to create project' },
       { status: 500 },

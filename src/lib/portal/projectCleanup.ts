@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { restoreUnpaidOrderDiscount } from './orderDiscount'
 
 /**
  * The project fields cleanup needs: enough to restore a dangling first-mix
@@ -26,30 +27,19 @@ type CleanupProject = {
  * the old inline delete removed only project_files and deliverables paths,
  * leaking every comment attachment object in project-uploads.
  *
- * Also restores the first-mix discount when the project reserved it but was
- * never paid, so an abandoned checkout doesn't burn the user's reservation.
+ * Also restores the discount the project reserved but never paid for (via
+ * the orderDiscount seam), so an abandoned checkout doesn't burn the user's
+ * reservation.
  *
  * Returns the first lookup/storage error as `{ error }` so the caller can
- * surface a 500. A failed discount restore is logged, not fatal — it matches
- * the prior route behavior and must not block the delete.
+ * surface a 500. A failed discount restore is logged inside the seam, not
+ * fatal — it must not block the delete.
  */
 export async function cleanupProjectArtifacts(
   supabase: SupabaseClient,
   project: CleanupProject,
 ): Promise<{ error: string | null }> {
-  // Return an unpaid first-mix reservation to the user's pool.
-  if (project.discount_applied && !project.paid_at) {
-    const { error: restoreError } = await supabase.rpc(
-      'restore_first_mix_discount',
-      { p_user_id: project.owner_id },
-    )
-    if (restoreError) {
-      console.error(
-        '[cleanupProjectArtifacts] discount restore failed',
-        restoreError,
-      )
-    }
-  }
+  await restoreUnpaidOrderDiscount(supabase, project)
 
   const [files, attachments, deliverables] = await Promise.all([
     supabase
