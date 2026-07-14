@@ -1,6 +1,6 @@
 # DevPlan — Goal & Remaining Path
 
-**Rewritten 2026-07-04** for agent consumption. Provenance: `devplan.docx` (Web Designer Meeting, 2026-06-09) was sliced into issues via `/to-issues`; gap-audited line-by-line against the docx on 2026-07-04 (added #31/#32/#33); extended the same day with six architecture refactors (#34–#39) from an `/improve-codebase-architecture` review. Status refreshed late 2026-07-04: **#23 (T&C) and #34 (lifecycle guards) shipped and closed**; #34's exploration surfaced two payment-write hardening bugs, filed as **#40/#41**. Refreshed again 2026-07-08: **#40/#41 shipped and closed** (`20260708` INSERT fence + shared service-side claim seam); they surfaced two narrower residuals, filed as **#42/#43**. The previous revision of this file (Turkish, with full Phase 0–3 history) is in git history.
+**Rewritten 2026-07-04** for agent consumption. Provenance: `devplan.docx` (Web Designer Meeting, 2026-06-09) was sliced into issues via `/to-issues`; gap-audited line-by-line against the docx on 2026-07-04 (added #31/#32/#33); extended the same day with six architecture refactors (#34–#39) from an `/improve-codebase-architecture` review. Status refreshed late 2026-07-04: **#23 (T&C) and #34 (lifecycle guards) shipped and closed**; #34's exploration surfaced two payment-write hardening bugs, filed as **#40/#41**. Refreshed again 2026-07-08: **#40/#41 shipped and closed** (`20260708` INSERT fence + shared service-side claim seam); they surfaced two narrower residuals, filed as **#42/#43**. Refreshed 2026-07-14: no new code since the 2026-07-13 sweep (#9/#31/#38/#25); with every commerce decision answered, **#26 and #30 are promoted from the gated commerce chain into the Now queue** (only #24 stays gated, on D13's sender). Same day, a history rewrite on `main` replaced every commit after `964242b` — commit citations below are remapped to the post-rewrite hashes (this also cleared nine citations orphaned by an earlier rewrite). The previous revision of this file (Turkish, with full Phase 0–3 history) is in git history.
 
 > Issues live in [novaspatial/nova](https://github.com/novaspatial/nova/issues) via `gh` (see `docs/agents/issue-tracker.md`).
 > Open-decision umbrella: [#1](https://github.com/novaspatial/nova/issues/1) (`needs-info`).
@@ -11,11 +11,11 @@
 
 A Client can go from an interactive homepage price quote to a **paid, taxed, T&C-consented order** — with discount codes redeemed against the catalog, an order-confirmation email, and marketing copy that matches what checkout actually charges. After delivery, files purge on schedule. The blog/SEO surface (per-post SEO ✅, IndexNow, GEO) is live in production. The architecture lane keeps the seams deep so each slice lands small and tested.
 
-**Done =** the 19 open work issues below closed (or consciously moved to *Deliberately not built*) and the open decisions in #1 answered.
+**Done =** the 15 open work issues below closed (or consciously moved to *Deliberately not built*) and the open decisions in #1 answered.
 
 ## How an agent picks work
 
-1. Work the **Now queue** top-down. Every item there is unblocked — no decision, no missing input.
+1. Work the **Now queue** top-down. Nothing there waits on an unanswered decision; the two `ready-for-human` rows (#19, #33) name the human/ops input they still need in their Notes cell.
 2. When a **gate opens** (a decision lands in #1, or an upstream issue closes), the gated chain **preempts** the Now queue.
 3. Read the issue itself for the full spec; this file only carries ordering, gates, and the why.
 4. Before commerce/lifecycle work, honor **Decided constraints** below — do not re-litigate them.
@@ -24,11 +24,11 @@ A Client can go from an interactive homepage price quote to a **paid, taxed, T&C
 
 ---
 
-## Where we are (2026-07-13)
+## Where we are (2026-07-14)
 
-**Live and shipped:** priced per-song USD checkout (S1/S2 — `computeOrderPrice`, Stripe PaymentIntent, bulk tiers, first-mix private 50% code floor-bounded to $225/song), **T&C page + recorded checkout consent** (S7, `20260704`), discount-codes catalog + Studio CRUD (S3, client-inert), **lifecycle transition guards** (#34 — `canTransition` seam in `workflow.ts` + `20260705` DB status fence), **payment-write hardening** (#40/#41 — `20260708` INSERT fence + shared `claimProjectPayment` seam; the poll fallback confirms paid orders again), full blog/SEO stack (sitemap, robots, per-post meta + JSON-LD, share images, IndexNow *code*), portal hardening (archive RLS trigger, storage-cleanup module, order-write freeze triggers), a11y/motion pass. Compact list in **Completed** below.
+**Live and shipped:** priced per-song USD checkout (S1/S2 — `computeOrderPrice`, Stripe PaymentIntent, bulk tiers, $225/song floor) now **charging GST/HST** (S21, `20260713`), **discount-code redemption at checkout** (S4b — the 15% welcome code per D11 on top of the S3 catalog + Studio CRUD, orchestrated through the #38 `orderDiscount` seam; consumption still open in #26), **T&C page + recorded checkout consent** (S7, `20260704`), **lifecycle transition guards** (#34 — `canTransition` seam in `workflow.ts` + `20260705` DB status fence), **payment-write hardening** (#40/#41 — `20260708` INSERT fence + shared `claimProjectPayment` seam; the poll fallback confirms paid orders again), full blog/SEO stack (sitemap, robots, per-post meta + JSON-LD, share images, IndexNow *code*), portal hardening (archive RLS trigger, storage-cleanup module, order-write freeze triggers), a11y/motion pass. Compact list in **Completed** below.
 
-**Decision package answered (2026-07-13, Mike — recorded in #1):** D2 complete (full HST in HST provinces + computed-in-module mechanism), D5 (returning = prior paid), D6 (consume on payment success), D-floor-private (per-code override flag), D11 (welcome = 15%). Every commerce gate is open; **#38 (order-discount seam) and #25 (code redemption at checkout) both shipped 2026-07-13** (`088611b`, `3132a4b`), so next up: #26, then #30. **Until #26 lands consumption, do not distribute single-use or usage-limited codes** — they redeem but nothing stops re-use.
+**Decision package answered (2026-07-13, Mike — recorded in #1):** D2 complete (full HST in HST provinces + computed-in-module mechanism), D5 (returning = prior paid), D6 (consume on payment success), D-floor-private (per-code override flag), D11 (welcome = 15%). Every commerce gate is open; **#38 (order-discount seam) and #25 (code redemption at checkout) both shipped 2026-07-13** (`0764def`, `5c83862`), so **#26 then #30 now head the Now queue** — the only decision still touching the path is D13, and it gates #24's sender alone. **Until #26 lands consumption, do not distribute single-use or usage-limited codes** — they redeem but nothing stops re-use.
 
 **Launch-debt cleared 2026-07-13** (had been charging real money without it since 2026-07-02): checkout now computes and charges **GST/HST** per D2 ([#31](https://github.com/novaspatial/nova/issues/31), `20260713` migration + billing country/province on the order form), and the marketing copy matches the charged **15% welcome offer** from one shared constant ([#9](https://github.com/novaspatial/nova/issues/9)).
 
@@ -67,45 +67,44 @@ Also inert in production: IndexNow ([#33](https://github.com/novaspatial/nova/is
 
 | # | Issue | What / why now | Notes |
 | --- | --- | --- | --- |
-| 1 | [#19](https://github.com/novaspatial/nova/issues/19) **S6** | **Add-ons** (extra revision, 48h rush). Math is shipped and tested (`ADD_ON_CENTS`); wire form checkboxes → checkout `addOns` → `add_ons` column → PaymentStep line. | Rush is "subject to availability" per T&C — availability gate or manual-refund note (issue comment). Post-order revision purchase waits on D-revisions. |
-| 2 | [#33](https://github.com/novaspatial/nova/issues/33) **S23** | **Activate IndexNow in prod**: set `INDEXNOW_KEY`, verify live key + accepted ping, and **reconcile the apex→www redirect with D10**. | Pure ops + verification; no code gaps. |
-| 3 | [#35](https://github.com/novaspatial/nova/issues/35) + [#37](https://github.com/novaspatial/nova/issues/37) **arch** | **Storage seam** (buckets/paths/signed-URL choreography, one upload-runner hook, server-side size/MIME) + **`requireProjectChild`** authz helper. Natural pair — the download handlers consume both. | Do before #27 (purge sweeps buckets) and #13 (admin download consumes `signedDownload`). Strengths: Strong / Worth exploring. |
-| 4 | [#36](https://github.com/novaspatial/nova/issues/36) **arch** | **Extract `useCommentClock`** — first meaningful test coverage for the Listen step. | Independent; fill capacity between gated slices. Strength: Strong. |
-| 5 | [#42](https://github.com/novaspatial/nova/issues/42) + [#43](https://github.com/novaspatial/nova/issues/43) **bug** | **Insert-fence residuals** from the #40/#41 work. #42: delete-then-reattach of a freed Stripe intent id (needs a DB-level floor — intent tombstone or service-mediated Stripe insert). #43: direct PostgREST `pending_payment` inserts skip the route's rate limit + consent gate. | Narrow, non-payment-integrity; `needs-triage`. Take with the arch lane. |
+| 1 | [#26](https://github.com/novaspatial/nova/issues/26) **S5** | **Single-use code consumption** (atomic reserve/restore + webhook finalize). Head of the critical path — closes the two residuals #25 documented (single-use/usage-limit re-use; the concurrent-WELCOME D5 race). All gates answered: D6 (consume on confirmed payment), D-floor-private (per-code override column). | Copy the hardened first-mix reserve/restore RPC pattern; #25 left the hold point, restore key, and intent-metadata code ready in the #38 seam. **Coordinate webhook edits with #24** (both touch `src/app/api/stripe/webhook/route.ts`) — land #26 first or merge-coordinate. `ready-for-agent`. |
+| 2 | [#30](https://github.com/novaspatial/nova/issues/30) **S20** | **Homepage price calculator** — interactive quote replacing the static CTA, doubles as the start of the new-project flow. D11 answered (15%); welcome preview reads the shipped shared constant. | Shares the S1 quote component / `computeOrderPrice` — no forked math; pass `buyer` for the tax line. Needs a number-stepper primitive. Sequenced after #26 so consumption is enforced before the calculator drives code-bearing traffic to checkout. `ready-for-agent`. |
+| 3 | [#19](https://github.com/novaspatial/nova/issues/19) **S6** | **Add-ons** (extra revision, 48h rush). Math is shipped and tested (`ADD_ON_CENTS`); wire form checkboxes → checkout `addOns` → `add_ons` column → PaymentStep line. | Rush is "subject to availability" per T&C — availability gate or manual-refund note (issue comment). Post-order revision purchase waits on D-revisions. `ready-for-human` for that availability call. |
+| 4 | [#33](https://github.com/novaspatial/nova/issues/33) **S23** | **Activate IndexNow in prod**: set `INDEXNOW_KEY`, verify live key + accepted ping, and **reconcile the apex→www redirect with D10**. | Pure ops + verification; no code gaps. `ready-for-human` — needs prod env access (`INDEXNOW_KEY`, DNS/redirect). |
+| 5 | [#35](https://github.com/novaspatial/nova/issues/35) + [#37](https://github.com/novaspatial/nova/issues/37) **arch** | **Storage seam** (buckets/paths/signed-URL choreography, one upload-runner hook, server-side size/MIME) + **`requireProjectChild`** authz helper. Natural pair — the download handlers consume both. | Do before #27 (purge sweeps buckets) and #13 (admin download consumes `signedDownload`). Strengths: Strong / Worth exploring. |
+| 6 | [#36](https://github.com/novaspatial/nova/issues/36) **arch** | **Extract `useCommentClock`** — first meaningful test coverage for the Listen step. | Independent; fill capacity between gated slices. Strength: Strong. |
+| 7 | [#42](https://github.com/novaspatial/nova/issues/42) + [#43](https://github.com/novaspatial/nova/issues/43) **bug** | **Insert-fence residuals** from the #40/#41 work. #42: delete-then-reattach of a freed Stripe intent id (needs a DB-level floor — intent tombstone or service-mediated Stripe insert). #43: direct PostgREST `pending_payment` inserts skip the route's rate limit + consent gate. | Narrow, non-payment-integrity; `needs-triage`. Take with the arch lane. |
 
 ### Gated chains (fire when the gate opens; they preempt the Now queue)
 
-**Commerce chain (critical path):**
+**Commerce chain:** every decision gate answered 2026-07-13 and #38/#25/#9/#31 shipped — **#26 and #30 moved into the Now queue above.** One item stays gated:
 
 ```text
-D5 ✅ ─> #25 S4b  ✅ shipped 2026-07-13                 (code redemption at checkout, `3132a4b`; welcome now code-based per D11)
-        └─ D6 ✅ ─> #26 S5  single-use consumption       (copy the hardened first-mix RPC pattern; D-floor-private ✅ shapes it; hold point + restore key + intent-metadata code left in #25)
-D11 ✅ ─> #9 S10  ✅ shipped 2026-07-13                 (15% welcome copy + charged constant, `29701e4`)
-   └─> #30 S20 homepage price calculator               (shares the S1 quote component; pass `buyer` for the tax line)
-D2 ✅ ─> #31 S21  ✅ shipped 2026-07-13                 (computed GST/HST, `20260713` migration + `95d4ba1`)
-              └─> #24 S8  order-confirmation email      (consumes #31's persisted tax line; D13 for sender — can ship earlier with the existing sender) (reads NOTIFIABLE_STATUSES from the shipped #34 seam)
+D13 ─> #24 S8  order-confirmation email    (sender only — #31's persisted tax line is ready, and it can ship earlier with the
+                                            existing Resend sender; reads NOTIFIABLE_STATUSES from the shipped #34 seam;
+                                            webhook edits shared with #26 — sequence after it or merge-coordinate)
 ```
 
-**Lifecycle queue:** D7 + D7b ─> [#27](https://github.com/novaspatial/nova/issues/27) **S18** delivery anchor + 90-day purge (reuses `projectCleanup` + #35's storage seam; stamps `delivered_at` at the PATCH transition point the shipped #34 seam made explicit). Independent of decisions: [#13](https://github.com/novaspatial/nova/issues/13) **S17** admin file download (after #35, trivially).
+**Lifecycle queue:** D7 + D7b ─> [#27](https://github.com/novaspatial/nova/issues/27) **S18** delivery anchor + 90-day purge (reuses `projectCleanup` + #35's storage seam; stamps `delivered_at` at the PATCH transition point the shipped #34 seam made explicit). Independent of decisions: [#13](https://github.com/novaspatial/nova/issues/13) **S17** admin file download (after #35, trivially; the issue says "can start immediately" — its `ready-for-human` label is stale, a `ready-for-agent` candidate once #35 lands).
 
-**Content/SEO queue:** [#32](https://github.com/novaspatial/nova/issues/32) **S22** Stem Prep Guide (content from Jamie; T&C references it — coordinate with #23) · [#29](https://github.com/novaspatial/nova/issues/29) **S19** GEO/LLM visibility (needs `sameAs` URLs; **bundle [#39](https://github.com/novaspatial/nova/issues/39) blog facade into this slice** — it touches the same metadata/JSON-LD modules).
+**Content/SEO queue:** [#32](https://github.com/novaspatial/nova/issues/32) **S22** Stem Prep Guide (an in-portal guide already ships — `UploadPrep` on the client dashboard, `da43cb3`; the live T&C deliberately omits the guide link per the `terms/page.tsx` guard. Remaining: Jamie reviews the content + decide whether a public page is wanted — the guide's home is `/portal` per Onur, 2026-07-14; linking it from the T&C bumps `TERMS_VERSION`) · [#29](https://github.com/novaspatial/nova/issues/29) **S19** GEO/LLM visibility (needs `sameAs` URLs; **bundle [#39](https://github.com/novaspatial/nova/issues/39) blog facade into this slice** — it touches the same metadata/JSON-LD modules).
 
 **Not started until D12:** Nova Studios (Part B) — separate `/to-issues` round when the architecture decision lands.
 
 ### Critical path
 
 ```text
-#25 ✅ ─> D6 ✅ ─> #26 ─> #30                         ← code redemption shipped 2026-07-13; #26 is the head
-#31 ✅ ─> #24                                         ← receipt (tax shipped 2026-07-13; D13 still gates the sender)
+#26 ─> #30                                            ← head; consumption must land before the calculator drives traffic
+#26 ─> #24                                            ← receipt (tax ready since #31; D13 gates the sender only; shared webhook file)
 ```
 
-(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08; #9/#31/#38/#25 shipped 2026-07-13.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. **#26 is now the head of the critical path** — it closes the two residuals #25 documented (single-use/usage-limit consumption; the concurrent-WELCOME D5 race) — and #24 is unblocked for its tax line.
+(#23, the former no-gate top of this path, shipped 2026-07-04; #40/#41 shipped 2026-07-08; #9/#31/#38/#25 shipped 2026-07-13.) Everything else (#42/#43, #19, #33, #13, #27, #29/#32, arch lane) is parallel-safe. **#26 is the head and the only decision-free blocker left on the path** — after it, #30 markets the offer safely and #24 needs only D13's sender (or ships with the existing one).
 
 ---
 
 ## Architecture lane (review of 2026-07-04)
 
-Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/depth/locality). #34 shipped 2026-07-04 (`aa5b70f`) and #38 shipped 2026-07-13 (`088611b`); the remaining four are labeled `architecture` + `needs-triage`, sequenced above, summarized here:
+Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/depth/locality). #34 shipped 2026-07-04 (`aa5b70f`) and #38 shipped 2026-07-13 (`0764def`); the remaining four are labeled `architecture` + `needs-triage`, sequenced above, summarized here:
 
 | Issue | Strength | One-liner | Slot |
 | --- | --- | --- | --- |
@@ -113,7 +112,7 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | [#35](https://github.com/novaspatial/nova/issues/35) | Strong | One storage seam: buckets, path templates, signed-URL choreography, size/MIME | Before #27/#13 |
 | [#36](https://github.com/novaspatial/nova/issues/36) | Strong | `useCommentClock` extraction; Listen step becomes testable | Anytime |
 | [#37](https://github.com/novaspatial/nova/issues/37) | Worth exploring | `requireProjectChild` — one project-child authz helper | With #35 |
-| [#38](https://github.com/novaspatial/nova/issues/38) ✅ | Worth exploring | `orderDiscount` seam: reservation handle + single code source for quote + charge | **Shipped** (`088611b`) |
+| [#38](https://github.com/novaspatial/nova/issues/38) ✅ | Worth exploring | `orderDiscount` seam: reservation handle + single code source for quote + charge | **Shipped** (`0764def`) |
 | [#39](https://github.com/novaspatial/nova/issues/39) | Speculative | Blog facade returning a hydrated post | Inside #29 |
 
 ---
@@ -123,24 +122,24 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | Slice | Issue | Outcome |
 | --- | --- | --- |
 | P1 | #4 | `Project` type synced with payment + order fields; `DiscountCode`/`PriceBreakdown` types |
-| P2 + S4a | #5, #22 | Pure `computeOrderPrice` module, exec-approved, 44-test suite (`748ba42`, `edacdca`) |
-| P3 | #6 | `src/lib/site.ts` single origin (D10) + `onPostMutated` publish hook (`cf283fb`) |
+| P2 + S4a | #5, #22 | Pure `computeOrderPrice` module, exec-approved, 44-test suite (`01c1601`, `ecb1395`) |
+| P3 | #6 | `src/lib/site.ts` single origin (D10) + `onPostMutated` publish hook (`d626bc5`) |
 | P4 | #2 | Checkbox primitive + Footer Legal seam (`de811ff`) — #23 is now thin wiring |
 | P5 | #3 | `projectCleanup.ts` storage sweep; #27 reuses |
-| S1 + S2 | #16, #18 | Per-song USD checkout end-to-end: order form, live quote, PaymentStep breakdown, `20260702` migrations incl. order-write freeze + RPC guards (`60bee5d`…) |
-| S3 | #17 | `discount_codes` table + studio-only RLS + admin CRUD (`daf4748`); client-inert until #25 |
+| S1 + S2 | #16, #18 | Per-song USD checkout end-to-end: order form, live quote, PaymentStep breakdown, `20260702` migrations incl. order-write freeze + RPC guards (`75239b6`…) |
+| S3 | #17 | `discount_codes` table + studio-only RLS + admin CRUD (`1c486ec`); client-inert until #25 |
 | S9/S9b | #7, #8 | Motion/reduced-motion pass (`c612c93`); contrast + hero credits (`6d36e6c`) |
 | S11/S11b | #10, #11 | Blog readability (`1729e38`); structural fixes, hero extraction (`711ebbd`) |
-| S12/S13 | #20, #21 | Per-post SEO meta + JSON-LD (`be6209c`); `next/og` share image (`8ec148c`) |
-| S14/S15 | #14, #15 | Sitemap + robots (`bf710fe`); IndexNow code, env-gated (`02d3d02`) → activation is #33 |
+| S12/S13 | #20, #21 | Per-post SEO meta + JSON-LD (`1734e4f`); `next/og` share image (`9d96206`) |
+| S14/S15 | #14, #15 | Sitemap + robots (`2b653b9`); IndexNow code, env-gated (`2b4038d`) → activation is #33 |
 | S16 | #12 | Archive RLS hardening — DB trigger enforces studio-only `archived_at` (`20260625`) |
 | S7 | #23 | T&C page + required checkout consent, recorded as `terms_accepted_at/version` (`b437c99`, `20260704`) |
 | arch | #34 | Lifecycle guards: `canTransition`/upload gates/`NOTIFIABLE_STATUSES` in `workflow.ts`, CAS route writes, `20260705` status fence (`aa5b70f`); spawned #40/#41 |
 | bug | #40, #41 | Payment-write hardening: `20260708` BEFORE INSERT fence (client rows born unpaid/pending), dev-bypass + poll claims moved to the service client, shared `claimProjectPayment` seam revives the poll fallback; verified on the remote. Spawned #42/#43 |
-| S10 | #9 | 15% welcome offer from one shared constant (`WELCOME_DISCOUNT_PCT`); promo token now value-agnostic `welcome`; PaymentStep rebranded to "Welcome discount" (`29701e4`) |
-| S21 | #31 | Computed GST/HST at checkout: `CA_TAX_RATES` in the pricing module, billing country/province on the order form, `tax_cents` + buyer location persisted + frozen (`20260713`), tax line on quote/PaymentStep, intent metadata reconciliation (`95d4ba1`) |
-| arch | #38 | Order-discount seam (`src/lib/portal/orderDiscount.ts`): `reserveOrderDiscount` reservation handle with one `release()` replacing 4 restore copies, row-based `restoreUnpaidOrderDiscount` for cleanup, `FIRST_MIX_CODE` exported client-safe; #25/#26 plug in here (`088611b`) |
-| S4b | #25 | Code redemption at checkout: order-form code field + live discounted quote (validate endpoint), server-side re-validation in the #38 seam (`lookup_discount_code` RPC, D5 eligibility via `hasPriorPaidProject`), `applied_coupon_code` persisted + frozen (`20260713`), welcome offer code-based per D11 (the welcome code from the shared constant, flag path = no-code fallback); consumption deferred to #26 (`3132a4b`) |
+| S10 | #9 | 15% welcome offer from one shared constant (`WELCOME_DISCOUNT_PCT`); promo token now value-agnostic `welcome`; PaymentStep rebranded to "Welcome discount" (`bd9125b`) |
+| S21 | #31 | Computed GST/HST at checkout: `CA_TAX_RATES` in the pricing module, billing country/province on the order form, `tax_cents` + buyer location persisted + frozen (`20260713`), tax line on quote/PaymentStep, intent metadata reconciliation (`b9a6be0`) |
+| arch | #38 | Order-discount seam (`src/lib/portal/orderDiscount.ts`): `reserveOrderDiscount` reservation handle with one `release()` replacing 4 restore copies, row-based `restoreUnpaidOrderDiscount` for cleanup, `FIRST_MIX_CODE` exported client-safe; #25/#26 plug in here (`0764def`) |
+| S4b | #25 | Code redemption at checkout: order-form code field + live discounted quote (validate endpoint), server-side re-validation in the #38 seam (`lookup_discount_code` RPC, D5 eligibility via `hasPriorPaidProject`), `applied_coupon_code` persisted + frozen (`20260713`), welcome offer code-based per D11 (the welcome code from the shared constant, flag path = no-code fallback); consumption deferred to #26 (`5c83862`) |
 
 ## Definition of Done (every issue)
 
@@ -164,14 +163,14 @@ Six refactors from `/improve-codebase-architecture` (report vocabulary: seam/dep
 | S20 | [#30](https://github.com/novaspatial/nova/issues/30) | ready-for-agent | Homepage price calculator |
 | S22 | [#32](https://github.com/novaspatial/nova/issues/32) | ready-for-human | Stem Prep Guide page |
 | S23 | [#33](https://github.com/novaspatial/nova/issues/33) | ready-for-human | IndexNow production activation |
-| arch | [#35](https://github.com/novaspatial/nova/issues/35) | needs-triage | One storage seam (buckets/paths/signed URLs) |
-| arch | [#36](https://github.com/novaspatial/nova/issues/36) | needs-triage | Extract `useCommentClock` |
-| arch | [#37](https://github.com/novaspatial/nova/issues/37) | needs-triage | `requireProjectChild` authz helper |
-| arch | [#39](https://github.com/novaspatial/nova/issues/39) | needs-triage | Blog facade (hydrated post) |
+| arch | [#35](https://github.com/novaspatial/nova/issues/35) | needs-triage, architecture | One storage seam (buckets/paths/signed URLs) |
+| arch | [#36](https://github.com/novaspatial/nova/issues/36) | needs-triage, architecture | Extract `useCommentClock` |
+| arch | [#37](https://github.com/novaspatial/nova/issues/37) | needs-triage, architecture | `requireProjectChild` authz helper |
+| arch | [#39](https://github.com/novaspatial/nova/issues/39) | needs-triage, architecture | Blog facade (hydrated post) |
 | bug | [#42](https://github.com/novaspatial/nova/issues/42) | needs-triage, bug | Delete-then-reattach of a freed Stripe intent id (DB floor) |
 | bug | [#43](https://github.com/novaspatial/nova/issues/43) | needs-triage, bug | Direct PostgREST inserts bypass the checkout rate limit + consent gate |
 
-Closed: #2–#12, #14–#18, #20–#23, #25, #28, #31, #34, #38, #40, #41 (see Completed).
+Closed: #2–#12, #14–#18, #20–#23, #25, #31, #34, #38, #40, #41 (see Completed; #28 is a merged PR, not an issue).
 
 ## Deliberately not built
 
