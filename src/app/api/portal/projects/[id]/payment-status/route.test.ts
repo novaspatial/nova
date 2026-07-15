@@ -43,6 +43,7 @@ function pendingProjectRow(overrides: Record<string, unknown> = {}) {
     stripe_payment_intent_id: 'pi_1',
     client_deleted_at: null,
     song_count: 1,
+    applied_coupon_code: null,
     ...overrides,
   }
 }
@@ -376,5 +377,175 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     expect(mockCreateServiceClient).not.toHaveBeenCalled()
     const body = await res.json()
     expect(body).toEqual({ paid: false, status: 'pending_payment' })
+  })
+
+  // --- #26 (D6): the poll finalizes consumption best-effort. ---
+
+  test('finalizes consumption after winning the claim on a code order', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
+      error: null,
+    })
+    const serviceProjectsChain = createChainMock()
+    serviceProjectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading' },
+      error: null,
+    })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({
+        user_id: 'user-1',
+        project_id: 'proj-1',
+        song_count: '1',
+      }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+      rpc: serviceRpc,
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
+    expect(serviceRpc).toHaveBeenCalledWith('consume_discount_code', {
+      p_project_id: 'proj-1',
+    })
+  })
+
+  test('a failed consume never blocks the paid:true answer', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
+      error: null,
+    })
+    const serviceProjectsChain = createChainMock()
+    serviceProjectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading' },
+      error: null,
+    })
+    const serviceRpc = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: { message: 'consume failed' } })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({
+        user_id: 'user-1',
+        project_id: 'proj-1',
+        song_count: '1',
+      }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+      rpc: serviceRpc,
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    // Payment is a fact; the webhook's 500-retry loop is the durable
+    // finalizer for the consume.
+    expect(body).toEqual({ paid: true, status: 'uploading' })
+    expect(mockConsoleError).toHaveBeenCalled()
+    mockConsoleError.mockRestore()
+  })
+
+  test('finalizes consumption even when the webhook won the claim race', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { status: 'uploading', paid_at: '2026-07-15T00:00:00Z' },
+        error: null,
+      })
+    const serviceProjectsChain = createChainMock()
+    serviceProjectsChain.maybeSingle.mockResolvedValue({
+      data: null,
+      error: null,
+    })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({
+        user_id: 'user-1',
+        project_id: 'proj-1',
+        song_count: '1',
+      }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+      rpc: serviceRpc,
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
+    // Idempotent per project — safe alongside the webhook's own finalize.
+    expect(serviceRpc).toHaveBeenCalledWith('consume_discount_code', {
+      p_project_id: 'proj-1',
+    })
+  })
+
+  test('the paid early-return re-attempts consumption for a code order', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({
+        status: 'uploading',
+        paid_at: '2026-07-15T00:00:00Z',
+        applied_coupon_code: 'SUMMER10',
+      }),
+      error: null,
+    })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => createChainMock()),
+      rpc: serviceRpc,
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
+    expect(mockPaymentIntentsRetrieve).not.toHaveBeenCalled()
+    // Recovers a claim that landed without its consume (webhook-less dev).
+    expect(serviceRpc).toHaveBeenCalledWith('consume_discount_code', {
+      p_project_id: 'proj-1',
+    })
+  })
+
+  test('the paid early-return answers even without a service key', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({
+        status: 'uploading',
+        paid_at: '2026-07-15T00:00:00Z',
+        applied_coupon_code: 'SUMMER10',
+      }),
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockImplementation(() => {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
   })
 })

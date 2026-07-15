@@ -30,7 +30,10 @@ import { POST } from './route'
 
 function makeProjectsChain(opts: {
   pendingCount?: number
-  insertResult?: { data: { id: string } | null; error: { message: string } | null }
+  insertResult?: {
+    data: { id: string } | null
+    error: { message: string; code?: string } | null
+  }
 }) {
   const pendingCount = opts.pendingCount ?? 0
   const insertResult = opts.insertResult ?? {
@@ -88,6 +91,11 @@ function lookupRpc(result: {
 }
 
 describe('POST /api/portal/projects/checkout', () => {
+  // Catalog-code holds and consumption run on the service client (#26) —
+  // its rpc dispatches by name (reserve defaults to a won CAS) so tests
+  // override per name without shadowing the session client's lookup.
+  let serviceRpc: ReturnType<typeof vi.fn>
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetStripe.mockReturnValue({
@@ -103,6 +111,16 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     mockPaymentIntentsUpdate.mockResolvedValue({ id: 'pi_test_123' })
     mockPaymentIntentsCancel.mockResolvedValue({ id: 'pi_test_123' })
+    serviceRpc = vi.fn((fn: string) =>
+      Promise.resolve(
+        fn === 'reserve_discount_code'
+          ? { data: true, error: null }
+          : { data: null, error: null },
+      ),
+    )
+    mockCreateServiceClient.mockImplementation(() =>
+      createSupabaseMock({ rpc: serviceRpc }),
+    )
   })
 
   test('returns 401 when not authenticated', async () => {
@@ -808,6 +826,10 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(rpc).toHaveBeenCalledWith('lookup_discount_code', {
       p_code: 'SUMMER10',
     })
+    // #26: the redeemed code is held atomically on the service client.
+    expect(serviceRpc).toHaveBeenCalledWith('reserve_discount_code', {
+      p_code: 'SUMMER10',
+    })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: expected.total_cents }),
     )
@@ -865,6 +887,213 @@ describe('POST /api/portal/projects/checkout', () => {
       code_discount_cents: 10000,
       subtotal_cents: 22500,
       total_cents: 22500,
+    })
+  })
+
+  test('an allow_below_floor code pierces the floor (D-floor-private)', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({
+      data: [
+        catalogRow({
+          code: 'INDIE150',
+          kind: 'fixed',
+          value: 15000,
+          is_public: false,
+          allow_below_floor: true,
+        }),
+      ],
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // The exempt sibling of the floored vector above: 32500 - 15000 charges
+    // the full 17500, below the $225 floor.
+    const req = createMockRequest(orderBody({ code: 'INDIE150' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 17500 }),
+    )
+    const body = await res.json()
+    expect(body.breakdown).toMatchObject({
+      code_discount_cents: 15000,
+      subtotal_cents: 17500,
+      total_cents: 17500,
+    })
+  })
+
+  test.each([
+    ['below the Stripe minimum', 32460, 40],
+    ['fully comped to zero', 40000, 0],
+  ])(
+    'rejects a deep below-floor order priced %s with 400 and releases the hold',
+    async (_label, value, total) => {
+      const projectsChain = makeProjectsChain({})
+      const rpc = lookupRpc({
+        data: [
+          catalogRow({
+            code: 'DEEP',
+            kind: 'fixed',
+            value,
+            is_public: false,
+            allow_below_floor: true,
+          }),
+        ],
+        error: null,
+      })
+      mockCreateClient.mockResolvedValue(
+        createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      )
+
+      const expected = computeOrderPrice({
+        songCount: 1,
+        code: {
+          kind: 'fixed',
+          value,
+          scope: 'private',
+          allowBelowFloor: true,
+        },
+        buyer: { country: 'US' },
+      })
+      expect(expected.total_cents).toBe(total)
+
+      const req = createMockRequest(orderBody({ code: 'DEEP' }))
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(400)
+
+      const body = await res.json()
+      expect(body.error).toContain('minimum chargeable amount')
+      // The hold was acquired before pricing — the guard must return it.
+      expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
+        p_code: 'DEEP',
+      })
+      expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+      expect(projectsChain.insert).not.toHaveBeenCalled()
+    },
+  )
+
+  test('a lost reserve CAS rejects as exhausted before any side effect', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({
+      data: [catalogRow({ single_use: true })],
+      error: null,
+    })
+    serviceRpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        fn === 'reserve_discount_code'
+          ? { data: false, error: null }
+          : { data: null, error: null },
+      ),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe('That code is no longer available.')
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+    expect(projectsChain.insert).not.toHaveBeenCalled()
+    // A lost CAS holds nothing — no restore may fire.
+    expect(serviceRpc).not.toHaveBeenCalledWith(
+      'restore_discount_code',
+      expect.anything(),
+    )
+  })
+
+  test('returns 500 when the reserve RPC itself fails', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    serviceRpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        fn === 'reserve_discount_code'
+          ? { data: null, error: { message: 'rpc down' } }
+          : { data: null, error: null },
+      ),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(500)
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  test('a catalog code returns 500 before resolving when the service client is unavailable', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn()
+    mockCreateServiceClient.mockImplementation(() => {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(500)
+    // Resolve-before-reserve: the throw lands before any lookup or hold.
+    expect(rpc).not.toHaveBeenCalled()
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  test('a WELCOME checkout never needs the service client', async () => {
+    const projectsChain = makeProjectsChain({ pendingCount: 0 })
+    mockCreateServiceClient.mockImplementation(() => {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+    const res = await POST(req as NextRequest)
+    // The index on the insert is WELCOME's hold — no service key required.
+    expect(res.status).toBe(200)
+    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+  })
+
+  test('cancels the intent and restores the catalog hold when insert fails', async () => {
+    const projectsChain = makeProjectsChain({
+      insertResult: { data: null, error: { message: 'db down' } },
+    })
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(500)
+
+    expect(mockPaymentIntentsCancel).toHaveBeenCalledWith('pi_test_123')
+    expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
+      p_code: 'SUMMER10',
+    })
+  })
+
+  test('restores the catalog hold when Stripe intent creation fails', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    mockPaymentIntentsCreate.mockRejectedValueOnce(new Error('stripe error'))
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(502)
+    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
+      p_code: 'SUMMER10',
     })
   })
 
@@ -997,6 +1226,94 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(projectsChain.insert).not.toHaveBeenCalled()
   })
 
+  test('maps the one-WELCOME-per-owner index violation to 400 and cancels the intent', async () => {
+    // The losing side of the concurrent-D5 race (#25 residual): both
+    // checkouts passed eligibility, the second insert dies on the 20260715
+    // partial unique index.
+    const projectsChain = makeProjectsChain({
+      pendingCount: 0,
+      insertResult: {
+        data: null,
+        error: {
+          code: '23505',
+          message:
+            'duplicate key value violates unique constraint "projects_one_welcome_per_owner"',
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe(
+      'Your welcome offer is already attached to another order. Complete or cancel that checkout first.',
+    )
+    expect(mockPaymentIntentsCancel).toHaveBeenCalledWith('pi_test_123')
+  })
+
+  test('a non-WELCOME duplicate-key insert failure stays a 500', async () => {
+    const projectsChain = makeProjectsChain({
+      pendingCount: 0,
+      insertResult: {
+        data: null,
+        error: {
+          code: '23505',
+          message:
+            'duplicate key value violates unique constraint "projects_pkey"',
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+
+    const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(500)
+  })
+
+  test('dev bypass maps the WELCOME index violation to the same 400', async () => {
+    const projectsChain = makeProjectsChain({ pendingCount: 0 })
+    const serviceProjectsChain = makeProjectsChain({
+      insertResult: {
+        data: null,
+        error: {
+          code: '23505',
+          message:
+            'duplicate key value violates unique constraint "projects_one_welcome_per_owner"',
+        },
+      },
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+      rpc: serviceRpc,
+    })
+    const prev = process.env.PAYMENTS_DEV_BYPASS
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+
+    try {
+      const req = createMockRequest(orderBody({ code: 'WELCOME' }))
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error).toContain('welcome offer is already attached')
+    } finally {
+      if (prev === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prev
+      }
+    }
+  })
+
   test('returns 500 when the catalog lookup RPC fails', async () => {
     const projectsChain = makeProjectsChain({})
     const rpc = lookupRpc({ data: null, error: { message: 'rpc down' } })
@@ -1015,7 +1332,7 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
   })
 
-  test('dev bypass persists the redeemed code on the born-paid row', async () => {
+  test('dev bypass persists the redeemed code and consumes it inline', async () => {
     const projectsChain = makeProjectsChain({})
     const serviceProjectsChain = makeProjectsChain({})
     const rpc = lookupRpc({ data: [catalogRow()], error: null })
@@ -1027,6 +1344,7 @@ describe('POST /api/portal/projects/checkout', () => {
     )
     mockCreateServiceClient.mockReturnValue({
       from: vi.fn(() => serviceProjectsChain),
+      rpc: serviceRpc,
     })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
@@ -1049,6 +1367,14 @@ describe('POST /api/portal/projects/checkout', () => {
           applied_coupon_code: 'SUMMER10',
         }),
       )
+      // Born-paid rows never reach the webhook: consumption finalizes
+      // inline (#26/D6).
+      expect(serviceRpc).toHaveBeenCalledWith('reserve_discount_code', {
+        p_code: 'SUMMER10',
+      })
+      expect(serviceRpc).toHaveBeenCalledWith('consume_discount_code', {
+        p_project_id: 'proj-new',
+      })
     } finally {
       if (prev === undefined) {
         delete process.env.PAYMENTS_DEV_BYPASS

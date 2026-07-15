@@ -27,6 +27,12 @@ const fixed = (value: number, scope: 'public' | 'private'): OrderCode => ({
   scope,
 })
 
+// D-floor-private (#26): the per-code override that drops the $225/song floor.
+const belowFloor = (code: OrderCode): OrderCode => ({
+  ...code,
+  allowBelowFloor: true,
+})
+
 function breakdown(row: {
   songs: number
   list_total: number
@@ -205,6 +211,87 @@ describe('computeOrderPrice', () => {
       expect(computeOrderPrice({ songCount: row.songs, code: row.orderCode })).toEqual(
         breakdown(row)
       )
+    })
+  })
+
+  describe('allow_below_floor pierces the floor (D-floor-private, #26)', () => {
+    test('1 song + $200 fixed exempt sells below the floor', () => {
+      expect(
+        computeOrderPrice({
+          songCount: 1,
+          code: belowFloor(fixed(20000, 'private')),
+        })
+      ).toEqual(
+        breakdown({
+          songs: 1,
+          list_total: 32500,
+          bulk: 0,
+          code: 20000,
+          add_ons: 0,
+          subtotal: 12500,
+        })
+      )
+    })
+
+    test('a fixed exempt code at or above list clamps to 0, never negative', () => {
+      expect(
+        computeOrderPrice({
+          songCount: 1,
+          code: belowFloor(fixed(40000, 'private')),
+        })
+      ).toEqual(
+        breakdown({
+          songs: 1,
+          list_total: 32500,
+          bulk: 0,
+          code: 32500,
+          add_ons: 0,
+          subtotal: 0,
+        })
+      )
+    })
+
+    test('the 35% cap still binds an exempt percent code, below the old floor', () => {
+      // Unexempt sibling: 35% capped intended discount (11375) loses to the
+      // $225 floor. Exempt: the cap is the only bound — $211.25/song.
+      expect(
+        computeOrderPrice({ songCount: 1, code: percent(50, 'private') })
+      ).toEqual(
+        breakdown({
+          songs: 1,
+          list_total: 32500,
+          bulk: 0,
+          code: 10000,
+          add_ons: 0,
+          subtotal: 22500,
+        })
+      )
+      expect(
+        computeOrderPrice({
+          songCount: 1,
+          code: belowFloor(percent(50, 'private')),
+        })
+      ).toEqual(
+        breakdown({
+          songs: 1,
+          list_total: 32500,
+          bulk: 0,
+          code: 11375,
+          add_ons: 0,
+          subtotal: 21125,
+        })
+      )
+    })
+
+    test('GST/HST applies to the exempt (below-floor) subtotal', () => {
+      const r = computeOrderPrice({
+        songCount: 1,
+        code: belowFloor(fixed(20000, 'private')),
+        buyer: { country: 'CA', province: 'ON' },
+      })
+      expect(r.subtotal_cents).toBe(12500)
+      expect(r.tax_cents).toBe(1625)
+      expect(r.total_cents).toBe(14125)
     })
   })
 
@@ -519,6 +606,11 @@ describe('computeOrderPrice', () => {
       for (const value of [0, 10, 20, 35]) codes.push(percent(value, scope))
       for (const value of [5000, 30000, 50000]) codes.push(fixed(value, scope))
     }
+    // Below-floor overrides ride private codes only (DB CHECK).
+    codes.push(belowFloor(percent(35, 'private')))
+    for (const value of [30000, 50000]) {
+      codes.push(belowFloor(fixed(value, 'private')))
+    }
     const addOnSets: AddOn[][] = [[], ['extra_revision'], ['extra_revision', 'rush_48h']]
     const buyers: (BuyerLocation | undefined)[] = [
       undefined,
@@ -540,9 +632,11 @@ describe('computeOrderPrice', () => {
                 r.list_total_cents - r.bulk_discount_cents - r.code_discount_cents + r.add_ons_cents
               ).toBe(r.subtotal_cents)
 
-              // The mix price never sells below the per-song floor.
+              // The mix price never sells below the per-song floor — unless
+              // the code carries the below-floor override, where >= 0 is
+              // the only bound (D-floor-private).
               expect(r.subtotal_cents - r.add_ons_cents).toBeGreaterThanOrEqual(
-                r.song_count * FLOOR_PER_SONG_CENTS
+                code?.allowBelowFloor ? 0 : r.song_count * FLOOR_PER_SONG_CENTS
               )
 
               // Discounts are non-negative and never exceed the list total.

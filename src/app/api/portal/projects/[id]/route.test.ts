@@ -11,6 +11,13 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
 
+// The catalog-hold restore runs on the service client (#26); tests that
+// don't set a return value exercise the no-service-key skip path.
+const mockCreateServiceClient = vi.fn()
+vi.mock('@/lib/supabase/supabaseService', () => ({
+  createServiceClient: () => mockCreateServiceClient(),
+}))
+
 import { DELETE, GET, PATCH } from './route'
 
 function makeParams(id: string) {
@@ -501,6 +508,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
       },
       error: null,
     })
+    // The restore keys off the DELETE-RETURNING row (#26 exactly-once), so
+    // the second single (the delete) must carry the payment flags.
     projectsChain.single
       .mockResolvedValueOnce({
         data: {
@@ -513,7 +522,16 @@ describe('DELETE /api/portal/projects/[id]', () => {
         },
         error: null,
       })
-      .mockResolvedValueOnce({ data: { id: 'proj-1' }, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          discount_applied: true,
+          paid_at: null,
+          applied_coupon_code: null,
+        },
+        error: null,
+      })
     const filesChain = createChainMock({ data: [], error: null })
     const deliverablesChain = createChainMock({ data: [], error: null })
     const rpcMock = vi
@@ -538,6 +556,199 @@ describe('DELETE /api/portal/projects/[id]', () => {
     expect(rpcMock).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
+  })
+
+  test('restores a catalog-code hold on the service client when unpaid (#26)', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          discount_applied: false,
+          paid_at: null,
+          applied_coupon_code: 'SUMMER10',
+        },
+        error: null,
+      })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
+    const sessionRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+      rpc: sessionRpc,
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+    mockCreateServiceClient.mockReturnValue(
+      createSupabaseMock({ rpc: serviceRpc }),
+    )
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
+      p_code: 'SUMMER10',
+    })
+    // The session client restores only the flag path; a code order has none.
+    expect(sessionRpc).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    [
+      'a WELCOME row (the delete itself frees the index slot)',
+      { applied_coupon_code: 'WELCOME', paid_at: null },
+    ],
+    [
+      'a paid code order (consumed, not restorable)',
+      { applied_coupon_code: 'SUMMER10', paid_at: '2026-07-01T00:00:00.000Z' },
+    ],
+  ])('does not restore %s', async (_label, returned) => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: returned.paid_at,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: returned.paid_at,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          discount_applied: false,
+          ...returned,
+        },
+        error: null,
+      })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+    mockCreateServiceClient.mockReturnValue(
+      createSupabaseMock({ rpc: serviceRpc }),
+    )
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    expect(serviceRpc).not.toHaveBeenCalled()
+  })
+
+  test('a delete that removes no row restores nothing (concurrent duplicate)', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: true,
+        paid_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: true,
+          paid_at: null,
+        },
+        error: null,
+      })
+      // The concurrent duplicate lost the delete CAS: no row came back.
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'JSON object requested, multiple (or no) rows returned' },
+      })
+    const filesChain = createChainMock({ data: [], error: null })
+    const deliverablesChain = createChainMock({ data: [], error: null })
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null })
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+        deliverables: deliverablesChain,
+      },
+      rpc: rpcMock,
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    expect(rpcMock).not.toHaveBeenCalled()
   })
 
   test('fully deletes a project when both sides have removed it', async () => {

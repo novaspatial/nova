@@ -74,6 +74,7 @@ describe('POST /api/stripe/webhook', () => {
           status: 'pending_payment',
           paid_at: null,
           stripe_payment_intent_id: 'pi_1',
+          applied_coupon_code: null,
         },
         error: null,
       })
@@ -116,6 +117,7 @@ describe('POST /api/stripe/webhook', () => {
           status: 'pending_payment',
           paid_at: null,
           stripe_payment_intent_id: 'pi_1',
+          applied_coupon_code: null,
         },
         error: null,
       })
@@ -150,6 +152,7 @@ describe('POST /api/stripe/webhook', () => {
         status: 'uploading',
         paid_at: '2026-04-22T00:00:00Z',
         stripe_payment_intent_id: 'pi_1',
+        applied_coupon_code: null,
       },
       error: null,
     })
@@ -184,6 +187,7 @@ describe('POST /api/stripe/webhook', () => {
           status: 'in_review',
           paid_at: null,
           stripe_payment_intent_id: 'pi_1',
+          applied_coupon_code: null,
         },
         error: null,
       })
@@ -223,6 +227,7 @@ describe('POST /api/stripe/webhook', () => {
         status: 'pending_payment',
         paid_at: null,
         stripe_payment_intent_id: 'pi_1',
+        applied_coupon_code: null,
       },
       error: null,
     })
@@ -256,6 +261,7 @@ describe('POST /api/stripe/webhook', () => {
         status: 'pending_payment',
         paid_at: null,
         stripe_payment_intent_id: 'pi_1',
+        applied_coupon_code: null,
       },
       error: null,
     })
@@ -267,5 +273,151 @@ describe('POST /api/stripe/webhook', () => {
     expect(res.status).toBe(200)
     expect(projectsChain.update).not.toHaveBeenCalled()
     mockConsoleError.mockRestore()
+  })
+
+  // --- #26 (D6): consumption finalizes on confirmed payment. ---
+
+  function succeededEvent() {
+    return {
+      type: 'payment_intent.succeeded',
+      data: {
+        object: {
+          id: 'pi_1',
+          metadata: { user_id: 'user-1', project_id: 'proj-1' },
+        },
+      },
+    }
+  }
+
+  function codeProjectRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'proj-1',
+      owner_id: 'user-1',
+      status: 'pending_payment',
+      paid_at: null,
+      stripe_payment_intent_id: 'pi_1',
+      applied_coupon_code: 'SUMMER10',
+      ...overrides,
+    }
+  }
+
+  test('consumes the redeemed code after a winning claim', async () => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({ data: codeProjectRow(), error: null })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(projectsChain.update).toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('consume_discount_code', {
+      p_project_id: 'proj-1',
+    })
+  })
+
+  test('returns 500 when the consume RPC fails so Stripe retries the finalize', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({ data: codeProjectRow(), error: null })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
+    const rpc = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: { message: 'consume failed' } })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    // The claim already landed — only the 500 keeps Stripe retrying until
+    // the replay path below finishes the consume.
+    expect(res.status).toBe(500)
+    mockConsoleError.mockRestore()
+  })
+
+  test('a replay on an already-paid code order still finalizes consumption', async () => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: codeProjectRow({
+        status: 'uploading',
+        paid_at: '2026-07-15T00:00:00Z',
+      }),
+      error: null,
+    })
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    // This is the claim-then-consume-fail recovery: the idempotent path
+    // re-attempts the (per-project idempotent) consume before answering.
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ idempotent: true })
+    expect(projectsChain.update).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('consume_discount_code', {
+      p_project_id: 'proj-1',
+    })
+  })
+
+  test('a replay whose consume fails returns 500 so the retry loop continues', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: codeProjectRow({
+        status: 'uploading',
+        paid_at: '2026-07-15T00:00:00Z',
+      }),
+      error: null,
+    })
+    const rpc = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: { message: 'consume failed' } })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(500)
+    mockConsoleError.mockRestore()
+  })
+
+  test.each([
+    ['a codeless order', null],
+    ['a WELCOME order', 'WELCOME'],
+  ])('%s never calls the consume RPC', async (_label, code) => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: codeProjectRow({ applied_coupon_code: code }),
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

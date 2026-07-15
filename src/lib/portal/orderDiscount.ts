@@ -16,12 +16,16 @@ import {
  * OrderCode an order rides on, so the server charge and any client-side
  * quote price the same code.
  *
- * S5 (#26) grows into the same seam: the single-use/usage-limit hold is
- * acquired where `resolveSubmittedCode` succeeds inside
- * `reserveOrderDiscount`, returned through the same `release()`,
- * `restoreUnpaidOrderDiscount` learns the row-based restore keyed on
- * `applied_coupon_code`, and the webhook finalizes consumption on confirmed
- * payment per D6.
+ * S5 (#26) grew into the same seam: `reserveOrderDiscount` acquires the
+ * single-use/usage-limit hold (the `reserve_discount_code` CAS, service
+ * client — grants are service_role-only per 20260715) where
+ * `resolveSubmittedCode` succeeds and returns it through the same
+ * `release()`; `restoreUnpaidOrderDiscount` returns the hold of a deleted
+ * unpaid row, keyed on `applied_coupon_code`; and
+ * `finalizeDiscountConsumption` consumes on confirmed payment per D6
+ * (webhook — the durable finalizer, payment-status poll, and the
+ * dev-bypass insert). WELCOME holds nothing here: its concurrency floor is
+ * the one-WELCOME-per-owner partial unique index the checkout insert hits.
  */
 
 // The one-shot first-mix discount rides the per-song pricing module as a
@@ -65,14 +69,16 @@ export interface DiscountReservation {
   applied: boolean
   /**
    * Return the hold after a downstream failure (Stripe, insert). No-op when
-   * nothing was reserved, idempotent otherwise (the RPC re-sets a flag), and
+   * nothing was reserved (including WELCOME — the index is its hold), and
    * never throws — a failed restore is logged so it can't mask the original
-   * error the caller is about to surface.
+   * error the caller is about to surface. Callers must not double-fire it:
+   * the first-mix restore is naturally idempotent (re-sets a flag), but the
+   * catalog restore decrements a counter.
    */
   release: () => Promise<void>
 }
 
-/** The one copy of the return-the-reservation RPC call. */
+/** The one copy of the return-the-first-mix-reservation RPC call. */
 async function restoreFirstMix(
   supabase: SupabaseClient,
   userId: string,
@@ -82,6 +88,23 @@ async function restoreFirstMix(
   })
   if (error) {
     console.error('[orderDiscount] first-mix restore failed', error)
+  }
+}
+
+/**
+ * The one copy of the return-the-catalog-hold RPC call (#26). Service
+ * client only — the RPC's EXECUTE is revoked from authenticated so a raw
+ * PostgREST caller can't burn or refund holds (see 20260715).
+ */
+async function restoreDiscountCode(
+  serviceSupabase: SupabaseClient,
+  code: string,
+): Promise<void> {
+  const { error } = await serviceSupabase.rpc('restore_discount_code', {
+    p_code: code,
+  })
+  if (error) {
+    console.error('[orderDiscount] catalog-hold restore failed', error)
   }
 }
 
@@ -111,14 +134,24 @@ export type CodeRejectionReason =
   // validate endpoint is not an enumeration oracle for the catalog.
   | 'invalid'
   | 'expired'
+  // Capacity gone (#26): fully consumed/held at the resolve pre-check, or
+  // the reserve CAS lost to a concurrent redemption/deactivation/expiry.
+  // One message for every cause — honest, and no leakier than 'expired'.
+  | 'exhausted'
   | 'new_clients_only'
   | 'returning_clients_only'
+  // The one-WELCOME-per-owner index refused the insert (23505). Mapped by
+  // the checkout route only — the resolver never emits it.
+  | 'welcome_in_use'
 
 export const CODE_REJECTION_MESSAGES: Record<CodeRejectionReason, string> = {
   invalid: "That code isn't valid.",
   expired: 'That code has expired.',
+  exhausted: 'That code is no longer available.',
   new_clients_only: 'That code is only valid on your first order.',
   returning_clients_only: 'That code is for returning clients only.',
+  welcome_in_use:
+    'Your welcome offer is already attached to another order. Complete or cancel that checkout first.',
 }
 
 export type CodeResolution =
@@ -146,6 +179,9 @@ type CatalogRow = {
   returning_clients_only: boolean
   active: boolean
   expires_at: string | null
+  reserved_count: number
+  redeemed_count: number
+  allow_below_floor: boolean
 }
 
 /**
@@ -201,6 +237,19 @@ export async function resolveSubmittedCode(
     return reject('expired')
   }
 
+  // Capacity pre-check (#26): reject before the user reaches payment when
+  // every unit is held or consumed. Advisory only — the atomic gate is the
+  // reserve_discount_code CAS at checkout; a race past this check just
+  // resolves as 'exhausted' there instead. Code-state checks come before
+  // the user-state (audience) gates below.
+  const effectiveLimit = row.single_use ? 1 : row.usage_limit
+  if (
+    effectiveLimit !== null &&
+    row.reserved_count + row.redeemed_count >= effectiveLimit
+  ) {
+    return reject('exhausted')
+  }
+
   // Audience gates (D5). The eligibility query only runs when a flag is set —
   // unrestricted codes resolve without the extra roundtrip.
   if (row.new_clients_only || row.returning_clients_only) {
@@ -219,10 +268,10 @@ export async function resolveSubmittedCode(
     }
   }
 
-  // #26 (D6) adds the atomic hold here: single_use / usage_limit codes
-  // currently redeem WITHOUT consumption tracking — the code charges
-  // correctly but nothing stops re-use. Do not distribute single-use or
-  // usage-limited codes before #26 ships.
+  // The atomic hold itself is acquired by `reserveOrderDiscount` (checkout
+  // only) — this resolver stays side-effect-free so the validate endpoint
+  // can share it. allowBelowFloor spreads only when true so the OrderCode
+  // stays minimal for the (dominant) non-exempt codes.
   return {
     ok: true,
     couponCode: row.code,
@@ -230,6 +279,7 @@ export async function resolveSubmittedCode(
       kind: row.kind,
       value: row.value,
       scope: row.is_public ? 'public' : 'private',
+      ...(row.allow_below_floor ? { allowBelowFloor: true } : {}),
     },
   }
 }
@@ -252,17 +302,21 @@ export function discountBadgeLabel(
  * Atomically reserve the signed-in user's order discount.
  *
  * With a `submittedCode`, all resolution happens here (welcome special
- * case, catalog lookup, expiry, D5 eligibility) and the first-mix reserve
- * is skipped entirely — one code per order (D4). A rejected code returns
- * the distinguishable `rejection` variant (the caller answers 400, versus
- * 500 for an infrastructure failure). In #25 a resolved code holds nothing
- * (release is a no-op); #26 acquires its single-use hold at this point and
- * returns it through the same `release()`.
+ * case, catalog lookup, expiry, capacity, D5 eligibility) and the first-mix
+ * reserve is skipped entirely — one code per order (D4). A rejected code
+ * returns the distinguishable `rejection` variant (the caller answers 400,
+ * versus 500 for an infrastructure failure). A resolved CATALOG code then
+ * acquires its hold via the `reserve_discount_code` CAS on
+ * `opts.serviceSupabase` (#26/D6) and returns it through `release()`; a
+ * CAS loss maps to the `exhausted` rejection. WELCOME acquires nothing —
+ * the one-per-owner index on the insert is its hold.
  *
  * Contract: resolve every throwing dependency (Stripe client, service
  * client, ...) BEFORE calling this — a throw between reserve and release
- * burns the one-shot discount with nothing left to restore it. After this
- * call, every failure path must end in `reservation.release()`.
+ * burns the hold with nothing left to restore it. The service client is
+ * REQUIRED for catalog codes (its absence is an infrastructure 500, so
+ * resolve it under the same try/catch as Stripe). After this call, every
+ * failure path must end in `reservation.release()`, exactly once.
  *
  * Returns `reservation: null` plus the RPC error message when the reserve
  * call itself fails (the caller answers 500). "Nothing to reserve" is not
@@ -272,7 +326,10 @@ export function discountBadgeLabel(
 export async function reserveOrderDiscount(
   supabase: SupabaseClient,
   userId: string,
-  opts: { submittedCode?: string | null } = {},
+  opts: {
+    submittedCode?: string | null
+    serviceSupabase?: SupabaseClient | null
+  } = {},
 ): Promise<
   | { reservation: DiscountReservation; error: null }
   | { reservation: null; error: string }
@@ -294,12 +351,50 @@ export async function reserveOrderDiscount(
       }
       return { reservation: null, error: resolution.error }
     }
+
+    if (resolution.couponCode === WELCOME_COUPON_CODE) {
+      return {
+        reservation: {
+          code: resolution.code,
+          couponCode: resolution.couponCode,
+          applied: false,
+          release: async () => {},
+        },
+        error: null,
+      }
+    }
+
+    const serviceSupabase = opts.serviceSupabase ?? null
+    if (!serviceSupabase) {
+      // Miswired caller, not a client mistake: catalog holds run on the
+      // service client only (see 20260715 grants).
+      return {
+        reservation: null,
+        error: 'service client required for catalog-code holds',
+      }
+    }
+    const couponCode = resolution.couponCode
+    const { data, error } = await serviceSupabase.rpc('reserve_discount_code', {
+      p_code: couponCode,
+    })
+    if (error) {
+      return { reservation: null, error: error.message }
+    }
+    if (data !== true) {
+      // Lost the CAS: the last unit went to a concurrent checkout, or the
+      // code was deactivated/expired between resolve and reserve.
+      return {
+        reservation: null,
+        error: CODE_REJECTION_MESSAGES.exhausted,
+        rejection: 'exhausted',
+      }
+    }
     return {
       reservation: {
         code: resolution.code,
-        couponCode: resolution.couponCode,
+        couponCode,
         applied: false,
-        release: async () => {},
+        release: () => restoreDiscountCode(serviceSupabase, couponCode),
       },
       error: null,
     }
@@ -328,11 +423,18 @@ export async function reserveOrderDiscount(
 /**
  * Return the discount held by a project row that was never paid — the
  * cross-request counterpart of `release()` for abandon/delete flows, where
- * the in-memory reservation is long gone and the hold is reconstructed from
- * the row (`discount_applied` set, `paid_at` not). Never throws: a failed
- * restore is logged and must not block the delete that triggered it.
- * Welcome/catalog-code rows hold nothing in #25 (`discount_applied` false);
- * #26 grows the catalog-hold restore here, keyed on `applied_coupon_code`.
+ * the in-memory reservation is long gone and the hold is reconstructed
+ * from the row: the first-mix flag off `discount_applied` (session client —
+ * the RPC is identity-guarded), the catalog hold off `applied_coupon_code`
+ * (#26; `opts.serviceSupabase`, required by the 20260715 grants — its
+ * absence logs and skips). WELCOME rows hold nothing: deleting the row is
+ * itself the release (it frees the one-per-owner index slot). Never
+ * throws: a failed restore is logged and must not block the delete that
+ * triggered it.
+ *
+ * Exactly-once contract: call this with the DELETE-RETURNING row only (the
+ * delete is the CAS), never with a pre-delete read — concurrent deletes
+ * would otherwise double-decrement the catalog counter.
  */
 export async function restoreUnpaidOrderDiscount(
   supabase: SupabaseClient,
@@ -340,9 +442,52 @@ export async function restoreUnpaidOrderDiscount(
     owner_id: string
     discount_applied?: boolean | null
     paid_at?: string | null
+    applied_coupon_code?: string | null
   },
+  opts: { serviceSupabase?: SupabaseClient | null } = {},
 ): Promise<void> {
-  if (project.discount_applied && !project.paid_at) {
+  if (project.paid_at) {
+    return
+  }
+  if (project.discount_applied) {
     await restoreFirstMix(supabase, project.owner_id)
   }
+  const code = project.applied_coupon_code ?? null
+  if (code && code !== WELCOME_COUPON_CODE) {
+    if (opts.serviceSupabase) {
+      await restoreDiscountCode(opts.serviceSupabase, code)
+    } else {
+      console.error(
+        '[orderDiscount] catalog-hold restore skipped: no service client',
+        { code },
+      )
+    }
+  }
+}
+
+/**
+ * Finalize a code's consumption once payment is confirmed (D6). Idempotent
+ * per project — the consume RPC's ledger PK makes every caller after the
+ * first a no-op — so the webhook, its Stripe replays, and the
+ * payment-status poll can all call it safely. Codeless and WELCOME orders
+ * skip the RPC roundtrip entirely: WELCOME's consumption is the paid row
+ * itself (D5 + the one-per-owner index). Service client only (20260715
+ * grants). Returns the error instead of throwing so each caller grades it:
+ * the webhook answers 500 (Stripe's retry loop is the durable finalizer);
+ * the poll and the dev-bypass insert log and continue.
+ */
+export async function finalizeDiscountConsumption(
+  serviceSupabase: SupabaseClient,
+  project: { id: string; applied_coupon_code: string | null },
+): Promise<{ error: string | null }> {
+  if (
+    !project.applied_coupon_code ||
+    project.applied_coupon_code === WELCOME_COUPON_CODE
+  ) {
+    return { error: null }
+  }
+  const { error } = await serviceSupabase.rpc('consume_discount_code', {
+    p_project_id: project.id,
+  })
+  return { error: error ? error.message : null }
 }

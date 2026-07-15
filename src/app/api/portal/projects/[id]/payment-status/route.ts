@@ -4,6 +4,10 @@ import { notFoundResponse, requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { claimProjectPayment } from '@/lib/portal/paymentClaim'
+import {
+  finalizeDiscountConsumption,
+  WELCOME_COUPON_CODE,
+} from '@/lib/portal/orderDiscount'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 
 type ProjectRow = {
@@ -14,6 +18,35 @@ type ProjectRow = {
   stripe_payment_intent_id: string | null
   client_deleted_at: string | null
   song_count: number | null
+  applied_coupon_code: string | null
+}
+
+/**
+ * Best-effort consumption finalize for the poll path (#26/D6): payment is
+ * already a fact here, so a failed (or service-key-less) consume must never
+ * block the `paid: true` answer — the webhook's 500-retry loop is the
+ * durable finalizer, and in webhook-less dev the next poll retries.
+ */
+async function finalizeConsumptionBestEffort(project: {
+  id: string
+  applied_coupon_code: string | null
+}): Promise<void> {
+  if (
+    !project.applied_coupon_code ||
+    project.applied_coupon_code === WELCOME_COUPON_CODE
+  ) {
+    return
+  }
+  let serviceSupabase: SupabaseClient
+  try {
+    serviceSupabase = createServiceClient()
+  } catch {
+    return
+  }
+  const { error } = await finalizeDiscountConsumption(serviceSupabase, project)
+  if (error) {
+    console.error('[payment-status] consume failed', error)
+  }
 }
 
 export async function GET(
@@ -30,7 +63,7 @@ export async function GET(
   const { data: project, error } = await supabase
     .from('projects')
     .select(
-      'id, owner_id, status, paid_at, stripe_payment_intent_id, client_deleted_at, song_count',
+      'id, owner_id, status, paid_at, stripe_payment_intent_id, client_deleted_at, song_count, applied_coupon_code',
     )
     .eq('id', id)
     .maybeSingle<ProjectRow>()
@@ -46,6 +79,10 @@ export async function GET(
   }
 
   if (project.paid_at) {
+    // Paid rows can still carry an unfinalized consume (claim landed, the
+    // finalizer died, and no webhook retry reached us — e.g. webhook-less
+    // dev). Idempotent, so repeated polls are harmless.
+    await finalizeConsumptionBestEffort(project)
     return NextResponse.json({
       paid: true,
       status: project.status,
@@ -130,6 +167,10 @@ export async function GET(
       console.error('[payment-status] claim failed', updateError)
       return NextResponse.json({ paid: false, status: project.status })
     }
+
+    // Payment is confirmed whether we won the claim or the webhook did —
+    // finalize consumption either way (idempotent; best-effort here).
+    await finalizeConsumptionBestEffort(project)
 
     if (claimed) {
       return NextResponse.json({ paid: true, status: claimed.status })

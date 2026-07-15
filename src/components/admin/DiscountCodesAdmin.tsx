@@ -24,6 +24,16 @@ function codeStatus(code: DiscountCode): 'active' | 'expired' | 'disabled' {
   return 'active'
 }
 
+// Consumption per #26: redeemed = finalized on confirmed payment, against
+// the effective capacity (single-use dominates a usage limit; null =
+// unlimited).
+function redemptionLabel(code: DiscountCode) {
+  const limit = code.single_use ? 1 : code.usage_limit
+  return limit === null
+    ? `redeemed ${code.redeemed_count}`
+    : `redeemed ${code.redeemed_count}/${limit}`
+}
+
 const STATUS_STYLES: Record<ReturnType<typeof codeStatus>, string> = {
   active: 'bg-emerald-500/15 text-emerald-300',
   expired: 'bg-amber-500/15 text-amber-300',
@@ -44,6 +54,7 @@ export function DiscountCodesAdmin({
   const [audience, setAudience] = useState<Audience>('all')
   const [isPublic, setIsPublic] = useState(false)
   const [singleUse, setSingleUse] = useState(false)
+  const [belowFloor, setBelowFloor] = useState(false)
   const [usageLimit, setUsageLimit] = useState('')
   const [referral, setReferral] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -69,6 +80,7 @@ export function DiscountCodesAdmin({
           newClientsOnly: audience === 'new',
           returningClientsOnly: audience === 'returning',
           referralAttribution: referral.trim() || null,
+          allowBelowFloor: belowFloor,
         }),
       })
       const data = (await res.json()) as DiscountCode & { error?: string }
@@ -256,7 +268,12 @@ export function DiscountCodesAdmin({
             <input
               type="checkbox"
               checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
+              onChange={(e) => {
+                setIsPublic(e.target.checked)
+                // D-floor-private is private-only (DB CHECK): going public
+                // clears the override rather than letting the POST 400.
+                if (e.target.checked) setBelowFloor(false)
+              }}
               disabled={submitting}
               className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-600"
             />
@@ -272,6 +289,18 @@ export function DiscountCodesAdmin({
             />
             Single use
           </label>
+          {!isPublic && (
+            <label className="flex items-center gap-2 text-xs text-zinc-300 sm:text-sm">
+              <input
+                type="checkbox"
+                checked={belowFloor}
+                onChange={(e) => setBelowFloor(e.target.checked)}
+                disabled={submitting}
+                className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-600"
+              />
+              Can price below the $225/song floor
+            </label>
+          )}
         </div>
 
         <button
@@ -314,6 +343,8 @@ export function DiscountCodesAdmin({
                     {c.is_public ? 'Public' : 'Private'}
                     {c.single_use && ' · single use'}
                     {c.usage_limit !== null && ` · limit ${c.usage_limit}`}
+                    {c.allow_below_floor && ' · below floor'}
+                    {` · ${redemptionLabel(c)}`}
                     {c.new_clients_only && ' · new clients'}
                     {c.returning_clients_only && ' · returning clients'}
                     {c.expires_at &&

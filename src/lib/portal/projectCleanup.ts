@@ -1,22 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { restoreUnpaidOrderDiscount } from './orderDiscount'
 
-/**
- * The project fields cleanup needs: enough to restore a dangling first-mix
- * discount reservation. `id` and `owner_id` are required; the payment flags
- * are optional so callers that don't track payments can pass a lean object.
- */
 type CleanupProject = {
   id: string
-  owner_id: string
-  discount_applied?: boolean | null
-  paid_at?: string | null
 }
 
 /**
- * Remove every storage object and reservation tied to a project, ahead of
- * deleting the project row. Postgres cascades the child *rows*, but the
- * Storage *objects* they point at do not cascade — they must be swept here.
+ * Remove every storage object tied to a project, ahead of deleting the
+ * project row. Postgres cascades the child *rows*, but the Storage
+ * *objects* they point at do not cascade — they must be swept here.
  *
  * Sweeps three sources:
  *   - project_files               -> project-uploads
@@ -27,20 +18,19 @@ type CleanupProject = {
  * the old inline delete removed only project_files and deliverables paths,
  * leaking every comment attachment object in project-uploads.
  *
- * Also restores the discount the project reserved but never paid for (via
- * the orderDiscount seam), so an abandoned checkout doesn't burn the user's
- * reservation.
+ * Storage only since #26: the unpaid-discount restore moved to the DELETE
+ * route, keyed on the delete-returning row, so concurrent deletes can't
+ * double-restore a hold (`restoreUnpaidOrderDiscount`'s exactly-once
+ * contract). Pre-delete cleanup must not release what a surviving row
+ * still owns.
  *
  * Returns the first lookup/storage error as `{ error }` so the caller can
- * surface a 500. A failed discount restore is logged inside the seam, not
- * fatal — it must not block the delete.
+ * surface a 500.
  */
 export async function cleanupProjectArtifacts(
   supabase: SupabaseClient,
   project: CleanupProject,
 ): Promise<{ error: string | null }> {
-  await restoreUnpaidOrderDiscount(supabase, project)
-
   const [files, attachments, deliverables] = await Promise.all([
     supabase
       .from('project_files')

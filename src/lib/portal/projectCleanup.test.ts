@@ -4,12 +4,9 @@ import { cleanupProjectArtifacts } from './projectCleanup'
 
 type Supabase = Parameters<typeof cleanupProjectArtifacts>[0]
 
-const paidProject = {
-  id: 'proj-1',
-  owner_id: 'user-1',
-  discount_applied: false,
-  paid_at: '2026-04-01T00:00:00.000Z',
-}
+// Storage-only since #26: the discount restore moved to the DELETE route
+// (keyed on the delete-returning row), so cleanup needs only the id.
+const paidProject = { id: 'proj-1' }
 
 describe('cleanupProjectArtifacts', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -74,25 +71,16 @@ describe('cleanupProjectArtifacts', () => {
     expect(uploadsBucket.remove).not.toHaveBeenCalled()
   })
 
-  test('restores the first-mix discount when reserved but never paid', async () => {
+  test('never touches a discount RPC — cleanup is storage-only since #26', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
-    const supabase = createSupabaseMock({ rpc })
-
-    await cleanupProjectArtifacts(supabase as unknown as Supabase, {
-      id: 'proj-1',
-      owner_id: 'user-1',
-      discount_applied: true,
-      paid_at: null,
+    const supabase = createSupabaseMock({
+      rpc,
+      fromMocks: {
+        project_files: createChainMock({ data: [], error: null }),
+        project_comment_attachments: createChainMock({ data: [], error: null }),
+        deliverables: createChainMock({ data: [], error: null }),
+      },
     })
-
-    expect(rpc).toHaveBeenCalledWith('restore_first_mix_discount', {
-      p_user_id: 'user-1',
-    })
-  })
-
-  test('does not restore the discount for a paid project', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
-    const supabase = createSupabaseMock({ rpc })
 
     await cleanupProjectArtifacts(supabase as unknown as Supabase, paidProject)
 

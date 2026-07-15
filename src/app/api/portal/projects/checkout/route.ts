@@ -4,7 +4,12 @@ import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { CA_TAX_RATES, computeOrderPrice } from '@/lib/stripe/pricing'
-import { reserveOrderDiscount } from '@/lib/portal/orderDiscount'
+import {
+  CODE_REJECTION_MESSAGES,
+  finalizeDiscountConsumption,
+  reserveOrderDiscount,
+  WELCOME_COUPON_CODE,
+} from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 import type { BuyerCountry, BuyerLocation, CAProvince } from '@/types/portal'
 
@@ -16,10 +21,30 @@ const MAX_SONG_COUNT = 99
 const MAX_STEM_COUNT = 999
 const MAX_TEXT_LENGTH = 5000
 
+// Stripe refuses charges under ~$0.50 USD — a Stripe property, not pricing
+// policy, so it lives here and not in the pure module. Reachable only via a
+// deep below-floor code (D-floor-private).
+const STRIPE_MIN_CHARGE_CENTS = 50
+
 function parseCount(value: unknown, min: number, max: number): number | null {
   if (typeof value !== 'number' || !Number.isInteger(value)) return null
   if (value < min || value > max) return null
   return value
+}
+
+/**
+ * The one-WELCOME-per-owner partial unique index (20260715) refused the
+ * insert: a second live WELCOME order for this user — either the losing
+ * side of the concurrent-D5 race the index exists to close, or an
+ * abandoned-but-undeleted WELCOME checkout still holding the slot.
+ */
+function isWelcomeIndexViolation(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  return (
+    error?.code === '23505' &&
+    (error.message ?? '').includes('projects_one_welcome_per_owner')
+  )
 }
 
 export async function POST(request: NextRequest) {
@@ -156,18 +181,25 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Resolve the Stripe client BEFORE reserving the discount: getStripe()
-  // throws on missing config, and a throw after the reservation would burn
-  // the user's one-shot discount with nothing left to restore it. The
-  // dev-bypass service client is resolved here for the same reason — its
-  // born-paid insert is a system write (the 20260708 insert fence 42501s
-  // client sessions creating anything but unpaid pending_payment rows), so
-  // it needs SUPABASE_SERVICE_ROLE_KEY. Dev-only path; prod never sets
-  // PAYMENTS_DEV_BYPASS.
+  // Resolve every throwing client BEFORE reserving the discount: a throw
+  // after the reservation would burn the hold with nothing left to restore
+  // it (the seam contract). Stripe is needed for real payments; the service
+  // client for (a) the dev-bypass born-paid insert — a system write, the
+  // 20260708 insert fence 42501s client sessions creating anything but
+  // unpaid pending_payment rows — and (b) catalog-code holds, whose
+  // reserve/restore RPCs are EXECUTE-granted to service_role only
+  // (20260715). WELCOME rides the insert-time one-per-owner index instead,
+  // so welcome-only checkouts keep working without the service key. A
+  // malformed code resolves the client before its 400 — accepted;
+  // resolve-before-reserve is the contract.
   const devBypass = process.env.PAYMENTS_DEV_BYPASS === 'true'
+  const normalizedCode = submittedCode ? submittedCode.toUpperCase() : null
+  const needsServiceClient =
+    devBypass ||
+    (normalizedCode !== null && normalizedCode !== WELCOME_COUPON_CODE)
   let stripe: ReturnType<typeof getStripe> | null = null
   let serviceSupabase: SupabaseClient | null = null
-  if (devBypass) {
+  if (needsServiceClient) {
     try {
       serviceSupabase = createServiceClient()
     } catch {
@@ -176,7 +208,8 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       )
     }
-  } else {
+  }
+  if (!devBypass) {
     try {
       stripe = getStripe()
     } catch {
@@ -190,13 +223,15 @@ export async function POST(request: NextRequest) {
   // Atomically reserve the order's discount (the #38 seam): a submitted code
   // is re-validated and resolved server-side (welcome per D11/D5, catalog
   // per #17) and skips the first-mix reserve — one code per order (D4); with
-  // no code, the one-shot first-mix flag. A code rejection maps to 400; only
-  // infrastructure failures stay 500. Every failure path past this point
-  // must end in `reservation.release()`. NOTE (#26/D6): single-use and
-  // usage-limited codes charge correctly here but are NOT consumed yet — do
-  // not distribute such codes before #26 ships.
+  // no code, the one-shot first-mix flag. Catalog codes acquire their
+  // single-use/usage-limit hold here (#26/D6, the reserve_discount_code CAS
+  // on the service client); the webhook finalizes consumption when payment
+  // confirms. A code rejection maps to 400; only infrastructure failures
+  // stay 500. Every failure path past this point must end in
+  // `reservation.release()`, exactly once.
   const reserved = await reserveOrderDiscount(supabase, user.id, {
     submittedCode,
+    serviceSupabase,
   })
   if (!reserved.reservation) {
     return NextResponse.json(
@@ -214,6 +249,22 @@ export async function POST(request: NextRequest) {
   })
   const amountCents = breakdown.total_cents
   const currency = breakdown.currency
+
+  // A deep below-floor code (D-floor-private) can price an order under
+  // Stripe's minimum charge (or at $0). Reject clearly instead of letting
+  // the intent create fail into a 502 — and do NOT silently clamp upward or
+  // mint a free order; neither is decided policy. Dev bypass charges 0 by
+  // design and skips this.
+  if (!devBypass && amountCents < STRIPE_MIN_CHARGE_CENTS) {
+    await reservation.release()
+    return NextResponse.json(
+      {
+        error:
+          'That code brings the order below the minimum chargeable amount. Contact the studio.',
+      },
+      { status: 400 },
+    )
+  }
 
   const nowIso = new Date().toISOString()
   const orderFields = {
@@ -262,10 +313,26 @@ export async function POST(request: NextRequest) {
 
     if (insertError || !project) {
       await reservation.release()
+      if (isWelcomeIndexViolation(insertError)) {
+        return NextResponse.json(
+          { error: CODE_REJECTION_MESSAGES.welcome_in_use },
+          { status: 400 },
+        )
+      }
       return NextResponse.json(
         { error: insertError?.message || 'Failed to create project' },
         { status: 500 },
       )
+    }
+
+    // Born-paid and webhook-less: finalize the code's consumption inline.
+    // Best-effort — a dev-only path never blocks on the ledger write.
+    const { error: consumeError } = await finalizeDiscountConsumption(
+      serviceSupabase,
+      { id: project.id, applied_coupon_code: reservation.couponCode },
+    )
+    if (consumeError) {
+      console.error('[checkout] dev-bypass consume failed', consumeError)
     }
 
     return NextResponse.json({
@@ -339,6 +406,12 @@ export async function POST(request: NextRequest) {
       console.error('[checkout] intent cancel failed', cancelErr)
     }
     await reservation.release()
+    if (isWelcomeIndexViolation(insertError)) {
+      return NextResponse.json(
+        { error: CODE_REJECTION_MESSAGES.welcome_in_use },
+        { status: 400 },
+      )
+    }
     return NextResponse.json(
       { error: insertError?.message || 'Failed to create project' },
       { status: 500 },

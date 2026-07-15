@@ -26,6 +26,9 @@ function makeCode(overrides: Partial<DiscountCode> = {}): DiscountCode {
     referral_attribution: null,
     active: true,
     expires_at: null,
+    reserved_count: 0,
+    redeemed_count: 0,
+    allow_below_floor: false,
     created_by: 'studio-1',
     created_at: '2026-07-04T00:00:00.000Z',
     updated_at: '2026-07-04T00:00:00.000Z',
@@ -107,8 +110,52 @@ describe('DiscountCodesAdmin', () => {
       singleUse: false,
       newClientsOnly: false,
       returningClientsOnly: false,
+      allowBelowFloor: false,
     })
     expect(mockRefresh).toHaveBeenCalled()
+  })
+
+  test('marks below-floor codes and shows redemption counts in the list', () => {
+    render(
+      <DiscountCodesAdmin
+        initialCodes={[
+          makeCode({
+            allow_below_floor: true,
+            single_use: true,
+            redeemed_count: 1,
+          }),
+          makeCode({
+            id: 'code-2',
+            code: 'ARTIST_X',
+            usage_limit: 5,
+            redeemed_count: 2,
+          }),
+        ]}
+      />,
+    )
+
+    // single_use dominates: capacity reads 1, not the absent usage_limit.
+    expect(screen.getByText(/below floor/)).toBeInTheDocument()
+    expect(screen.getByText(/redeemed 1\/1/)).toBeInTheDocument()
+    expect(screen.getByText(/redeemed 2\/5/)).toBeInTheDocument()
+  })
+
+  test('the below-floor checkbox is private-only and clears when Public is checked', () => {
+    render(<DiscountCodesAdmin initialCodes={[]} />)
+
+    const belowFloor = screen.getByLabelText(/below the \$225\/song floor/)
+    fireEvent.click(belowFloor)
+    expect(belowFloor).toBeChecked()
+
+    // Going public hides the override and drops it from the payload state.
+    fireEvent.click(screen.getByLabelText(/Public \(stacks/))
+    expect(
+      screen.queryByLabelText(/below the \$225\/song floor/),
+    ).not.toBeInTheDocument()
+
+    // Back to private: the override must have been cleared, not remembered.
+    fireEvent.click(screen.getByLabelText(/Public \(stacks/))
+    expect(screen.getByLabelText(/below the \$225\/song floor/)).not.toBeChecked()
   })
 
   test('shows the API error when creation fails', async () => {

@@ -70,9 +70,13 @@ export const CA_TAX_RATES: Record<CAProvince, { pct: number; kind: CATaxKind }> 
 
 export type CodeScope = 'public' | 'private'
 
+// allowBelowFloor (D-floor-private, #26): the per-code override that lets a
+// private code price below the $225/song floor. It rides the OrderCode —
+// the one channel per-code attributes reach this module — so the client
+// quote and the server charge stay identical.
 export type OrderCode =
-  | { kind: 'percent'; value: number; scope: CodeScope } // value: whole percent (15 = 15%)
-  | { kind: 'fixed'; value: number; scope: CodeScope } // value: amount in cents
+  | { kind: 'percent'; value: number; scope: CodeScope; allowBelowFloor?: boolean } // value: whole percent (15 = 15%)
+  | { kind: 'fixed'; value: number; scope: CodeScope; allowBelowFloor?: boolean } // value: amount in cents
 
 export interface OrderInput {
   songCount: number
@@ -128,8 +132,11 @@ export function computeOrderPrice(input: OrderInput): PriceBreakdown {
 
   // Per-song floor in the USD charge currency (D4-a/b). Clamp the mix price so
   // each song never sells below the floor, then attribute the realized discount
-  // bulk-first so the breakdown lines sum to the mix price.
-  const floorTotalCents = songCount * FLOOR_PER_SONG_CENTS
+  // bulk-first so the breakdown lines sum to the mix price. A code flagged
+  // allowBelowFloor (D-floor-private) drops the floor to 0 — Math.max still
+  // clamps the mix price at >= 0, and the 35% cap on percent stacks is
+  // untouched (an exempt percent code bottoms out at $211.25/song).
+  const floorTotalCents = code?.allowBelowFloor ? 0 : songCount * FLOOR_PER_SONG_CENTS
   const intendedDiscountCents = bulkDiscountCents + intendedCodeDiscountCents
   const mixPriceCents = Math.max(listTotalCents - intendedDiscountCents, floorTotalCents)
   const effectiveDiscountCents = listTotalCents - mixPriceCents

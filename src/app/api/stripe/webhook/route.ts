@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { claimProjectPayment } from '@/lib/portal/paymentClaim'
+import { finalizeDiscountConsumption } from '@/lib/portal/orderDiscount'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 
 export const runtime = 'nodejs'
@@ -13,6 +14,7 @@ type ProjectRow = {
   status: ProjectStatus
   paid_at: string | null
   stripe_payment_intent_id: string | null
+  applied_coupon_code: string | null
 }
 
 export async function POST(request: NextRequest) {
@@ -61,7 +63,9 @@ export async function POST(request: NextRequest) {
 
   const { data: project, error: loadError } = await supabase
     .from('projects')
-    .select('id, owner_id, status, paid_at, stripe_payment_intent_id')
+    .select(
+      'id, owner_id, status, paid_at, stripe_payment_intent_id, applied_coupon_code',
+    )
     .eq('stripe_payment_intent_id', intent.id)
     .maybeSingle<ProjectRow>()
 
@@ -99,6 +103,19 @@ export async function POST(request: NextRequest) {
   }
 
   if (project.paid_at) {
+    // Replay of an already-claimed payment. Re-attempt consumption before
+    // answering (#26/D6): if a prior delivery claimed the payment but died
+    // before the consume landed, this early return would otherwise strand
+    // the code unconsumed forever. finalizeDiscountConsumption is
+    // idempotent per project, so a fully-finalized replay is a no-op.
+    const { error: consumeError } = await finalizeDiscountConsumption(
+      supabase,
+      project,
+    )
+    if (consumeError) {
+      console.error('[stripe webhook] consume failed on replay', consumeError)
+      return NextResponse.json({ error: 'Consume failed' }, { status: 500 })
+    }
     return NextResponse.json({ received: true, idempotent: true })
   }
 
@@ -119,6 +136,19 @@ export async function POST(request: NextRequest) {
   if (updateError) {
     console.error('[stripe webhook] project update failed', updateError)
     return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+  }
+
+  // Post-claim finalize order (#24 lands its order-confirmation email
+  // between these): (1) consumption — MUST 500 on failure so Stripe's
+  // retry loop finishes the job (the replay path above re-attempts it);
+  // (2) [#24 email — best-effort, never a 500]; (3) ack.
+  const { error: consumeError } = await finalizeDiscountConsumption(
+    supabase,
+    project,
+  )
+  if (consumeError) {
+    console.error('[stripe webhook] consume failed', consumeError)
+    return NextResponse.json({ error: 'Consume failed' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })

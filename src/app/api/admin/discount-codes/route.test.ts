@@ -26,6 +26,9 @@ const SAMPLE_CODE = {
   referral_attribution: null,
   active: true,
   expires_at: null,
+  reserved_count: 0,
+  redeemed_count: 0,
+  allow_below_floor: false,
   created_by: 'studio-1',
   created_at: '2026-07-04T00:00:00.000Z',
   updated_at: '2026-07-04T00:00:00.000Z',
@@ -147,11 +150,45 @@ describe('POST /api/admin/discount-codes', () => {
       new_clients_only: true,
       returning_clients_only: false,
       referral_attribution: 'Artist X referral',
+      allow_below_floor: false,
       expires_at: new Date('2026-12-31').toISOString(),
       created_by: 'studio-1',
     })
     const body = await res.json()
     expect(body).toEqual(SAMPLE_CODE)
+  })
+
+  test('creates a private below-floor code (D-floor-private)', async () => {
+    const codesChain = createChainMock()
+    codesChain.single.mockResolvedValue({
+      data: { ...SAMPLE_CODE, allow_below_floor: true },
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const req = createMockRequest(
+      validBody({ isPublic: false, allowBelowFloor: true }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(201)
+    expect(codesChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ allow_below_floor: true, is_public: false }),
+    )
+  })
+
+  test('refuses a public below-floor code, mirroring the DB CHECK', async () => {
+    const codesChain = createChainMock()
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const req = createMockRequest(
+      validBody({ isPublic: true, allowBelowFloor: true }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe(
+      'Only private codes can price below the floor',
+    )
+    expect(codesChain.insert).not.toHaveBeenCalled()
   })
 
   test('returns 409 when the code name already exists', async () => {

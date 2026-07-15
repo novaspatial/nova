@@ -8,6 +8,8 @@ import {
 } from '@/lib/auth/server'
 import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
 import { cleanupProjectArtifacts } from '@/lib/portal/projectCleanup'
+import { restoreUnpaidOrderDiscount } from '@/lib/portal/orderDiscount'
+import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
   canTransition,
   isProjectStatus,
@@ -166,8 +168,8 @@ export async function DELETE(
     return forbiddenResponse()
   }
 
-  // Sweep storage objects (uploads, comment attachments, deliverables) and
-  // return any unpaid first-mix discount before the row + children cascade.
+  // Sweep storage objects (uploads, comment attachments, deliverables)
+  // before the row + children cascade.
   const { error: cleanupError } = await cleanupProjectArtifacts(supabase, project)
   if (cleanupError) {
     return NextResponse.json({ error: cleanupError }, { status: 500 })
@@ -177,7 +179,7 @@ export async function DELETE(
     .from('projects')
     .delete()
     .eq('id', id)
-    .select('id')
+    .select('id, owner_id, discount_applied, paid_at, applied_coupon_code')
     .single()
 
   if (deleteError || !deletedProject) {
@@ -190,6 +192,21 @@ export async function DELETE(
       { status: 500 },
     )
   }
+
+  // Return any unpaid discount hold (first-mix flag or catalog code) off
+  // the DELETE-RETURNING row — the delete is the CAS, so a concurrent
+  // duplicate delete can't double-restore (#26). The catalog restore needs
+  // the service client (20260715 grants); when the key is absent the seam
+  // logs and skips — never blocks the completed delete.
+  let serviceSupabase = null
+  try {
+    serviceSupabase = createServiceClient()
+  } catch {
+    serviceSupabase = null
+  }
+  await restoreUnpaidOrderDiscount(supabase, deletedProject, {
+    serviceSupabase,
+  })
 
   return NextResponse.json({ success: true, hidden: false, deleted: true })
 }

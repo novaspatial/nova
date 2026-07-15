@@ -120,7 +120,7 @@ export interface Project {
 export type DiscountKind = 'percent' | 'fixed'
 
 // A redeemable discount code — lives in DB since migration 20260704 (#17
-// admin CRUD; #25 wires checkout redemption; consumption timing is D6/#26).
+// admin CRUD; #25 wires checkout redemption; #26 consumes per D6).
 // is_public maps to the pricing CodeScope: public stacks with bulk, private
 // suppresses it. Returning-vs-new eligibility semantics are D5.
 export interface DiscountCode {
@@ -136,6 +136,15 @@ export interface DiscountCode {
   referral_attribution: string | null
   active: boolean
   expires_at: string | null
+  // Consumption counters + the below-floor override — live in DB since
+  // migration 20260715 (#26). reserved_count = checkout holds not yet
+  // finalized; redeemed_count = consumed on confirmed payment (D6).
+  // Capacity = single_use ? 1 : usage_limit (null = unlimited).
+  // allow_below_floor (D-floor-private) is private-only by DB CHECK and
+  // set at creation only.
+  reserved_count: number
+  redeemed_count: number
+  allow_below_floor: boolean
   created_by: string
   created_at: string
   updated_at: string

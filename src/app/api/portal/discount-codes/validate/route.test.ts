@@ -26,6 +26,9 @@ function catalogRow(overrides: Record<string, unknown> = {}) {
     returning_clients_only: false,
     active: true,
     expires_at: null,
+    reserved_count: 0,
+    redeemed_count: 0,
+    allow_below_floor: false,
     ...overrides,
   }
 }
@@ -181,6 +184,50 @@ describe('POST /api/portal/discount-codes/validate', () => {
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(400)
     expect((await res.json()).error).toBe('That code has expired.')
+  })
+
+  test('rejects a fully-consumed code as no longer available (#26)', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [catalogRow({ single_use: true, redeemed_count: 1 })],
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(createSupabaseMock({ rpc }))
+
+    const req = createMockRequest({ code: 'SUMMER10' })
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('That code is no longer available.')
+  })
+
+  test('a below-floor code carries allowBelowFloor on the OrderCode (D-floor-private)', async () => {
+    // The preview must price like the charge: the flag rides the OrderCode
+    // the client feeds its own computeOrderPrice.
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        catalogRow({
+          code: 'INDIE150',
+          kind: 'fixed',
+          value: 15000,
+          is_public: false,
+          allow_below_floor: true,
+        }),
+      ],
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(createSupabaseMock({ rpc }))
+
+    const req = createMockRequest({ code: 'INDIE150' })
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      couponCode: 'INDIE150',
+      code: {
+        kind: 'fixed',
+        value: 15000,
+        scope: 'private',
+        allowBelowFloor: true,
+      },
+    })
   })
 
   test('returns 503 when the lookup RPC fails', async () => {

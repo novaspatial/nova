@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         newClientsOnly?: unknown
         returningClientsOnly?: unknown
         referralAttribution?: unknown
+        allowBelowFloor?: unknown
       }
     | null
 
@@ -124,6 +125,18 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // D-floor-private: only private codes may price below the $225/song
+  // floor, and only by this explicit creation-time flag (immutable after —
+  // the PATCH surface is active-toggle only). Mirrors the DB CHECK.
+  const isPublic = body?.isPublic === true
+  const allowBelowFloor = body?.allowBelowFloor === true
+  if (allowBelowFloor && isPublic) {
+    return NextResponse.json(
+      { error: 'Only private codes can price below the floor' },
+      { status: 400 },
+    )
+  }
+
   const referralAttribution =
     typeof body?.referralAttribution === 'string' &&
     body.referralAttribution.trim()
@@ -136,12 +149,13 @@ export async function POST(request: NextRequest) {
       code,
       kind,
       value,
-      is_public: body?.isPublic === true,
+      is_public: isPublic,
       single_use: body?.singleUse === true,
       usage_limit: usageLimit,
       new_clients_only: newClientsOnly,
       returning_clients_only: returningClientsOnly,
       referral_attribution: referralAttribution,
+      allow_below_floor: allowBelowFloor,
       expires_at: expiresAt,
       created_by: user.id,
     })
