@@ -584,6 +584,154 @@ describe('POST /api/portal/projects/checkout', () => {
     )
   })
 
+  test('charges and persists both add-ons on top of the list price', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // 1 song 32500 + extra revision 5000 + rush 14900 = 52400 (D4: add-ons
+    // after discounts, outside cap/floor; none apply here).
+    const req = createMockRequest(
+      orderBody({ addOns: ['extra_revision', 'rush_48h'] }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 52400, currency: 'usd' }),
+    )
+    // Stamped on create AND on the post-insert project_id patch.
+    expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
+      add_ons: 'extra_revision,rush_48h',
+    })
+    expect(mockPaymentIntentsUpdate).toHaveBeenCalledWith(
+      'pi_test_123',
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          add_ons: 'extra_revision,rush_48h',
+        }),
+      }),
+    )
+    const body = await res.json()
+    expect(body.breakdown).toMatchObject({
+      add_ons_cents: 19900,
+      subtotal_cents: 52400,
+      total_cents: 52400,
+    })
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        add_ons: ['extra_revision', 'rush_48h'],
+        amount_cents: 52400,
+        subtotal_cents: 52400,
+      }),
+    )
+  })
+
+  test('taxes the add-on-inclusive subtotal for a Canadian order', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // 1 song 32500 + rush 14900 = 47400; ON HST 13% -> 6162; total 53562 —
+    // tax on the whole consideration including add-ons (D2).
+    const req = createMockRequest(
+      orderBody({
+        addOns: ['rush_48h'],
+        billingCountry: 'CA',
+        billingProvince: 'ON',
+      }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 53562 }),
+    )
+    expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
+      add_ons: 'rush_48h',
+      tax_cents: '6162',
+    })
+    const body = await res.json()
+    expect(body.breakdown).toMatchObject({
+      add_ons_cents: 14900,
+      subtotal_cents: 47400,
+      tax_cents: 6162,
+      total_cents: 53562,
+    })
+  })
+
+  test('rejects malformed add-ons with 400 before any side effect', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn()
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // Non-array and unknown value: the payment boundary rejects loudly,
+    // unlike the deep-link parser's silent filtering.
+    for (const addOns of ['rush_48h', ['rush_48h', 'gold_vinyl']]) {
+      const res = await POST(
+        createMockRequest(orderBody({ addOns })) as NextRequest,
+      )
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error).toBe('Invalid add-on selection')
+    }
+    expect(rpc).not.toHaveBeenCalled()
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
+    expect(projectsChain.insert).not.toHaveBeenCalled()
+  })
+
+  test('de-duplicates add-ons and persists them in canonical order', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    // Duplicated rush + calculator click order: charged once each, stored
+    // in ADD_ON_VALUES order regardless of submission order.
+    const req = createMockRequest(
+      orderBody({ addOns: ['rush_48h', 'extra_revision', 'rush_48h'] }),
+    )
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(200)
+
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 52400 }),
+    )
+    expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
+      add_ons: 'extra_revision,rush_48h',
+    })
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ add_ons: ['extra_revision', 'rush_48h'] }),
+    )
+  })
+
+  test('an order without add-ons persists [] and stamps empty metadata', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+
+    const res = await POST(createMockRequest(orderBody()) as NextRequest)
+    expect(res.status).toBe(200)
+    // [] (not null — null is reserved for pre-#19 rows), and add_ons is
+    // always stamped: '' means "post-#19, none purchased", absent means a
+    // pre-#19 intent the payment-status cross-check must skip.
+    expect(projectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ add_ons: [] }),
+    )
+    expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
+      add_ons: '',
+    })
+  })
+
   test('returns 429 when the user has too many recent pending checkouts', async () => {
     const projectsChain = makeProjectsChain({ pendingCount: 3 })
     const rpc = vi.fn()
@@ -698,6 +846,48 @@ describe('POST /api/portal/projects/checkout', () => {
         }),
       )
       expect(projectsChain.insert).not.toHaveBeenCalled()
+    } finally {
+      if (prev === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prev
+      }
+    }
+  })
+
+  test('dev bypass persists add-ons on the $0 project', async () => {
+    const projectsChain = makeProjectsChain({})
+    const serviceProjectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
+    const prev = process.env.PAYMENTS_DEV_BYPASS
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+
+    try {
+      // 1 song 32500 + rush 14900 = 47400 kept on the order fields while the
+      // charge stays $0.
+      const req = createMockRequest(orderBody({ addOns: ['rush_48h'] }))
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(200)
+
+      const body = await res.json()
+      expect(body.breakdown).toMatchObject({
+        add_ons_cents: 14900,
+        subtotal_cents: 47400,
+        total_cents: 47400,
+      })
+      expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          add_ons: ['rush_48h'],
+          subtotal_cents: 47400,
+          amount_cents: 0,
+        }),
+      )
     } finally {
       if (prev === undefined) {
         delete process.env.PAYMENTS_DEV_BYPASS

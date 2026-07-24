@@ -38,6 +38,17 @@ export const ADD_ON_CENTS: Record<AddOn, number> = {
   rush_48h: 14900, // +$149 (#19)
 }
 
+// Canonical add-on order: UI option order, the deep-link allowlist, checkout
+// validation, and the persisted add_ons array all read from this one list.
+export const ADD_ON_VALUES: readonly AddOn[] = ['extra_revision', 'rush_48h']
+
+// Bare display labels (no price) — the order form, homepage calculator, and
+// project pages compose prices from ADD_ON_CENTS themselves where needed.
+export const ADD_ON_LABELS: Record<AddOn, string> = {
+  extra_revision: 'Extra revision round',
+  rush_48h: '48-hour rush',
+}
+
 // D11 (2026-07-13): the welcome offer that replaced the 50% launch promo.
 // Single source for every surface that names the percentage — marketing copy
 // and the checkout route's private code alike. Code-based enforcement lands

@@ -6,7 +6,8 @@ import {
   requirePageProfile,
 } from '@/lib/auth/server'
 import { canUploadStems } from '@/lib/portal/workflow'
-import type { ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
+import { ADD_ON_LABELS } from '@/lib/stripe/pricing'
+import type { AddOn, ProjectFile, ProjectStatus, UserRole } from '@/types/portal'
 
 export default async function UploadPage({
   params,
@@ -24,7 +25,8 @@ export default async function UploadPage({
     status: ProjectStatus
     notes: string | null
     reference_tracks: string | null
-  }>(supabase, projectId, 'id, status, notes, reference_tracks', role)
+    add_ons: AddOn[] | null
+  }>(supabase, projectId, 'id, status, notes, reference_tracks, add_ons', role)
 
   const { data: files } = await supabase
     .from('project_files')
@@ -95,9 +97,23 @@ export default async function UploadPage({
 
         {!isStudio && <ProgressTimeline status={status} />}
 
-        {(project.notes || project.reference_tracks) && (
+        {(project.notes ||
+          project.reference_tracks ||
+          (project.add_ons && project.add_ons.length > 0)) && (
           <div className="rounded-2xl border border-white/10 bg-white/2 p-5 backdrop-blur-sm sm:p-6">
             <h3 className="text-sm font-semibold text-white">Project details</h3>
+            {/* First block on purpose: a 48-hour rush must be the first thing
+                the studio sees when opening the project (#19). */}
+            {project.add_ons && project.add_ons.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                  Add-ons
+                </p>
+                <p className="mt-1 text-sm text-zinc-300">
+                  {project.add_ons.map((a) => ADD_ON_LABELS[a]).join(', ')}
+                </p>
+              </div>
+            )}
             {project.notes && (
               <div className="mt-3">
                 <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">

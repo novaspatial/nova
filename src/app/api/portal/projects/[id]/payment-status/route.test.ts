@@ -43,6 +43,7 @@ function pendingProjectRow(overrides: Record<string, unknown> = {}) {
     stripe_payment_intent_id: 'pi_1',
     client_deleted_at: null,
     song_count: 1,
+    add_ons: [],
     applied_coupon_code: null,
     ...overrides,
   }
@@ -254,6 +255,120 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     expect(body).toEqual({ paid: false, status: 'pending_payment' })
     expect(mockCreateServiceClient).not.toHaveBeenCalled()
     mockConsoleError.mockRestore()
+  })
+
+  test('refuses the claim on metadata add_ons mismatch', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    const projectsChain = createChainMock()
+    // Forged row claims a rush the paid intent never carried (#19).
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ add_ons: ['rush_48h'] }),
+      error: null,
+    })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({ user_id: 'user-1', song_count: '1', add_ons: '' }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: false, status: 'pending_payment' })
+    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    mockConsoleError.mockRestore()
+  })
+
+  test('fails closed when the row nulls add_ons against a paid rush intent', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    const projectsChain = createChainMock()
+    // A forged-null row counts as 'none' and must fail against any paid
+    // add-on set (the dangerous direction is understating the obligation
+    // the other way — see route comment).
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ add_ons: null }),
+      error: null,
+    })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({
+        user_id: 'user-1',
+        song_count: '1',
+        add_ons: 'rush_48h',
+      }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: false, status: 'pending_payment' })
+    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    mockConsoleError.mockRestore()
+  })
+
+  test('claims when metadata add_ons matches the row in canonical order', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ add_ons: ['extra_revision', 'rush_48h'] }),
+      error: null,
+    })
+    const serviceProjectsChain = createChainMock()
+    serviceProjectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading' },
+      error: null,
+    })
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({
+        user_id: 'user-1',
+        project_id: 'proj-1',
+        song_count: '1',
+        add_ons: 'extra_revision,rush_48h',
+      }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
+  })
+
+  test('claims a pre-#19 intent (no add_ons metadata) against a legacy null row', async () => {
+    const projectsChain = createChainMock()
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: pendingProjectRow({ add_ons: null }),
+      error: null,
+    })
+    const serviceProjectsChain = createChainMock()
+    serviceProjectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading' },
+      error: null,
+    })
+    // Absent add_ons metadata = the intent predates #19: pass, like the
+    // best-effort project_id.
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      succeededIntent({ user_id: 'user-1', song_count: '1' }),
+    )
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
+    )
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => serviceProjectsChain),
+    })
+
+    const res = await GET(req(), makeParams('proj-1'))
+    const body = await res.json()
+    expect(body).toEqual({ paid: true, status: 'uploading' })
   })
 
   test('returns paid:false when the service client is unavailable', async () => {

@@ -174,6 +174,8 @@ describe('NewProjectForm', () => {
       format: 'both',
       songCount: 5,
       stemCount: 2,
+      // Untouched checkboxes submit [] — never undefined/null (#19).
+      addOns: [],
       referenceTracks: 'Song X — Artist Y',
       notes: null,
       billingCountry: 'US',
@@ -181,6 +183,48 @@ describe('NewProjectForm', () => {
       termsAcceptedVersion: TERMS_VERSION,
       code: null,
     })
+  })
+
+  test('add-on checkboxes update the live quote and ride the POST body', async () => {
+    mockFetch.mockResolvedValue(checkoutResponse)
+
+    render(<NewProjectForm />)
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).not.toHaveTextContent('Add-ons')
+
+    // 1 song 325 + 50 + 149 = 524.
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /Extra revision round/ }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /48-hour rush/ }))
+    expect(quote).toHaveTextContent('Add-ons')
+    expect(quote).toHaveTextContent('$199')
+    expect(quote).toHaveTextContent('$524')
+
+    fillRequiredFields()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create Project & Upload' }),
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-step')).toBeInTheDocument()
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
+    // Click order — the server re-validates and canonicalizes.
+    expect(body.addOns).toEqual(['extra_revision', 'rush_48h'])
+  })
+
+  test('unchecking an add-on removes it from the quote', () => {
+    render(<NewProjectForm />)
+    const rush = screen.getByRole('checkbox', { name: /48-hour rush/ })
+    const quote = screen.getByTestId('live-quote')
+
+    fireEvent.click(rush)
+    expect(quote).toHaveTextContent('$474')
+
+    fireEvent.click(rush)
+    expect(quote).not.toHaveTextContent('Add-ons')
+    expect(quote).toHaveTextContent('$325')
   })
 
   test('reveals the province select for Canada and taxes the live quote', () => {
@@ -438,6 +482,21 @@ describe('NewProjectForm', () => {
     const quote = screen.getByTestId('live-quote')
     expect(quote).toHaveTextContent('4 songs × $325')
     expect(quote).toHaveTextContent('Album discount')
+  })
+
+  test('initialAddOns seeds the checkboxes and the live quote', () => {
+    render(<NewProjectForm initialAddOns={['rush_48h']} />)
+
+    expect(
+      screen.getByRole('checkbox', { name: /48-hour rush/ }),
+    ).toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: /Extra revision round/ }),
+    ).not.toBeChecked()
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).toHaveTextContent('Add-ons')
+    expect(quote).toHaveTextContent('$149')
+    expect(quote).toHaveTextContent('$474')
   })
 
   test('initialCode prefills the input and submits without Apply', async () => {

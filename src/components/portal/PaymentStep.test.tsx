@@ -53,9 +53,38 @@ describe('PaymentStep', () => {
     expect(screen.getByText('1 song × $325')).toBeInTheDocument()
     expect(screen.queryByText('Album discount')).not.toBeInTheDocument()
     expect(screen.queryByText('Welcome discount')).not.toBeInTheDocument()
+    expect(screen.queryByText('Add-ons')).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Pay $325 & Start Upload' }),
     ).toBeInTheDocument()
+  })
+
+  test('itemizes add-ons without a discount strikethrough', () => {
+    render(
+      <PaymentStep
+        clientSecret="cs_test"
+        amountCents={52400}
+        currency="usd"
+        discountApplied={false}
+        appliedCouponCode={null}
+        breakdown={makeBreakdown({
+          add_ons_cents: 19900,
+          subtotal_cents: 52400,
+          total_cents: 52400,
+        })}
+        onSucceeded={noop}
+        onCancel={noop}
+      />,
+    )
+
+    expect(screen.getByText('Add-ons')).toBeInTheDocument()
+    expect(screen.getByText('$199')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Pay $524 & Start Upload' }),
+    ).toBeInTheDocument()
+    // Add-ons raise the total above the list price without any discount —
+    // like the tax case, no strikethrough may render.
+    expect(screen.getByText('$325')).not.toHaveClass('line-through')
   })
 
   test('itemizes the welcome discount and strikes through the list total', () => {

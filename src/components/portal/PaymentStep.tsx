@@ -91,6 +91,12 @@ function PaymentForm({
             <span>−{formatCurrency(breakdown.code_discount_cents, currency)}</span>
           </div>
         )}
+        {breakdown.add_ons_cents > 0 && (
+          <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
+            <span>Add-ons</span>
+            <span>{formatCurrency(breakdown.add_ons_cents, currency)}</span>
+          </div>
+        )}
         {breakdown.tax_cents > 0 && (
           <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
             <span>{breakdown.tax_label}</span>

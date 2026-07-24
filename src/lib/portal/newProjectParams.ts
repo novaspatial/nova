@@ -1,23 +1,19 @@
 import type { AddOn } from '@/types/portal'
-import { MAX_SONG_COUNT } from '@/lib/stripe/pricing'
+import { ADD_ON_VALUES, MAX_SONG_COUNT } from '@/lib/stripe/pricing'
 import { CODE_PATTERN } from '@/lib/portal/orderDiscount'
 
 // Deep-link contract from the homepage calculator (#30):
 //   /portal/new?songs=4&addons=extra_revision,rush_48h&code=WELCOME
 // Parsed server-side in the page (the params survive the login redirect via
 // middleware's ?next=). Everything here is a *prefill* — checkout re-validates
-// all of it — so invalid values are dropped silently, never surfaced.
-// `addOns` is parsed now but unconsumed by the form until #19 wires add-on
-// purchases; the contract (and its tests) are pinned here so calculator URLs
-// stay forward-compatible.
+// all of it — so invalid values are dropped silently, never surfaced. The
+// form consumes all three params since #19 wired add-on purchases in.
 
 export interface NewProjectParams {
   songCount?: number
   addOns: AddOn[]
   code?: string
 }
-
-const ADD_ON_VALUES: readonly AddOn[] = ['extra_revision', 'rush_48h']
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 

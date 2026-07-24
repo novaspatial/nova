@@ -9,6 +9,7 @@ import {
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import type { ProjectStatus } from '@/lib/portal/workflow'
+import type { AddOn } from '@/types/portal'
 
 type ProjectRow = {
   id: string
@@ -18,6 +19,7 @@ type ProjectRow = {
   stripe_payment_intent_id: string | null
   client_deleted_at: string | null
   song_count: number | null
+  add_ons: AddOn[] | null
   applied_coupon_code: string | null
 }
 
@@ -63,7 +65,7 @@ export async function GET(
   const { data: project, error } = await supabase
     .from('projects')
     .select(
-      'id, owner_id, status, paid_at, stripe_payment_intent_id, client_deleted_at, song_count, applied_coupon_code',
+      'id, owner_id, status, paid_at, stripe_payment_intent_id, client_deleted_at, song_count, add_ons, applied_coupon_code',
     )
     .eq('id', id)
     .maybeSingle<ProjectRow>()
@@ -140,6 +142,23 @@ export async function GET(
     metaSongCount !== project.song_count
   ) {
     console.error('[payment-status] metadata song_count mismatch', {
+      intent: intent.id,
+      project: project.id,
+    })
+    return NextResponse.json({ paid: false, status: project.status })
+  }
+  // add_ons is stamped server-side at intent creation — always, so '' means
+  // a post-#19 order with none purchased and absent means a pre-#19 intent
+  // (pass, like project_id). When present the row must match it exactly: a
+  // forged row bolting a 48h rush onto a rush-less paid intent is refused,
+  // and a forged-null row counts as 'none' so it fails against any paid
+  // add-on. Both sides use the canonical ADD_ON_VALUES order (#19).
+  const metaAddOns =
+    typeof intent.metadata?.add_ons === 'string'
+      ? intent.metadata.add_ons
+      : null
+  if (metaAddOns !== null && metaAddOns !== (project.add_ons ?? []).join(',')) {
+    console.error('[payment-status] metadata add_ons mismatch', {
       intent: intent.id,
       project: project.id,
     })

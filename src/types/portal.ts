@@ -108,11 +108,14 @@ export interface Project {
   // discount_applied, which still means the first-mix flag was reserved.
   applied_coupon_code: string | null
 
-  // Order/lifecycle surface the remaining commerce and purge slices will
-  // add. Declared optional + nullable so current `select *` reads (whose rows
-  // lack these columns) stay type-safe; each column lands in its owning slice.
-  // Service/format selection rides the existing `format` column (#16).
-  add_ons?: AddOn[] | null
+  // Order add-ons — live in DB since migration 20260724 (S6 #19). Null =
+  // created before add-ons existed; [] = post-#19 order with none selected.
+  // Stored de-duplicated in canonical order (extra_revision, rush_48h).
+  add_ons: AddOn[] | null
+
+  // Lifecycle surface the purge slice will add. Declared optional + nullable
+  // so current `select *` reads (whose rows lack these columns) stay
+  // type-safe; each column lands in its owning slice.
   delivered_at?: string | null // final-masters delivery, drives 90-day purge (#27)
   files_purged_at?: string | null
 }

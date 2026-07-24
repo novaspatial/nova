@@ -9,6 +9,7 @@ import { QuoteBreakdown } from '@/components/portal/QuoteBreakdown'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { NumberInput } from '@/components/ui/NumberInput'
 import type {
+  AddOn,
   BuyerCountry,
   BuyerLocation,
   CAProvince,
@@ -18,6 +19,9 @@ import type {
 } from '@/types/portal'
 import { uploadFile } from '@/lib/portal/uploadFile'
 import {
+  ADD_ON_CENTS,
+  ADD_ON_LABELS,
+  ADD_ON_VALUES,
   computeOrderPrice,
   MAX_SONG_COUNT,
   WELCOME_DISCOUNT_PCT,
@@ -28,6 +32,7 @@ import {
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
+import { formatCurrency } from '@/lib/formatCurrency'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
@@ -41,6 +46,13 @@ const SERVICE_OPTIONS: { value: ServiceFormat; label: string }[] = [
   { value: 'binaural', label: 'Binaural' },
   { value: 'both', label: 'Both (Atmos + Binaural)' },
 ]
+
+// Same derivation as the homepage calculator (#30) — labels and prices from
+// the shared pricing constants, so the two surfaces can't drift (#19).
+const ADD_ON_OPTIONS = ADD_ON_VALUES.map((value) => ({
+  value,
+  label: `${ADD_ON_LABELS[value]} (+${formatCurrency(ADD_ON_CENTS[value])})`,
+}))
 
 // Billing location for GST/HST (#31, D2). Values are what the checkout API
 // validates and the DB CHECKs mirror; province full names are display-only.
@@ -145,9 +157,11 @@ async function waitForPaymentConfirmation(
 // and validated server-side in page.tsx (parseNewProjectParams).
 export function NewProjectForm({
   initialSongCount,
+  initialAddOns,
   initialCode,
 }: {
   initialSongCount?: number
+  initialAddOns?: AddOn[]
   initialCode?: string
 } = {}) {
   const [phase, setPhase] = useState<Phase>('form')
@@ -156,6 +170,7 @@ export function NewProjectForm({
   const [songCountInput, setSongCountInput] = useState(
     String(initialSongCount ?? 1),
   )
+  const [addOns, setAddOns] = useState<AddOn[]>(initialAddOns ?? [])
   const [referenceTracks, setReferenceTracks] = useState('')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<FileUploadItem[]>([])
@@ -206,12 +221,19 @@ export function NewProjectForm({
       songCountValid
         ? computeOrderPrice({
             songCount,
+            addOns,
             buyer,
             code: appliedCode?.code ?? null,
           })
         : null,
-    [songCountValid, songCount, buyer, appliedCode],
+    [songCountValid, songCount, addOns, buyer, appliedCode],
   )
+
+  const toggleAddOn = (addOn: AddOn) => (checked: boolean) => {
+    setAddOns((prev) =>
+      checked ? [...prev, addOn] : prev.filter((a) => a !== addOn),
+    )
+  }
 
   const handleApplyCode = useCallback(async () => {
     const trimmed = codeInput.trim()
@@ -464,6 +486,8 @@ export function NewProjectForm({
             format,
             songCount,
             stemCount: files.length,
+            // Click order; the server re-validates and canonicalizes (#19).
+            addOns,
             referenceTracks: referenceTracks.trim() || null,
             notes: notes.trim() || null,
             billingCountry,
@@ -511,6 +535,7 @@ export function NewProjectForm({
       format,
       songCount,
       songCountValid,
+      addOns,
       billingCountry,
       billingProvince,
       referenceTracks,
@@ -646,6 +671,26 @@ export function NewProjectForm({
           />
         </div>
       </div>
+
+      <fieldset>
+        <legend className="block text-xs font-medium text-zinc-300 sm:text-sm">
+          Add-ons <span className="text-zinc-500">(optional)</span>
+        </legend>
+        <div className="mt-2 space-y-2">
+          {ADD_ON_OPTIONS.map((option) => (
+            <Checkbox
+              key={option.value}
+              isSelected={addOns.includes(option.value)}
+              onChange={toggleAddOn(option.value)}
+              isDisabled={submitting || phase === 'uploading'}
+            >
+              <span className="text-xs text-zinc-300 sm:text-sm">
+                {option.label}
+              </span>
+            </Checkbox>
+          ))}
+        </div>
+      </fieldset>
 
       <div>
         <label

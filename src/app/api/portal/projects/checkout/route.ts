@@ -4,6 +4,7 @@ import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
+  ADD_ON_VALUES,
   CA_TAX_RATES,
   computeOrderPrice,
   MAX_SONG_COUNT,
@@ -15,7 +16,12 @@ import {
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
-import type { BuyerCountry, BuyerLocation, CAProvince } from '@/types/portal'
+import type {
+  AddOn,
+  BuyerCountry,
+  BuyerLocation,
+  CAProvince,
+} from '@/types/portal'
 
 const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_MAX_PENDING = 3
@@ -65,6 +71,7 @@ export async function POST(request: NextRequest) {
         referenceTracks?: unknown
         songCount?: unknown
         stemCount?: unknown
+        addOns?: unknown
         billingCountry?: unknown
         billingProvince?: unknown
         termsAcceptedVersion?: unknown
@@ -97,6 +104,28 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     )
   }
+
+  // Add-ons (#19): strict 400 on malformed input — the deep-link parser
+  // filters silently, but the payment boundary rejects. De-dupe by filtering
+  // the canonical ADD_ON_VALUES order so persisted arrays are stable
+  // regardless of client click order.
+  const rawAddOns = body?.addOns === undefined ? [] : body.addOns
+  if (
+    !Array.isArray(rawAddOns) ||
+    rawAddOns.some(
+      (value) =>
+        typeof value !== 'string' ||
+        !(ADD_ON_VALUES as readonly string[]).includes(value),
+    )
+  ) {
+    return NextResponse.json(
+      { error: 'Invalid add-on selection' },
+      { status: 400 },
+    )
+  }
+  const addOns: AddOn[] = ADD_ON_VALUES.filter((value) =>
+    rawAddOns.includes(value),
+  )
 
   const notes = typeof body?.notes === 'string' ? body.notes : null
   const referenceTracks =
@@ -247,6 +276,7 @@ export async function POST(request: NextRequest) {
 
   const breakdown = computeOrderPrice({
     songCount,
+    addOns,
     code: reservation.code,
     buyer,
   })
@@ -273,6 +303,8 @@ export async function POST(request: NextRequest) {
   const orderFields = {
     song_count: songCount,
     stem_count: stemCount,
+    // [] = none selected; null stays reserved for pre-#19 rows (20260724).
+    add_ons: addOns,
     subtotal_cents: breakdown.subtotal_cents,
     reference_tracks: referenceTracks,
     terms_accepted_at: nowIso,
@@ -368,6 +400,11 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         discount_applied: String(discountApplied),
         song_count: String(songCount),
+        // Always stamped, even when empty — unlike the coupon key below,
+        // which omits-when-absent. Absent must keep meaning "pre-#19
+        // intent" so the payment-status cross-check can skip legacy
+        // intents; '' means a post-#19 order with no add-ons purchased.
+        add_ons: addOns.join(','),
         tax_cents: String(breakdown.tax_cents),
         tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
         // Stripe metadata values must be strings — omit rather than "null".
@@ -431,6 +468,7 @@ export async function POST(request: NextRequest) {
         project_id: project.id,
         discount_applied: String(discountApplied),
         song_count: String(songCount),
+        add_ons: addOns.join(','),
         tax_cents: String(breakdown.tax_cents),
         tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
         ...(reservation.couponCode

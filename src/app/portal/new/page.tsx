@@ -8,8 +8,7 @@ export const metadata = {
 
 // searchParams carry the homepage calculator's deep link (#30); parsing
 // happens here on the server so the client form needs no useSearchParams
-// Suspense boundary. addOns is parsed but unused until #19 wires add-on
-// purchases into the form.
+// Suspense boundary.
 export default async function NewProjectPage({
   searchParams,
 }: {
@@ -22,6 +21,7 @@ export default async function NewProjectPage({
       <FadeIn>
         <NewProjectForm
           initialSongCount={prefill.songCount}
+          initialAddOns={prefill.addOns}
           initialCode={prefill.code}
         />
       </FadeIn>

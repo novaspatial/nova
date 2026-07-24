@@ -12,6 +12,8 @@ import { QuoteBreakdown } from '@/components/portal/QuoteBreakdown'
 import type { AddOn } from '@/types/portal'
 import {
   ADD_ON_CENTS,
+  ADD_ON_LABELS,
+  ADD_ON_VALUES,
   computeOrderPrice,
   MAX_SONG_COUNT,
   WELCOME_DISCOUNT_PCT,
@@ -23,16 +25,10 @@ import {
 } from '@/lib/portal/orderDiscount'
 import { formatCurrency } from '@/lib/formatCurrency'
 
-const ADD_ON_OPTIONS: { value: AddOn; label: string }[] = [
-  {
-    value: 'extra_revision',
-    label: `Extra revision round (+${formatCurrency(ADD_ON_CENTS.extra_revision)})`,
-  },
-  {
-    value: 'rush_48h',
-    label: `48-hour rush (+${formatCurrency(ADD_ON_CENTS.rush_48h)})`,
-  },
-]
+const ADD_ON_OPTIONS = ADD_ON_VALUES.map((value) => ({
+  value,
+  label: `${ADD_ON_LABELS[value]} (+${formatCurrency(ADD_ON_CENTS[value])})`,
+}))
 
 // Homepage price calculator (#30): the interactive start of the new-project
 // flow. Every figure comes from computeOrderPrice — the same module the
