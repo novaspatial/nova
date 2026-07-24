@@ -23,7 +23,6 @@ function makeCode(overrides: Partial<DiscountCode> = {}): DiscountCode {
     usage_limit: null,
     new_clients_only: true,
     returning_clients_only: false,
-    referral_attribution: null,
     active: true,
     expires_at: null,
     reserved_count: 0,
@@ -53,7 +52,6 @@ describe('DiscountCodesAdmin', () => {
             value: 5000,
             is_public: true,
             active: false,
-            referral_attribution: 'Artist X referral',
           }),
         ]}
       />,
@@ -66,7 +64,6 @@ describe('DiscountCodesAdmin', () => {
     expect(screen.getByText('ARTIST_X')).toBeInTheDocument()
     expect(screen.getByText('$50')).toBeInTheDocument()
     expect(screen.getByText('disabled')).toBeInTheDocument()
-    expect(screen.getByText(/Artist X referral/)).toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument()
@@ -80,7 +77,6 @@ describe('DiscountCodesAdmin', () => {
     expect(screen.getByLabelText('Percent off')).toBeInTheDocument()
     expect(screen.getByLabelText(/Expiry/)).toBeInTheDocument()
     expect(screen.getByLabelText('Audience')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Referral attribution/)).toBeInTheDocument()
     expect(screen.getByText(/No codes yet/)).toBeInTheDocument()
   })
 
@@ -176,6 +172,44 @@ describe('DiscountCodesAdmin', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Code "SUMMER20" already exists',
     )
+  })
+
+  test('paginates the list only past 5 codes', () => {
+    render(
+      <DiscountCodesAdmin
+        initialCodes={Array.from({ length: 7 }, (_, i) =>
+          makeCode({ id: `code-${i}`, code: `CODE${i}` }),
+        )}
+      />,
+    )
+
+    expect(screen.getByText('CODE0')).toBeInTheDocument()
+    expect(screen.getByText('CODE4')).toBeInTheDocument()
+    expect(screen.queryByText('CODE5')).not.toBeInTheDocument()
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('CODE5')).toBeInTheDocument()
+    expect(screen.getByText('CODE6')).toBeInTheDocument()
+    expect(screen.queryByText('CODE0')).not.toBeInTheDocument()
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
+  })
+
+  test('hides pagination at 5 or fewer codes', () => {
+    render(
+      <DiscountCodesAdmin
+        initialCodes={Array.from({ length: 5 }, (_, i) =>
+          makeCode({ id: `code-${i}`, code: `CODE${i}` }),
+        )}
+      />,
+    )
+
+    expect(screen.getByText('CODE4')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Next page' }),
+    ).not.toBeInTheDocument()
   })
 
   test('deactivates a code from the list', async () => {

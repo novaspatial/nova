@@ -5,7 +5,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const supabaseAuthCookiePattern = /^sb-.*-auth-token(?:\.\d+)?$/
 
-// Everything this middleware matches (/portal, /profile) is the private,
+// Everything this middleware matches (/portal, /profile, /blog/admin) is the private,
 // auth-gated surface and must never appear in search results. A robots.txt
 // Disallow only blocks crawling — it does NOT remove an already-indexed URL,
 // which leaves Google showing the bare URL with a generic snippet. A noindex
@@ -105,5 +105,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/portal/:path*', '/profile/:path*'],
+  matcher: ['/portal/:path*', '/profile/:path*', '/blog/admin/:path*'],
 }

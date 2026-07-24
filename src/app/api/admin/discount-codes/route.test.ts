@@ -23,7 +23,6 @@ const SAMPLE_CODE = {
   usage_limit: null,
   new_clients_only: true,
   returning_clients_only: false,
-  referral_attribution: null,
   active: true,
   expires_at: null,
   reserved_count: 0,
@@ -123,7 +122,7 @@ describe('POST /api/admin/discount-codes', () => {
     expect(res.status).toBe(400)
   })
 
-  test('creates a code with normalized name and attribution', async () => {
+  test('creates a code with normalized name', async () => {
     const codesChain = createChainMock()
     codesChain.single.mockResolvedValue({ data: SAMPLE_CODE, error: null })
     mockCreateClient.mockResolvedValue(studioMock(codesChain))
@@ -134,7 +133,6 @@ describe('POST /api/admin/discount-codes', () => {
         expiresAt: '2026-12-31',
         isPublic: false,
         singleUse: false,
-        referralAttribution: '  Artist X referral  ',
       }),
     )
     const res = await POST(req as NextRequest)
@@ -149,7 +147,6 @@ describe('POST /api/admin/discount-codes', () => {
       usage_limit: null,
       new_clients_only: true,
       returning_clients_only: false,
-      referral_attribution: 'Artist X referral',
       allow_below_floor: false,
       expires_at: new Date('2026-12-31').toISOString(),
       created_by: 'studio-1',

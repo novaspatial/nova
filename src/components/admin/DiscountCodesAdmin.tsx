@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DiscountCode, DiscountKind } from '@/types/portal'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { NumberInput } from '@/components/ui/NumberInput'
+import { Pagination } from '@/components/ui/Pagination'
+import { Select } from '@/components/ui/Select'
 
 const inputClassName =
   'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white placeholder:text-zinc-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50 sm:text-sm'
@@ -34,6 +38,8 @@ function redemptionLabel(code: DiscountCode) {
     : `redeemed ${code.redeemed_count}/${limit}`
 }
 
+const PAGE_SIZE = 5
+
 const STATUS_STYLES: Record<ReturnType<typeof codeStatus>, string> = {
   active: 'bg-emerald-500/15 text-emerald-300',
   expired: 'bg-amber-500/15 text-amber-300',
@@ -56,9 +62,16 @@ export function DiscountCodesAdmin({
   const [singleUse, setSingleUse] = useState(false)
   const [belowFloor, setBelowFloor] = useState(false)
   const [usageLimit, setUsageLimit] = useState('')
-  const [referral, setReferral] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+
+  const pageCount = Math.max(1, Math.ceil(codes.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const visibleCodes = codes.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,7 +92,6 @@ export function DiscountCodesAdmin({
           usageLimit: usageLimit ? Number(usageLimit) : null,
           newClientsOnly: audience === 'new',
           returningClientsOnly: audience === 'returning',
-          referralAttribution: referral.trim() || null,
           allowBelowFloor: belowFloor,
         }),
       })
@@ -88,11 +100,11 @@ export function DiscountCodesAdmin({
         throw new Error(data.error || 'Failed to create code')
       }
       setCodes((prev) => [data, ...prev])
+      setPage(1)
       setCode('')
       setValue('')
       setExpiresAt('')
       setUsageLimit('')
-      setReferral('')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -124,12 +136,8 @@ export function DiscountCodesAdmin({
     <div className="space-y-8">
       <form
         onSubmit={handleCreate}
-        className="space-y-4 rounded-2xl border border-white/10 bg-white/2 p-6"
+        className="space-y-8 rounded-2xl border border-white/10 bg-white/2 p-6"
       >
-        <h2 className="text-sm font-semibold text-white sm:text-base">
-          Generate a code
-        </h2>
-
         {error && (
           <div
             role="alert"
@@ -139,7 +147,7 @@ export function DiscountCodesAdmin({
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-3">
           <div>
             <label htmlFor="dc-code" className={labelClassName}>
               Code name
@@ -159,42 +167,38 @@ export function DiscountCodesAdmin({
             <label htmlFor="dc-kind" className={labelClassName}>
               Type
             </label>
-            <select
+            <Select<DiscountKind>
               id="dc-kind"
               value={kind}
-              onChange={(e) => setKind(e.target.value as DiscountKind)}
-              className={`mt-2 ${inputClassName}`}
+              onChange={setKind}
+              options={[
+                { value: 'percent', label: 'Percent (%)' },
+                { value: 'fixed', label: 'Fixed amount (cents)' },
+              ]}
               disabled={submitting}
-            >
-              <option value="percent" className="bg-zinc-900">
-                Percent (%)
-              </option>
-              <option value="fixed" className="bg-zinc-900">
-                Fixed amount (cents)
-              </option>
-            </select>
+              className="mt-2"
+            />
           </div>
           <div>
             <label htmlFor="dc-value" className={labelClassName}>
               {kind === 'percent' ? 'Percent off' : 'Amount off (cents)'}
             </label>
-            <input
+            <NumberInput
               id="dc-value"
-              type="number"
+              label={kind === 'percent' ? 'percent off' : 'amount off'}
               required
               min={1}
               max={kind === 'percent' ? 100 : undefined}
-              step={1}
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={setValue}
               placeholder={kind === 'percent' ? '15' : '5000'}
-              className={`mt-2 ${inputClassName}`}
+              className="mt-2"
               disabled={submitting}
             />
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-3">
           <div>
             <label htmlFor="dc-expiry" className={labelClassName}>
               Expiry <span className="text-zinc-500">(optional)</span>
@@ -204,7 +208,7 @@ export function DiscountCodesAdmin({
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className={`mt-2 ${inputClassName}`}
+              className={`mt-2 scheme-dark ${inputClassName}`}
               disabled={submitting}
             />
           </div>
@@ -212,104 +216,80 @@ export function DiscountCodesAdmin({
             <label htmlFor="dc-audience" className={labelClassName}>
               Audience
             </label>
-            <select
+            <Select<Audience>
               id="dc-audience"
               value={audience}
-              onChange={(e) => setAudience(e.target.value as Audience)}
-              className={`mt-2 ${inputClassName}`}
+              onChange={setAudience}
+              options={[
+                { value: 'all', label: 'All clients' },
+                { value: 'new', label: 'New clients only' },
+                { value: 'returning', label: 'Returning clients only' },
+              ]}
               disabled={submitting}
-            >
-              <option value="all" className="bg-zinc-900">
-                All clients
-              </option>
-              <option value="new" className="bg-zinc-900">
-                New clients only
-              </option>
-              <option value="returning" className="bg-zinc-900">
-                Returning clients only
-              </option>
-            </select>
+              className="mt-2"
+            />
           </div>
           <div>
             <label htmlFor="dc-usage-limit" className={labelClassName}>
               Usage limit <span className="text-zinc-500">(optional)</span>
             </label>
-            <input
+            <NumberInput
               id="dc-usage-limit"
-              type="number"
+              label="usage limit"
               min={1}
-              step={1}
               value={usageLimit}
-              onChange={(e) => setUsageLimit(e.target.value)}
+              onChange={setUsageLimit}
               placeholder="Unlimited"
-              className={`mt-2 ${inputClassName}`}
+              className="mt-2"
               disabled={submitting}
             />
           </div>
         </div>
 
-        <div>
-          <label htmlFor="dc-referral" className={labelClassName}>
-            Referral attribution <span className="text-zinc-500">(optional)</span>
-          </label>
-          <input
-            id="dc-referral"
-            type="text"
-            value={referral}
-            onChange={(e) => setReferral(e.target.value)}
-            placeholder="e.g. Artist X referral program"
-            className={`mt-2 ${inputClassName}`}
-            disabled={submitting}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-6">
-          <label className="flex items-center gap-2 text-xs text-zinc-300 sm:text-sm">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => {
-                setIsPublic(e.target.checked)
-                // D-floor-private is private-only (DB CHECK): going public
-                // clears the override rather than letting the POST 400.
-                if (e.target.checked) setBelowFloor(false)
-              }}
-              disabled={submitting}
-              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-600"
-            />
-            Public (stacks with album discount)
-          </label>
-          <label className="flex items-center gap-2 text-xs text-zinc-300 sm:text-sm">
-            <input
-              type="checkbox"
-              checked={singleUse}
-              onChange={(e) => setSingleUse(e.target.checked)}
-              disabled={submitting}
-              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-600"
-            />
-            Single use
-          </label>
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          <Checkbox
+            isSelected={isPublic}
+            onChange={(checked) => {
+              setIsPublic(checked)
+              // D-floor-private is private-only (DB CHECK): going public
+              // clears the override rather than letting the POST 400.
+              if (checked) setBelowFloor(false)
+            }}
+            isDisabled={submitting}
+          >
+            <span className="text-xs text-zinc-300 sm:text-sm">
+              Public (stacks with album discount)
+            </span>
+          </Checkbox>
+          <Checkbox
+            isSelected={singleUse}
+            onChange={setSingleUse}
+            isDisabled={submitting}
+          >
+            <span className="text-xs text-zinc-300 sm:text-sm">Single use</span>
+          </Checkbox>
           {!isPublic && (
-            <label className="flex items-center gap-2 text-xs text-zinc-300 sm:text-sm">
-              <input
-                type="checkbox"
-                checked={belowFloor}
-                onChange={(e) => setBelowFloor(e.target.checked)}
-                disabled={submitting}
-                className="h-4 w-4 rounded border-white/20 bg-white/5 accent-violet-600"
-              />
-              Can price below the $225/song floor
-            </label>
+            <Checkbox
+              isSelected={belowFloor}
+              onChange={setBelowFloor}
+              isDisabled={submitting}
+            >
+              <span className="text-xs text-zinc-300 sm:text-sm">
+                Can price below the $225/song floor
+              </span>
+            </Checkbox>
           )}
         </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-xl bg-violet-600 px-6 py-3 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
-        >
-          {submitting ? 'Creating…' : 'Create code'}
-        </button>
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-xl bg-violet-600 px-6 py-3 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+          >
+            {submitting ? 'Creating…' : 'Create code'}
+          </button>
+        </div>
       </form>
 
       {codes.length === 0 ? (
@@ -317,52 +297,61 @@ export function DiscountCodesAdmin({
           No codes yet. Generate the first one above.
         </div>
       ) : (
-        <ul className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/2">
-          {codes.map((c) => {
-            const status = codeStatus(c)
-            return (
-              <li
-                key={c.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-semibold text-white">
-                      {c.code}
-                    </span>
-                    <span className="text-sm text-zinc-300">
-                      {codeValueLabel(c)}
-                    </span>
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLES[status]}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    {c.is_public ? 'Public' : 'Private'}
-                    {c.single_use && ' · single use'}
-                    {c.usage_limit !== null && ` · limit ${c.usage_limit}`}
-                    {c.allow_below_floor && ' · below floor'}
-                    {` · ${redemptionLabel(c)}`}
-                    {c.new_clients_only && ' · new clients'}
-                    {c.returning_clients_only && ' · returning clients'}
-                    {c.expires_at &&
-                      ` · expires ${new Date(c.expires_at).toLocaleDateString('en-US')}`}
-                    {c.referral_attribution && ` · ${c.referral_attribution}`}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggle(c)}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
+        <div className="space-y-4">
+          <ul className="divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/2">
+            {visibleCodes.map((c) => {
+              const status = codeStatus(c)
+              return (
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
                 >
-                  {c.active ? 'Deactivate' : 'Reactivate'}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm font-semibold text-white">
+                        {c.code}
+                      </span>
+                      <span className="text-sm text-zinc-300">
+                        {codeValueLabel(c)}
+                      </span>
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLES[status]}`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {c.is_public ? 'Public' : 'Private'}
+                      {c.single_use && ' · single use'}
+                      {c.usage_limit !== null && ` · limit ${c.usage_limit}`}
+                      {c.allow_below_floor && ' · below floor'}
+                      {` · ${redemptionLabel(c)}`}
+                      {c.new_clients_only && ' · new clients'}
+                      {c.returning_clients_only && ' · returning clients'}
+                      {c.expires_at &&
+                        ` · expires ${new Date(c.expires_at).toLocaleDateString('en-US')}`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(c)}
+                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
+                  >
+                    {c.active ? 'Deactivate' : 'Reactivate'}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          {codes.length > PAGE_SIZE && (
+            <Pagination
+              page={currentPage}
+              pageCount={pageCount}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
       )}
     </div>
   )

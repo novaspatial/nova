@@ -90,6 +90,16 @@ export async function requirePageProfile() {
   return { ...auth, profile }
 }
 
+export async function requirePageStudioUser() {
+  const auth = await requirePageProfile()
+
+  if (auth.profile?.role !== 'studio') {
+    redirect('/portal')
+  }
+
+  return auth
+}
+
 type ProjectVisibilityFields = {
   client_deleted_at?: string | null
   studio_deleted_at?: string | null

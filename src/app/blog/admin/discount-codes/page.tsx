@@ -1,14 +1,14 @@
 import Link from 'next/link'
 
 import { FadeIn } from '@/components/ui/FadeIn'
-import { requirePageProfile } from '@/lib/auth/server'
+import { requirePageStudioUser } from '@/lib/auth/server'
 import { DiscountCodesAdmin } from '@/components/admin/DiscountCodesAdmin'
 import type { DiscountCode } from '@/types/portal'
 
-// Studio-only: gated by the blog/admin layout (redirects non-studio to
-// /portal); RLS on discount_codes is the enforcement floor underneath.
+// Studio-only: guarded here and by the blog/admin layout (redirects
+// non-studio to /portal); RLS on discount_codes is the enforcement floor.
 export default async function AdminDiscountCodes() {
-  const { supabase } = await requirePageProfile()
+  const { supabase } = await requirePageStudioUser()
 
   const { data } = await supabase
     .from('discount_codes')
@@ -25,10 +25,10 @@ export default async function AdminDiscountCodes() {
             Discount codes
           </h1>
           <Link
-            href="/blog/admin/blog"
+            href="/blog"
             className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
           >
-            ← Admin
+            ← Blog
           </Link>
         </div>
       </FadeIn>

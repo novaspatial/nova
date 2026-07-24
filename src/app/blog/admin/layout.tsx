@@ -1,18 +1,13 @@
-import { redirect } from 'next/navigation'
-
 import { Container } from '@/components/layout/Container'
 import { ProtectedRootLayout } from '@/components/layout/ProtectedRootLayout'
-import { requirePageProfile } from '@/lib/auth/server'
+import { requirePageStudioUser } from '@/lib/auth/server'
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { profile } = await requirePageProfile()
-  if (profile?.role !== 'studio') {
-    redirect('/portal')
-  }
+  await requirePageStudioUser()
 
   return (
     <ProtectedRootLayout hideFooter>

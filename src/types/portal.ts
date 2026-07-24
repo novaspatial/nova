@@ -133,7 +133,6 @@ export interface DiscountCode {
   usage_limit: number | null
   new_clients_only: boolean
   returning_clients_only: boolean
-  referral_attribution: string | null
   active: boolean
   expires_at: string | null
   // Consumption counters + the below-floor override — live in DB since

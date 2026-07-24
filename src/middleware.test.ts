@@ -52,6 +52,27 @@ describe('middleware', () => {
     expect(mockCreateServerClient).not.toHaveBeenCalled()
   })
 
+  test('covers the /blog/admin surface in the matcher', async () => {
+    const { config } = await import('./middleware')
+
+    expect(config.matcher).toContain('/blog/admin/:path*')
+  })
+
+  test('redirects an unauthenticated /blog/admin request to login', async () => {
+    const { middleware } = await import('./middleware')
+
+    const response = await middleware(
+      new NextRequest('http://localhost:3000/blog/admin/discount-codes'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3000/login?next=%2Fblog%2Fadmin%2Fdiscount-codes',
+    )
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
+    expect(mockCreateServerClient).not.toHaveBeenCalled()
+  })
+
   test('sends bare /portal and /profile entry points to the home page', async () => {
     const { middleware } = await import('./middleware')
 

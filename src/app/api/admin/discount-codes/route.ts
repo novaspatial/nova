@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
         usageLimit?: unknown
         newClientsOnly?: unknown
         returningClientsOnly?: unknown
-        referralAttribution?: unknown
         allowBelowFloor?: unknown
       }
     | null
@@ -137,12 +136,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const referralAttribution =
-    typeof body?.referralAttribution === 'string' &&
-    body.referralAttribution.trim()
-      ? body.referralAttribution.trim()
-      : null
-
   const { data: created, error } = await supabase
     .from('discount_codes')
     .insert({
@@ -154,7 +147,6 @@ export async function POST(request: NextRequest) {
       usage_limit: usageLimit,
       new_clients_only: newClientsOnly,
       returning_clients_only: returningClientsOnly,
-      referral_attribution: referralAttribution,
       allow_below_floor: allowBelowFloor,
       expires_at: expiresAt,
       created_by: user.id,

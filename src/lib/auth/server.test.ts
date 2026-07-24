@@ -30,6 +30,7 @@ import {
   requireApiStudioUser,
   requireApiUser,
   requirePageProfile,
+  requirePageStudioUser,
   requirePageUser,
 } from './server'
 
@@ -215,6 +216,56 @@ describe('auth server helpers', () => {
 
     expect(result.user.id).toBe('user-1')
     expect(result.profile?.display_name).toBe('Studio User')
+  })
+
+  test('requirePageStudioUser redirects to login when auth is missing', async () => {
+    mockCreateClient.mockResolvedValue(null)
+
+    await expect(requirePageStudioUser()).rejects.toThrow('REDIRECT:/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/login')
+  })
+
+  test('requirePageStudioUser redirects non-studio users to the portal', async () => {
+    const profilesChain = createChainMock({
+      data: {
+        id: 'user-1',
+        email: 'client@test.com',
+        display_name: 'Client',
+        avatar_url: null,
+        role: 'client',
+      },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { profiles: profilesChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    await expect(requirePageStudioUser()).rejects.toThrow('REDIRECT:/portal')
+    expect(mockRedirect).toHaveBeenCalledWith('/portal')
+  })
+
+  test('requirePageStudioUser returns auth context for studio users', async () => {
+    const profilesChain = createChainMock({
+      data: {
+        id: 'user-1',
+        email: 'studio@test.com',
+        display_name: 'Studio User',
+        avatar_url: null,
+        role: 'studio',
+      },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { profiles: profilesChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const result = await requirePageStudioUser()
+
+    expect(result.user.id).toBe('user-1')
+    expect(result.profile?.role).toBe('studio')
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 
   test('getProjectOrNotFound delegates missing projects to notFound', async () => {
