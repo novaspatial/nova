@@ -120,7 +120,7 @@ export function HowItWorks() {
           <FadeIn>
             <div className="mt-4 flex justify-center px-2 sm:mt-10 3xl:mt-12">
               <Link
-                href="/portal"
+                href="/#pricing"
                 className="group/cta relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-linear-to-r from-violet-950 via-purple-900 to-violet-950 px-5 py-2.5 text-xs font-semibold text-white ring-1 ring-violet-400/30 transition-all duration-300 hover:scale-[1.03] hover:ring-violet-300/50 hover:shadow-lg hover:shadow-violet-500/30 sm:px-7 sm:py-3 sm:text-sm 3xl:px-8 3xl:py-3.5 3xl:text-base"
               >
                 <span className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover/cta:translate-x-full" />

@@ -29,6 +29,9 @@ import type {
 export const LIST_PRICE_PER_SONG_CENTS = 32500 // $325 USD/song (#16)
 export const FLOOR_PER_SONG_CENTS = 22500 // $225 USD/song (D3, D4-a/b)
 export const MAX_DISCOUNT_PCT = 35 // caps stacked percentage discounts (D4-c)
+// One clamp for every song-count input: the order form, the checkout route,
+// and the homepage calculator + its deep-link parser (#30) must agree.
+export const MAX_SONG_COUNT = 99
 
 export const ADD_ON_CENTS: Record<AddOn, number> = {
   extra_revision: 5000, // +$50 (#19)

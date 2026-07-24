@@ -4,6 +4,7 @@ import { FadeIn } from '@/components/ui/FadeIn'
 import { FAQ } from '@/components/sections/FAQ'
 import { HeroContent } from '@/components/sections/HeroContent'
 import { HowItWorks } from '@/components/sections/HowItWorks'
+import { PriceCalculator } from '@/components/sections/PriceCalculator'
 import { PromoPopup } from '@/components/popups/PromoPopup'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { heroBgPosterSrc, heroBgVideoSrc } from '@/lib/hero-assets'
@@ -22,6 +23,7 @@ export default function Home() {
       <Clients />
       <Services />
       <Testimonials />
+      <PriceCalculator />
       <HowItWorks />
       <FAQ />
     </RootLayout>

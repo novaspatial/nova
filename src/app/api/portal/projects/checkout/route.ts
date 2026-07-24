@@ -3,7 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
-import { CA_TAX_RATES, computeOrderPrice } from '@/lib/stripe/pricing'
+import {
+  CA_TAX_RATES,
+  computeOrderPrice,
+  MAX_SONG_COUNT,
+} from '@/lib/stripe/pricing'
 import {
   CODE_REJECTION_MESSAGES,
   finalizeDiscountConsumption,
@@ -17,7 +21,6 @@ const RATE_LIMIT_WINDOW_SECONDS = 60
 const RATE_LIMIT_MAX_PENDING = 3
 
 const FORMATS = ['atmos', 'binaural', 'both'] as const
-const MAX_SONG_COUNT = 99
 const MAX_STEM_COUNT = 999
 const MAX_TEXT_LENGTH = 5000
 

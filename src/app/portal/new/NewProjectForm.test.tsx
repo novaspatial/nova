@@ -429,4 +429,34 @@ describe('NewProjectForm', () => {
       ),
     ).toBeInTheDocument()
   })
+
+  // Calculator deep-link prefill (#30) — parsed server-side in page.tsx.
+  test('initialSongCount seeds the stepper and the live quote', () => {
+    render(<NewProjectForm initialSongCount={4} />)
+
+    expect(screen.getByLabelText('Number of Songs')).toHaveValue(4)
+    const quote = screen.getByTestId('live-quote')
+    expect(quote).toHaveTextContent('4 songs × $325')
+    expect(quote).toHaveTextContent('Album discount')
+  })
+
+  test('initialCode prefills the input and submits without Apply', async () => {
+    mockFetch.mockResolvedValue(checkoutResponse)
+
+    render(<NewProjectForm initialCode={WELCOME_COUPON_CODE} />)
+    expect(screen.getByLabelText(/Discount Code/)).toHaveValue(
+      WELCOME_COUPON_CODE,
+    )
+
+    fillRequiredFields()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create Project & Upload' }),
+    )
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-step')).toBeInTheDocument()
+    })
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
+    expect(body.code).toBe(WELCOME_COUPON_CODE)
+  })
 })

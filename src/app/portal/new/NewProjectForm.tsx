@@ -2,9 +2,12 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { FileUploader, PaymentStep } from '@/components/portal'
+// Direct import (not the barrel): the form's tests mock '@/components/portal'
+// for the heavy Stripe/upload children, but the quote must render for real.
+import { QuoteBreakdown } from '@/components/portal/QuoteBreakdown'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { NumberInput } from '@/components/ui/NumberInput'
 import type {
   BuyerCountry,
   BuyerLocation,
@@ -16,6 +19,7 @@ import type {
 import { uploadFile } from '@/lib/portal/uploadFile'
 import {
   computeOrderPrice,
+  MAX_SONG_COUNT,
   WELCOME_DISCOUNT_PCT,
   type OrderCode,
 } from '@/lib/stripe/pricing'
@@ -23,7 +27,6 @@ import {
   discountBadgeLabel,
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
-import { formatCurrency } from '@/lib/formatCurrency'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 
 const inputClassName =
@@ -62,8 +65,6 @@ const PROVINCE_OPTIONS: { value: CAProvince; label: string }[] = [
   { value: 'SK', label: 'Saskatchewan' },
   { value: 'YT', label: 'Yukon' },
 ]
-
-const MAX_SONG_COUNT = 99
 
 function SelectChevron() {
   return (
@@ -140,11 +141,21 @@ async function waitForPaymentConfirmation(
   return false
 }
 
-export function NewProjectForm() {
+// Prefill props come from the homepage calculator's deep link (#30), parsed
+// and validated server-side in page.tsx (parseNewProjectParams).
+export function NewProjectForm({
+  initialSongCount,
+  initialCode,
+}: {
+  initialSongCount?: number
+  initialCode?: string
+} = {}) {
   const [phase, setPhase] = useState<Phase>('form')
   const [title, setTitle] = useState('')
   const [format, setFormat] = useState<ServiceFormat>('atmos')
-  const [songCountInput, setSongCountInput] = useState('1')
+  const [songCountInput, setSongCountInput] = useState(
+    String(initialSongCount ?? 1),
+  )
   const [referenceTracks, setReferenceTracks] = useState('')
   const [notes, setNotes] = useState('')
   const [files, setFiles] = useState<FileUploadItem[]>([])
@@ -158,7 +169,7 @@ export function NewProjectForm() {
   // Discount code (#25): the preview applies via the validate endpoint; the
   // checkout re-validates server-side, so an un-applied typed code is still
   // honored (or rejected) at submit.
-  const [codeInput, setCodeInput] = useState('')
+  const [codeInput, setCodeInput] = useState(initialCode ?? '')
   const [appliedCode, setAppliedCode] = useState<AppliedCode | null>(null)
   const [applyingCode, setApplyingCode] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
@@ -172,15 +183,6 @@ export function NewProjectForm() {
   const songCount = songCountInput.trim() === '' ? NaN : Number(songCountInput)
   const songCountValid =
     Number.isInteger(songCount) && songCount >= 1 && songCount <= MAX_SONG_COUNT
-
-  // Custom stepper (native number spinners are hidden for house style).
-  // Empty/invalid input resolves to 1 on the first step.
-  const adjustSongCount = (delta: number) => {
-    setSongCountInput((prev) => {
-      const base = Number.isInteger(Number(prev)) ? Number(prev) : 0
-      return String(Math.min(MAX_SONG_COUNT, Math.max(1, base + delta)))
-    })
-  }
 
   // Tax needs a complete location — a country, plus a province when Canadian
   // (place of supply picks the GST/HST rate). Until the selection completes,
@@ -631,43 +633,17 @@ export function NewProjectForm() {
           >
             Number of Songs
           </label>
-          <div className="relative mt-2">
-            <input
-              id="song-count"
-              type="number"
-              inputMode="numeric"
-              required
-              min={1}
-              max={MAX_SONG_COUNT}
-              step={1}
-              value={songCountInput}
-              onChange={(e) => setSongCountInput(e.target.value)}
-              className={`${inputClassName} pr-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
-              disabled={submitting || phase === 'uploading'}
-            />
-            <div className="absolute inset-y-0 right-2 flex flex-col justify-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => adjustSongCount(1)}
-                disabled={submitting || phase === 'uploading' || songCount >= MAX_SONG_COUNT}
-                aria-label="Increase number of songs"
-                tabIndex={-1}
-                className="flex size-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-300 transition hover:border-violet-500/40 hover:bg-violet-500/15 hover:text-white disabled:pointer-events-none disabled:opacity-40"
-              >
-                <ChevronUpIcon className="size-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => adjustSongCount(-1)}
-                disabled={submitting || phase === 'uploading' || !(songCount > 1)}
-                aria-label="Decrease number of songs"
-                tabIndex={-1}
-                className="flex size-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-300 transition hover:border-violet-500/40 hover:bg-violet-500/15 hover:text-white disabled:pointer-events-none disabled:opacity-40"
-              >
-                <ChevronDownIcon className="size-3" />
-              </button>
-            </div>
-          </div>
+          <NumberInput
+            id="song-count"
+            label="number of songs"
+            required
+            min={1}
+            max={MAX_SONG_COUNT}
+            value={songCountInput}
+            onChange={setSongCountInput}
+            className="mt-2"
+            disabled={submitting || phase === 'uploading'}
+          />
         </div>
       </div>
 
@@ -858,49 +834,13 @@ export function NewProjectForm() {
       </div>
 
       {quote && (
-        <div
-          data-testid="live-quote"
-          aria-live="polite"
-          className="rounded-xl border border-white/10 bg-white/5 p-4"
-        >
-          <div className="flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
-            <span>
-              {quote.song_count} song{quote.song_count > 1 ? 's' : ''} ×{' '}
-              {formatCurrency(quote.list_unit_cents)}
-            </span>
-            <span>{formatCurrency(quote.list_total_cents)}</span>
-          </div>
-          {quote.bulk_discount_cents > 0 && (
-            <div className="mt-1 flex items-center justify-between text-xs text-emerald-300 sm:text-sm">
-              <span>Album discount</span>
-              <span>−{formatCurrency(quote.bulk_discount_cents)}</span>
-            </div>
-          )}
-          {appliedCode && quote.code_discount_cents > 0 && (
-            <div className="mt-1 flex items-center justify-between text-xs text-violet-300 sm:text-sm">
-              <span>{discountBadgeLabel(appliedCode.couponCode, false)}</span>
-              <span>−{formatCurrency(quote.code_discount_cents)}</span>
-            </div>
-          )}
-          {quote.tax_cents > 0 && (
-            <div className="mt-1 flex items-center justify-between text-xs text-zinc-400 sm:text-sm">
-              <span>{quote.tax_label}</span>
-              <span>{formatCurrency(quote.tax_cents)}</span>
-            </div>
-          )}
-          <div className="mt-2 flex items-baseline justify-between border-t border-white/10 pt-2">
-            <span className="text-xs font-medium text-zinc-300 sm:text-sm">
-              Estimated total
-            </span>
-            <span className="text-lg font-semibold text-white">
-              {formatCurrency(quote.total_cents)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-zinc-500">
-            Prices are in USD. Discount codes are verified at payment; GST/HST
-            is calculated on the discounted total.
-          </p>
-        </div>
+        <QuoteBreakdown
+          quote={quote}
+          codeLabel={
+            appliedCode ? discountBadgeLabel(appliedCode.couponCode, false) : null
+          }
+          footnote="Prices are in USD. Discount codes are verified at payment; GST/HST is calculated on the discounted total."
+        />
       )}
 
       <Checkbox
