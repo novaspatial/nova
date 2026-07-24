@@ -4,6 +4,7 @@ import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { claimProjectPayment } from '@/lib/portal/paymentClaim'
 import { finalizeDiscountConsumption } from '@/lib/portal/orderDiscount'
+import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 
 export const runtime = 'nodejs'
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
   // Always record the payment fact; move status only along the legal edge.
   // A project that somehow advanced past pending_payment before payment
   // confirmed keeps its status instead of being dragged back to uploading.
-  const { advanced, error: updateError } = await claimProjectPayment(
+  const { claimed, advanced, error: updateError } = await claimProjectPayment(
     supabase,
     project,
   )
@@ -138,10 +139,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Update failed' }, { status: 500 })
   }
 
-  // Post-claim finalize order (#24 lands its order-confirmation email
-  // between these): (1) consumption — MUST 500 on failure so Stripe's
-  // retry loop finishes the job (the replay path above re-attempts it);
-  // (2) [#24 email — best-effort, never a 500]; (3) ack.
+  // Post-claim finalize order: (1) consumption — MUST 500 on failure so
+  // Stripe's retry loop finishes the job (the replay path above re-attempts
+  // it); (2) #24 receipt — best-effort, never a 500; (3) ack.
   const { error: consumeError } = await finalizeDiscountConsumption(
     supabase,
     project,
@@ -149,6 +149,14 @@ export async function POST(request: NextRequest) {
   if (consumeError) {
     console.error('[stripe webhook] consume failed', consumeError)
     return NextResponse.json({ error: 'Consume failed' }, { status: 500 })
+  }
+
+  // Only the claim winner sends (#24): the CAS fence makes the winner unique
+  // across this handler, the poll route, and replays, so the receipt fires
+  // exactly once. Accepted residual: a consume-fail 500 above hands the send
+  // to no one — the replay path finishes the consume but never emails.
+  if (claimed) {
+    await sendOrderConfirmationEmail(supabase, project.id)
   }
 
   return NextResponse.json({ received: true })

@@ -8,6 +8,7 @@ import {
   finalizeDiscountConsumption,
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
+import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 import type { AddOn } from '@/types/portal'
 
@@ -192,6 +193,11 @@ export async function GET(
     await finalizeConsumptionBestEffort(project)
 
     if (claimed) {
+      // This poll won the claim (delayed webhook), so the receipt (#24)
+      // fires here — the webhook's replay path never sends, and the CAS
+      // fence keeps the winner unique. Best-effort, on the service client
+      // (the profiles-join lookup is a system read).
+      await sendOrderConfirmationEmail(serviceSupabase, project.id)
       return NextResponse.json({ paid: true, status: claimed.status })
     }
     // Another caller (webhook) beat us to it; re-read.

@@ -26,6 +26,12 @@ vi.mock('@/lib/stripe/server', () => ({
   getStripe: () => mockGetStripe(),
 }))
 
+const mockSendOrderConfirmation = vi.fn()
+vi.mock('@/lib/email/orderConfirmation', () => ({
+  sendOrderConfirmationEmail: (...args: unknown[]) =>
+    mockSendOrderConfirmation(...args),
+}))
+
 import { POST } from './route'
 
 function makeProjectsChain(opts: {
@@ -353,6 +359,9 @@ describe('POST /api/portal/projects/checkout', () => {
     )
     // The Stripe branch stays on the user's session — RLS applies.
     expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    // The receipt (#24) waits for the payment writers (webhook/poll claim);
+    // an unpaid checkout never sends it.
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
   })
 
   test('applies the bulk tier on a multi-song order', async () => {
@@ -846,6 +855,13 @@ describe('POST /api/portal/projects/checkout', () => {
         }),
       )
       expect(projectsChain.insert).not.toHaveBeenCalled()
+      // Born-paid and webhook-less: the receipt (#24) fires inline, on the
+      // service client.
+      expect(mockSendOrderConfirmation).toHaveBeenCalledTimes(1)
+      expect(mockSendOrderConfirmation).toHaveBeenCalledWith(
+        expect.anything(),
+        'proj-new',
+      )
     } finally {
       if (prev === undefined) {
         delete process.env.PAYMENTS_DEV_BYPASS

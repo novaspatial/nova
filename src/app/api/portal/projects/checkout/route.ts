@@ -16,6 +16,7 @@ import {
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
+import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
 import type {
   AddOn,
   BuyerCountry,
@@ -369,6 +370,10 @@ export async function POST(request: NextRequest) {
     if (consumeError) {
       console.error('[checkout] dev-bypass consume failed', consumeError)
     }
+
+    // #24 receipt: this insert is the row's only payment writer (born paid,
+    // no webhook in dev bypass), so the send fires inline. Best-effort.
+    await sendOrderConfirmationEmail(serviceSupabase, project.id)
 
     return NextResponse.json({
       projectId: project.id,

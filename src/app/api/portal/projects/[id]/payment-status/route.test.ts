@@ -22,6 +22,12 @@ vi.mock('@/lib/stripe/server', () => ({
   }),
 }))
 
+const mockSendOrderConfirmation = vi.fn()
+vi.mock('@/lib/email/orderConfirmation', () => ({
+  sendOrderConfirmationEmail: (...args: unknown[]) =>
+    mockSendOrderConfirmation(...args),
+}))
+
 import { GET } from './route'
 
 function makeParams(id: string) {
@@ -96,6 +102,8 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     expect(body).toEqual({ paid: true, status: 'uploading' })
     expect(mockPaymentIntentsRetrieve).not.toHaveBeenCalled()
     expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    // Already paid by someone else's claim — that writer sent the receipt.
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
   })
 
   test('claims on the service client when the intent has succeeded', async () => {
@@ -137,6 +145,13 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     expect(serviceProjectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
     expect(serviceProjectsChain.is).toHaveBeenCalledWith('paid_at', null)
     expect(projectsChain.update).not.toHaveBeenCalled()
+    // Won the claim -> this poll owns the receipt (#24), on the service
+    // client.
+    expect(mockSendOrderConfirmation).toHaveBeenCalledTimes(1)
+    expect(mockSendOrderConfirmation).toHaveBeenCalledWith(
+      expect.anything(),
+      'proj-1',
+    )
   })
 
   test('claims when best-effort metadata (project_id) is absent', async () => {
@@ -469,6 +484,8 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     const res = await GET(req(), makeParams('proj-1'))
     const body = await res.json()
     expect(body).toEqual({ paid: true, status: 'uploading' })
+    // Lost the claim race — the webhook sent the receipt, not this poll.
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
   })
 
   test('does not update when the intent is still pending', async () => {

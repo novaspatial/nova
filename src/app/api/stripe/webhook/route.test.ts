@@ -11,6 +11,12 @@ vi.mock('@/lib/supabase/supabaseService', () => ({
   createServiceClient: () => mockCreateServiceClient(),
 }))
 
+const mockSendOrderConfirmation = vi.fn()
+vi.mock('@/lib/email/orderConfirmation', () => ({
+  sendOrderConfirmationEmail: (...args: unknown[]) =>
+    mockSendOrderConfirmation(...args),
+}))
+
 import { POST } from './route'
 
 function buildRequest(body: string, signature: string | null) {
@@ -396,6 +402,90 @@ describe('POST /api/stripe/webhook', () => {
     const res = await POST(buildRequest('{}', 'sig_ok'))
     expect(res.status).toBe(500)
     mockConsoleError.mockRestore()
+  })
+
+  // --- #24: order-confirmation receipt in the post-claim slot. ---
+
+  test('sends the receipt after a winning claim and successful consume', async () => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({ data: codeProjectRow(), error: null })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const serviceClient = { from: vi.fn(() => projectsChain), rpc }
+    mockCreateServiceClient.mockReturnValue(serviceClient)
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(mockSendOrderConfirmation).toHaveBeenCalledTimes(1)
+    expect(mockSendOrderConfirmation).toHaveBeenCalledWith(
+      serviceClient,
+      'proj-1',
+    )
+  })
+
+  test('a replay never re-sends the receipt', async () => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: codeProjectRow({
+        status: 'uploading',
+        paid_at: '2026-07-15T00:00:00Z',
+      }),
+      error: null,
+    })
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
+  })
+
+  test('no receipt when the consume 500s — email never precedes consumption', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({ data: codeProjectRow(), error: null })
+      .mockResolvedValueOnce({ data: { status: 'uploading' }, error: null })
+    const rpc = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: { message: 'consume failed' } })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+      rpc,
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(500)
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
+    mockConsoleError.mockRestore()
+  })
+
+  test('no receipt when another writer already claimed the payment', async () => {
+    mockConstructEvent.mockReturnValue(succeededEvent())
+    const projectsChain = createChainMock({ data: null, error: null })
+    projectsChain.maybeSingle
+      .mockResolvedValueOnce({
+        data: codeProjectRow({ applied_coupon_code: null }),
+        error: null,
+      })
+      // The claim CAS matched no rows: the poll route won the race.
+      .mockResolvedValueOnce({ data: null, error: null })
+    mockCreateServiceClient.mockReturnValue({
+      from: vi.fn(() => projectsChain),
+    })
+
+    const res = await POST(buildRequest('{}', 'sig_ok'))
+    expect(res.status).toBe(200)
+    expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
   })
 
   test.each([
