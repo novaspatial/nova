@@ -28,45 +28,8 @@ describe('DELETE /api/portal/projects/[id]/files/[fileId]', () => {
     expect(res.status).toBe(401)
   })
 
-  test('returns 404 when project not visible', async () => {
-    const projectsChain = createChainMock({ data: null, error: null })
-    const profileChain = createChainMock({
-      data: { id: 'user-1', role: 'client' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { projects: projectsChain, profiles: profileChain },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest(undefined, { method: 'DELETE' })
-    const res = await DELETE(req as NextRequest, makeParams('proj-1', 'f-1'))
-    expect(res.status).toBe(404)
-  })
-
-  test('returns 404 when file row is missing', async () => {
-    const projectsChain = createChainMock({
-      data: { id: 'proj-1', status: 'uploading' },
-      error: null,
-    })
-    const profileChain = createChainMock({
-      data: { id: 'user-1', role: 'client' },
-      error: null,
-    })
-    const filesChain = createChainMock({ data: null, error: null })
-    const supabase = createSupabaseMock({
-      fromMocks: {
-        projects: projectsChain,
-        profiles: profileChain,
-        project_files: filesChain,
-      },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest(undefined, { method: 'DELETE' })
-    const res = await DELETE(req as NextRequest, makeParams('proj-1', 'f-1'))
-    expect(res.status).toBe(404)
-  })
+  // Project-visibility and missing-row 404s are requireProjectChild
+  // choreography, covered once in src/lib/auth/server.test.ts (#37).
 
   test('returns 403 when a client tries to delete another user file', async () => {
     const projectsChain = createChainMock({

@@ -2,10 +2,9 @@
 
 // Post-creation upload surface: attached to an existing project, stem files
 // go through useFileUpload's two-phase flow (register → PUT → confirm) and
-// mix files (studio-only) use the same route with `fileType: 'mix'`. A
-// separate pre-creation flow lives in NewProjectForm and is intentionally
-// independent — see useFileUpload.ts for the note about why they mirror
-// each other instead of sharing code.
+// mix files (studio-only) use the same route with `fileType: 'mix'`. The
+// pre-creation flow in NewProjectForm keeps its own queue state but shares
+// the per-file wire choreography via runUploadDance.
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,6 +12,7 @@ import { FileUploader } from '@/components/portal/FileUploader'
 import { useProject } from '@/components/portal/ProjectContext'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
+import { formatFileSize } from '@/lib/formatFileSize'
 import { canTransition, canUploadMix } from '@/lib/portal/workflow'
 import type { ProjectFile, ProjectStatus } from '@/types/portal'
 import {
@@ -24,14 +24,6 @@ import {
   ArrowDownTrayIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
 
 const statusIcon: Record<string, React.ReactNode> = {
   synced: <CheckCircleIcon className="size-5 text-emerald-400" />,

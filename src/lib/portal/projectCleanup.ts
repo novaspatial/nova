@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { removeStorageObjects } from '@/lib/portal/storage'
+
 type CleanupProject = {
   id: string
 }
@@ -50,7 +52,8 @@ export async function cleanupProjectArtifacts(
   if (attachments.error) return { error: attachments.error.message }
   if (deliverables.error) return { error: deliverables.error.message }
 
-  // project_files and comment attachments both live in project-uploads.
+  // project_files and comment attachments share the uploads bucket
+  // (bucketFor maps both kinds there), so their paths sweep together.
   const uploadPaths = [...(files.data ?? []), ...(attachments.data ?? [])].map(
     (row) => row.storage_path,
   )
@@ -58,19 +61,15 @@ export async function cleanupProjectArtifacts(
     (row) => row.storage_path,
   )
 
-  if (uploadPaths.length > 0) {
-    const { error } = await supabase.storage
-      .from('project-uploads')
-      .remove(uploadPaths)
-    if (error) return { error: error.message }
-  }
+  const uploadsSweep = await removeStorageObjects(supabase, 'stem', uploadPaths)
+  if (uploadsSweep.error) return { error: uploadsSweep.error }
 
-  if (deliverablePaths.length > 0) {
-    const { error } = await supabase.storage
-      .from('project-deliverables')
-      .remove(deliverablePaths)
-    if (error) return { error: error.message }
-  }
+  const deliverablesSweep = await removeStorageObjects(
+    supabase,
+    'deliverable',
+    deliverablePaths,
+  )
+  if (deliverablesSweep.error) return { error: deliverablesSweep.error }
 
   return { error: null }
 }

@@ -4,6 +4,7 @@ import {
   requireApiProfile,
   requireApiStudioUser,
 } from '@/lib/auth/server'
+import { createUpload } from '@/lib/portal/storage'
 
 export async function GET(
   _request: NextRequest,
@@ -62,50 +63,20 @@ export async function POST(
   const body = await request.json()
   const { fileName, fileSize, format } = body
 
-  if (!fileName || !fileSize) {
-    return NextResponse.json(
-      { error: 'fileName and fileSize are required' },
-      { status: 400 },
-    )
-  }
+  const result = await createUpload(supabase, 'deliverable', {
+    projectId,
+    ownerId: project.owner_id,
+    fileName,
+    fileSize,
+    format,
+  })
 
-  const storagePath = `${project.owner_id}/${projectId}/${fileName}`
-
-  // 1. Insert deliverable record
-  const { data: deliverable, error: insertError } = await supabase
-    .from('deliverables')
-    .insert({
-      project_id: projectId,
-      file_name: fileName,
-      file_size: fileSize,
-      storage_path: storagePath,
-      format: format || null,
-    })
-    .select()
-    .single()
-
-  if (insertError || !deliverable) {
-    return NextResponse.json(
-      { error: insertError?.message || 'Failed to create deliverable' },
-      { status: 500 },
-    )
-  }
-
-  // 2. Create signed upload URL for Supabase Storage
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('project-deliverables')
-    .createSignedUploadUrl(storagePath, { upsert: true })
-
-  if (uploadError || !uploadData) {
-    console.error('[API /deliverables POST] Storage Signed URL Error:', uploadError)
-    return NextResponse.json(
-      { error: uploadError?.message || 'Failed to create upload URL' },
-      { status: 500 },
-    )
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   return NextResponse.json({
-    deliverableId: deliverable.id,
-    uploadUrl: uploadData.signedUrl,
+    deliverableId: result.row?.id,
+    uploadUrl: result.uploadUrl,
   })
 }

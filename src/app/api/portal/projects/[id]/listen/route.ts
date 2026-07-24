@@ -3,6 +3,7 @@ import {
   getProjectOrApiNotFound,
   requireApiProfile,
 } from '@/lib/auth/server'
+import { isCommentAttachmentPath } from '@/lib/portal/storage'
 
 interface IncomingAttachment {
   storagePath: string
@@ -150,7 +151,7 @@ export async function POST(
       !attachment.fileName ||
       typeof attachment.fileSize !== 'number' ||
       !attachment.mimeType ||
-      !attachment.storagePath.includes(`/${projectId}/comments/`)
+      !isCommentAttachmentPath(projectId, attachment.storagePath)
     ) {
       return NextResponse.json(
         { error: 'Invalid attachment payload' },

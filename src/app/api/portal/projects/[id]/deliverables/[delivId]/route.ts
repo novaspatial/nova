@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import {
-  getProjectOrApiNotFound,
-  requireApiStudioUser,
-} from '@/lib/auth/server'
+import { requireApiStudioUser, requireProjectChild } from '@/lib/auth/server'
+import { removeStorageObjects } from '@/lib/portal/storage'
 
 export async function DELETE(
   _request: NextRequest,
@@ -13,35 +11,31 @@ export async function DELETE(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, profile } = auth
+  const { supabase } = auth
 
-  const projectResult = await getProjectOrApiNotFound<{ id: string }>(
-    supabase,
-    projectId,
-    'id',
-    profile?.role,
+  const childResult = await requireProjectChild<{ storage_path: string }>(
+    auth,
+    {
+      projectId,
+      table: 'deliverables',
+      rowId: delivId,
+      select: 'storage_path',
+      notFoundMessage: 'Deliverable not found',
+    },
   )
-  if ('response' in projectResult) {
-    return projectResult.response
+  if ('response' in childResult) {
+    return childResult.response
   }
+  const { row: deliverable } = childResult
 
-  const { data: deliverable } = await supabase
-    .from('deliverables')
-    .select('storage_path')
-    .eq('id', delivId)
-    .eq('project_id', projectId)
-    .single()
-
-  if (!deliverable) {
-    return NextResponse.json({ error: 'Deliverable not found' }, { status: 404 })
-  }
-
-  const { error: storageError } = await supabase.storage
-    .from('project-deliverables')
-    .remove([deliverable.storage_path])
+  const { error: storageError } = await removeStorageObjects(
+    supabase,
+    'deliverable',
+    [deliverable.storage_path],
+  )
 
   if (storageError) {
-    return NextResponse.json({ error: storageError.message }, { status: 500 })
+    return NextResponse.json({ error: storageError }, { status: 500 })
   }
 
   const { data: deleted, error: dbError } = await supabase

@@ -32,6 +32,7 @@ import {
   requirePageProfile,
   requirePageStudioUser,
   requirePageUser,
+  requireProjectChild,
 } from './server'
 
 describe('auth server helpers', () => {
@@ -301,6 +302,149 @@ describe('auth server helpers', () => {
         'studio',
       ),
     ).rejects.toThrow('NOT_FOUND')
+  })
+
+  describe('requireProjectChild', () => {
+    function makeAuth(
+      supabase: ReturnType<typeof createSupabaseMock>,
+      role: 'client' | 'studio' = 'client',
+      userId = 'user-1',
+    ) {
+      return {
+        supabase: supabase as never,
+        user: { id: userId } as never,
+        profile: {
+          id: userId,
+          email: null,
+          display_name: null,
+          avatar_url: null,
+          role,
+        } as never,
+      }
+    }
+
+    test('404s when the project is not visible, before any child read', async () => {
+      const commentsChain = createChainMock()
+      const supabase = createSupabaseMock({
+        fromMocks: {
+          projects: createChainMock({ data: null, error: null }),
+          project_comments: commentsChain,
+        },
+      })
+
+      const result = await requireProjectChild(makeAuth(supabase), {
+        projectId: 'proj-404',
+        table: 'project_comments',
+        rowId: 'c-1',
+        select: 'id, author_id',
+      })
+
+      expect('response' in result).toBe(true)
+      if ('response' in result) {
+        expect(result.response.status).toBe(404)
+        await expect(result.response.json()).resolves.toEqual({
+          error: 'Project not found',
+        })
+      }
+      expect(commentsChain.select).not.toHaveBeenCalled()
+    })
+
+    test('404s with the caller message when the child row is missing', async () => {
+      const supabase = createSupabaseMock({
+        fromMocks: {
+          projects: createChainMock({
+            data: { id: 'proj-1', owner_id: 'user-1' },
+            error: null,
+          }),
+          project_files: createChainMock({ data: null, error: null }),
+        },
+      })
+
+      const result = await requireProjectChild(makeAuth(supabase), {
+        projectId: 'proj-1',
+        table: 'project_files',
+        rowId: 'f-404',
+        select: 'storage_path',
+        notFoundMessage: 'File not found',
+      })
+
+      expect('response' in result).toBe(true)
+      if ('response' in result) {
+        expect(result.response.status).toBe(404)
+        await expect(result.response.json()).resolves.toEqual({
+          error: 'File not found',
+        })
+      }
+    })
+
+    test('scopes the child load to the project and derives the flags', async () => {
+      const filesChain = createChainMock({
+        data: { storage_path: 'o/p/kick.wav', uploaded_by: 'user-1' },
+        error: null,
+      })
+      const supabase = createSupabaseMock({
+        fromMocks: {
+          projects: createChainMock({
+            data: { id: 'proj-1', owner_id: 'owner-2' },
+            error: null,
+          }),
+          project_files: filesChain,
+        },
+      })
+
+      const result = await requireProjectChild<{
+        storage_path: string
+        uploaded_by: string
+      }>(makeAuth(supabase), {
+        projectId: 'proj-1',
+        table: 'project_files',
+        rowId: 'f-1',
+        select: 'storage_path, uploaded_by',
+        authorField: 'uploaded_by',
+      })
+
+      expect('response' in result).toBe(false)
+      if (!('response' in result)) {
+        expect(result.row.storage_path).toBe('o/p/kick.wav')
+        expect(result.isStudio).toBe(false)
+        expect(result.isOwner).toBe(false) // project owned by owner-2
+        expect(result.isAuthor).toBe(true) // row uploaded by user-1
+      }
+      expect(filesChain.eq).toHaveBeenCalledWith('id', 'f-1')
+      expect(filesChain.eq).toHaveBeenCalledWith('project_id', 'proj-1')
+    })
+
+    test('studio callers get isStudio and isAuthor stays false without authorField', async () => {
+      const supabase = createSupabaseMock({
+        fromMocks: {
+          projects: createChainMock({
+            data: { id: 'proj-1', owner_id: 'user-1' },
+            error: null,
+          }),
+          deliverables: createChainMock({
+            data: { storage_path: 'o/p/master.wav' },
+            error: null,
+          }),
+        },
+      })
+
+      const result = await requireProjectChild(
+        makeAuth(supabase, 'studio', 'user-1'),
+        {
+          projectId: 'proj-1',
+          table: 'deliverables',
+          rowId: 'd-1',
+          select: 'storage_path',
+        },
+      )
+
+      expect('response' in result).toBe(false)
+      if (!('response' in result)) {
+        expect(result.isStudio).toBe(true)
+        expect(result.isOwner).toBe(true)
+        expect(result.isAuthor).toBe(false)
+      }
+    })
   })
 
 })

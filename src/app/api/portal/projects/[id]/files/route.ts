@@ -1,14 +1,25 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
-  getAuthProfile,
   getProjectOrApiNotFound,
   requireApiProfile,
 } from '@/lib/auth/server'
+import {
+  createUpload,
+  validateUploadInput,
+  type StorageKind,
+} from '@/lib/portal/storage'
 import {
   canUploadMix,
   canUploadStems,
   type ProjectStatus,
 } from '@/lib/portal/workflow'
+
+const PROJECT_FILE_KINDS = ['stem', 'master_ref', 'mix'] as const
+type ProjectFileKind = (typeof PROJECT_FILE_KINDS)[number]
+
+function isProjectFileKind(value: unknown): value is ProjectFileKind {
+  return PROJECT_FILE_KINDS.includes(value as ProjectFileKind)
+}
 
 export async function POST(
   request: NextRequest,
@@ -34,16 +45,18 @@ export async function POST(
   const body = await request.json()
   const { fileName, fileSize, mimeType, fileType } = body
 
-  if (!fileName || !fileSize || !mimeType) {
-    return NextResponse.json(
-      { error: 'fileName, fileSize, and mimeType are required' },
-      { status: 400 },
-    )
+  const kind: StorageKind = fileType == null ? 'stem' : fileType
+  if (!isProjectFileKind(kind)) {
+    return NextResponse.json({ error: 'Invalid fileType' }, { status: 400 })
   }
 
-  // Studio role check for mix uploads
-  if (fileType === 'mix') {
-    const profile = await getAuthProfile(supabase, user.id)
+  // Validation 400s outrank the role/status gates below (existing order).
+  const invalid = validateUploadInput(kind, { fileName, fileSize, mimeType })
+  if (invalid) {
+    return NextResponse.json({ error: invalid }, { status: 400 })
+  }
+
+  if (kind === 'mix') {
     if (profile?.role !== 'studio') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -64,52 +77,24 @@ export async function POST(
     }
   }
 
-  const storagePath =
-    fileType === 'mix'
-    ? `${project.owner_id}/${projectId}/mixes/${fileName}`
-    : `${project.owner_id}/${projectId}/${fileName}`
+  const result = await createUpload(supabase, kind, {
+    projectId,
+    ownerId: project.owner_id,
+    fileName,
+    fileSize,
+    mimeType,
+    uploadedBy: user.id,
+  })
 
-  // 1. Create signed upload URL first so a storage collision (e.g. duplicate
-  // filename) doesn't leave a dangling project_files row behind.
-  // Use upsert for mix files so studio can re-upload updated mixes.
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('project-uploads')
-    .createSignedUploadUrl(storagePath, { upsert: fileType === 'mix' })
-
-  if (uploadError || !uploadData) {
-    console.error('[API /files POST] Storage Signed URL Error:', uploadError)
+  if (!result.ok) {
     return NextResponse.json(
-      { error: uploadError?.message || 'Failed to create upload URL', details: uploadError },
-      { status: 500 },
-    )
-  }
-
-  // 2. Insert file record
-  const { data: file, error: insertError } = await supabase
-    .from('project_files')
-    .insert({
-      project_id: projectId,
-      file_name: fileName,
-      file_size: fileSize,
-      mime_type: mimeType,
-      file_type: fileType || 'stem',
-      storage_path: storagePath,
-      upload_status: 'pending',
-      uploaded_by: user.id,
-    })
-    .select()
-    .single()
-
-  if (insertError || !file) {
-    console.error('[API /files POST] Insert Error:', insertError)
-    return NextResponse.json(
-      { error: insertError?.message || 'Failed to register file', details: insertError },
-      { status: 500 },
+      { error: result.error, ...(result.details !== undefined ? { details: result.details } : {}) },
+      { status: result.status },
     )
   }
 
   return NextResponse.json({
-    fileId: file.id,
-    uploadUrl: uploadData.signedUrl,
+    fileId: result.row?.id,
+    uploadUrl: result.uploadUrl,
   })
 }

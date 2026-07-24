@@ -3,6 +3,7 @@ import {
   getProjectOrApiNotFound,
   requireApiProfile,
 } from '@/lib/auth/server'
+import { createUpload } from '@/lib/portal/storage'
 
 export async function POST(
   request: NextRequest,
@@ -31,32 +32,20 @@ export async function POST(
     mimeType?: string
   }
 
-  if (!fileName || typeof fileSize !== 'number' || !mimeType) {
-    return NextResponse.json(
-      { error: 'fileName, fileSize, and mimeType are required' },
-      { status: 400 },
-    )
-  }
+  const result = await createUpload(supabase, 'comment_attachment', {
+    projectId,
+    ownerId: project.owner_id,
+    fileName,
+    fileSize,
+    mimeType,
+  })
 
-  const attachmentUuid = crypto.randomUUID()
-  const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const storagePath = `${project.owner_id}/${projectId}/comments/${attachmentUuid}/${safeFileName}`
-
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('project-uploads')
-    .createSignedUploadUrl(storagePath)
-
-  if (uploadError || !uploadData) {
-    return NextResponse.json(
-      {
-        error: uploadError?.message || 'Failed to create upload URL',
-      },
-      { status: 500 },
-    )
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   return NextResponse.json({
-    storagePath,
-    uploadUrl: uploadData.signedUrl,
+    storagePath: result.storagePath,
+    uploadUrl: result.uploadUrl,
   })
 }

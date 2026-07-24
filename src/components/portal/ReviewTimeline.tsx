@@ -39,7 +39,8 @@ import {
   Waveform,
 } from '@/components/audio/player/Waveform'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
-import { uploadFile } from '@/lib/portal/uploadFile'
+import { formatFileSize } from '@/lib/formatFileSize'
+import { runUploadDance } from '@/lib/portal/uploadRunner'
 
 const COLLAPSE_REPLY_THRESHOLD = 3
 
@@ -53,14 +54,6 @@ interface PendingAttachment {
   progress: number
   storagePath?: string
   error?: string
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
 function createPendingAttachment(file: File): PendingAttachment {
@@ -582,35 +575,17 @@ export function ReviewTimeline({
   const uploadPendingAttachment = useCallback(
     async (attachment: PendingAttachment) => {
       try {
-        const registerRes = await fetch(
-          `/api/portal/projects/${projectId}/comment-attachments/register`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: attachment.file.name,
-              fileSize: attachment.file.size,
-              mimeType: attachment.file.type || 'application/octet-stream',
-            }),
+        const { storagePath } = await runUploadDance({
+          projectId,
+          file: attachment.file,
+          kind: 'comment_attachment',
+          onProgress: (progress) => {
+            setPendingAttachments((prev) =>
+              prev.map((entry) =>
+                entry.id === attachment.id ? { ...entry, progress } : entry,
+              ),
+            )
           },
-        )
-        if (!registerRes.ok) {
-          const data = (await registerRes.json().catch(() => ({}))) as {
-            error?: string
-          }
-          throw new Error(data.error || 'Failed to register attachment')
-        }
-        const { storagePath, uploadUrl } = (await registerRes.json()) as {
-          storagePath: string
-          uploadUrl: string
-        }
-
-        await uploadFile(attachment.file, uploadUrl, (progress) => {
-          setPendingAttachments((prev) =>
-            prev.map((entry) =>
-              entry.id === attachment.id ? { ...entry, progress } : entry,
-            ),
-          )
         })
 
         setPendingAttachments((prev) =>

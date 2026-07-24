@@ -205,3 +205,83 @@ export async function getProjectOrApiNotFound<T extends object>(
 
   return { project: project as T }
 }
+
+type ProjectChildOptions = {
+  projectId: string
+  table:
+    | 'project_files'
+    | 'project_comments'
+    | 'project_comment_attachments'
+    | 'deliverables'
+  rowId: string
+  select: string
+  authorField?: 'uploaded_by' | 'author_id'
+  notFoundMessage?: string
+  projectSelect?: string
+}
+
+/**
+ * Project-child authorization: loads the project (soft-delete visibility per
+ * the caller's role), then the child row scoped to it, and derives the three
+ * facts every child handler used to hand-roll. RLS stays the enforcement
+ * floor (ADR-0002) — this is the app-layer defense-in-depth, deduplicated.
+ *
+ * `isOwner` is project ownership; `isAuthor` is row creatorship via
+ * `authorField` (false when the table has no author column). Forbidden (403)
+ * decisions stay in the handlers — they are domain gates, not row loading.
+ */
+export async function requireProjectChild<
+  Row extends object,
+  Project extends object = { id: string; owner_id: string },
+>(
+  auth: { supabase: ServerSupabaseClient; user: User; profile: AuthProfile | null },
+  {
+    projectId,
+    table,
+    rowId,
+    select,
+    authorField,
+    notFoundMessage = 'Not found',
+    projectSelect = 'id, owner_id',
+  }: ProjectChildOptions,
+): Promise<
+  | {
+      project: Project
+      row: Row
+      isStudio: boolean
+      isOwner: boolean
+      isAuthor: boolean
+    }
+  | ApiFailure
+> {
+  const { supabase, user, profile } = auth
+
+  const projectResult = await getProjectOrApiNotFound<
+    Project & { owner_id?: string }
+  >(supabase, projectId, projectSelect, profile?.role)
+  if ('response' in projectResult) {
+    return projectResult
+  }
+  const { project } = projectResult
+
+  const { data: row } = await supabase
+    .from(table)
+    .select(select)
+    .eq('id', rowId)
+    .eq('project_id', projectId)
+    .single()
+
+  if (!row) {
+    return { response: notFoundResponse(notFoundMessage) } as ApiFailure
+  }
+
+  return {
+    project: project as Project,
+    row: row as unknown as Row,
+    isStudio: profile?.role === 'studio',
+    isOwner: project.owner_id === user.id,
+    isAuthor: authorField
+      ? (row as unknown as Record<string, unknown>)[authorField] === user.id
+      : false,
+  }
+}

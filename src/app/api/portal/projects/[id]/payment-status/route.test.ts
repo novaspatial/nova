@@ -70,7 +70,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('returns 404 when the caller does not own the project', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ owner_id: 'user-other' }),
       error: null,
     })
@@ -85,7 +85,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('returns paid:true without calling Stripe when paid_at is set', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({
         status: 'uploading',
         paid_at: '2026-04-22T00:00:00Z',
@@ -108,7 +108,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('claims on the service client when the intent has succeeded', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -156,7 +156,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('claims when best-effort metadata (project_id) is absent', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -182,7 +182,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('returns 404 and never claims on metadata user_id mismatch', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -204,7 +204,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('returns 404 and never claims when the intent belongs to another project', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -229,7 +229,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ song_count: 8 }),
       error: null,
     })
@@ -254,7 +254,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
     // Forged re-attach: song_count omitted (nullable, unpinned by the fence).
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ song_count: null }),
       error: null,
     })
@@ -278,7 +278,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
     // Forged row claims a rush the paid intent never carried (#19).
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ add_ons: ['rush_48h'] }),
       error: null,
     })
@@ -304,7 +304,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
     // A forged-null row counts as 'none' and must fail against any paid
     // add-on set (the dangerous direction is understating the obligation
     // the other way — see route comment).
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ add_ons: null }),
       error: null,
     })
@@ -328,7 +328,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('claims when metadata add_ons matches the row in canonical order', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ add_ons: ['extra_revision', 'rush_48h'] }),
       error: null,
     })
@@ -360,7 +360,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('claims a pre-#19 intent (no add_ons metadata) against a legacy null row', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ add_ons: null }),
       error: null,
     })
@@ -391,7 +391,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -421,7 +421,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -452,15 +452,16 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('re-reads as the caller when the webhook won the claim race', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle
-      .mockResolvedValueOnce({
-        data: pendingProjectRow(),
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { status: 'uploading', paid_at: '2026-07-08T00:00:00Z' },
-        error: null,
-      })
+    // Preamble read (.single via getProjectOrApiNotFound), then the
+    // post-lost-race re-read (.maybeSingle).
+    projectsChain.single.mockResolvedValue({
+      data: pendingProjectRow(),
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading', paid_at: '2026-07-08T00:00:00Z' },
+      error: null,
+    })
     const serviceProjectsChain = createChainMock()
     // CAS lost: the fenced update matched no row.
     serviceProjectsChain.maybeSingle.mockResolvedValue({
@@ -490,7 +491,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('does not update when the intent is still pending', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow(),
       error: null,
     })
@@ -515,7 +516,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('finalizes consumption after winning the claim on a code order', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
       error: null,
     })
@@ -553,7 +554,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined)
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
       error: null,
     })
@@ -591,15 +592,16 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('finalizes consumption even when the webhook won the claim race', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle
-      .mockResolvedValueOnce({
-        data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { status: 'uploading', paid_at: '2026-07-15T00:00:00Z' },
-        error: null,
-      })
+    // Preamble read (.single via getProjectOrApiNotFound), then the
+    // post-lost-race re-read (.maybeSingle).
+    projectsChain.single.mockResolvedValue({
+      data: pendingProjectRow({ applied_coupon_code: 'SUMMER10' }),
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValue({
+      data: { status: 'uploading', paid_at: '2026-07-15T00:00:00Z' },
+      error: null,
+    })
     const serviceProjectsChain = createChainMock()
     serviceProjectsChain.maybeSingle.mockResolvedValue({
       data: null,
@@ -632,7 +634,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('the paid early-return re-attempts consumption for a code order', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({
         status: 'uploading',
         paid_at: '2026-07-15T00:00:00Z',
@@ -661,7 +663,7 @@ describe('GET /api/portal/projects/[id]/payment-status', () => {
 
   test('the paid early-return answers even without a service key', async () => {
     const projectsChain = createChainMock()
-    projectsChain.maybeSingle.mockResolvedValue({
+    projectsChain.single.mockResolvedValue({
       data: pendingProjectRow({
         status: 'uploading',
         paid_at: '2026-07-15T00:00:00Z',

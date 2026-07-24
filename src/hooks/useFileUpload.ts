@@ -2,16 +2,15 @@
 
 // Auto-uploading upload queue for an existing project. Adds are idempotent:
 // each item goes through `pending → uploading → (uploaded →) synced` once
-// and is then dropped from the list by `onComplete`. Stems / mixes use the
-// two-phase register → PUT → confirm flow against `/api/portal/projects/
-// [id]/files`; deliverables use a single-phase register → PUT to
-// `/api/portal/projects/[id]/deliverables`. There is no abort controller —
-// XHRs are implicitly cancelled when the component unmounts, and failures
-// leave the item in `failed` state for the user to retry or remove.
+// and is then dropped from the list by `onComplete`. The per-file wire
+// choreography lives in `runUploadDance`; this hook owns only the queue
+// state. There is no abort controller — XHRs are implicitly cancelled when
+// the component unmounts, and failures leave the item in `failed` state for
+// the user to retry or remove.
 
 import { useState, useCallback, useEffect } from 'react'
 import type { FileType, FileUploadItem } from '@/types/portal'
-import { uploadFile } from '@/lib/portal/uploadFile'
+import { runUploadDance } from '@/lib/portal/uploadRunner'
 
 export interface UseFileUploadOptions {
   projectId: string
@@ -58,10 +57,6 @@ export function useFileUpload({
     setUploading(true)
     const syncedIds: string[] = []
 
-    // NOTE: keep this loop's skip/state logic in sync with the handleSubmit loop
-    // in src/app/portal/new/NewProjectForm.tsx — the two paths intentionally
-    // stay separate (one uploads to an existing project, the other creates one
-    // and rolls back on failure), but drift between them has caused bugs.
     for (const item of files) {
       if (item.status !== 'pending') continue
 
@@ -70,76 +65,33 @@ export function useFileUpload({
       )
 
       try {
-        if (fileType === 'deliverable') {
-          const registerRes = await fetch(
-            `/api/portal/projects/${projectId}/deliverables`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: item.file.name, fileSize: item.file.size }),
-            },
-          )
-          if (!registerRes.ok) {
-            const data = await registerRes.json().catch(() => ({}))
-            throw new Error(data.error || 'Failed to register deliverable')
-          }
-          const { uploadUrl } = await registerRes.json()
-
-          await uploadFile(item.file, uploadUrl, (progress) => {
+        await runUploadDance({
+          projectId,
+          file: item.file,
+          kind: fileType,
+          onProgress: (progress) => {
             setFiles((prev) =>
               prev.map((f) => (f.id === item.id ? { ...f, progress } : f)),
             )
-          })
-
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id ? { ...f, status: 'synced' as const, progress: 100 } : f,
-            ),
-          )
-        } else {
-          const registerRes = await fetch(
-            `/api/portal/projects/${projectId}/files`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fileName: item.file.name,
-                fileSize: item.file.size,
-                mimeType: item.file.type || 'audio/x-wav',
-                fileType,
-              }),
-            },
-          )
-          if (!registerRes.ok) {
-            const data = await registerRes.json().catch(() => ({}))
-            throw new Error(data.error || 'Failed to register file')
-          }
-          const { fileId, uploadUrl } = await registerRes.json()
-
-          await uploadFile(item.file, uploadUrl, (progress) => {
+          },
+          onUploaded: () => {
             setFiles((prev) =>
-              prev.map((f) => (f.id === item.id ? { ...f, progress } : f)),
+              prev.map((f) =>
+                f.id === item.id
+                  ? { ...f, status: 'uploaded' as const, progress: 100 }
+                  : f,
+              ),
             )
-          })
+          },
+        })
 
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id ? { ...f, status: 'uploaded' as const, progress: 100 } : f,
-            ),
-          )
-
-          const confirmRes = await fetch(
-            `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
-            { method: 'POST' },
-          )
-          if (!confirmRes.ok) throw new Error('Failed to confirm upload')
-
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id ? { ...f, status: 'synced' as const } : f,
-            ),
-          )
-        }
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === item.id
+              ? { ...f, status: 'synced' as const, progress: 100 }
+              : f,
+          ),
+        )
 
         syncedIds.push(item.id)
       } catch (err) {

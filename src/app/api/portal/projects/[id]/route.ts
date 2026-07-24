@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   forbiddenResponse,
   getProjectOrApiNotFound,
-  notFoundResponse,
   requireApiProfile,
   requireApiStudioUser,
 } from '@/lib/auth/server'
@@ -150,17 +149,14 @@ export async function DELETE(
   }
   const { supabase, user, profile } = auth
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select(
-      'id, owner_id, client_deleted_at, studio_deleted_at, discount_applied, paid_at',
-    )
-    .eq('id', id)
-    .single()
-
-  if (!project) {
-    return notFoundResponse('Project not found')
+  const projectResult = await getProjectOrApiNotFound<{
+    id: string
+    owner_id: string
+  }>(supabase, id, 'id, owner_id', profile?.role)
+  if ('response' in projectResult) {
+    return projectResult.response
   }
+  const { project } = projectResult
 
   const canDelete = profile?.role === 'studio' || project.owner_id === user.id
 

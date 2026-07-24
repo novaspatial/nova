@@ -17,7 +17,7 @@ import type {
   PriceBreakdown,
   Project,
 } from '@/types/portal'
-import { uploadFile } from '@/lib/portal/uploadFile'
+import { runUploadDance } from '@/lib/portal/uploadRunner'
 import {
   ADD_ON_CENTS,
   ADD_ON_LABELS,
@@ -325,53 +325,27 @@ export function NewProjectForm({
         )
 
         try {
-          const registerRes = await fetch(
-            `/api/portal/projects/${projectId}/files`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fileName: item.file.name,
-                fileSize: item.file.size,
-                mimeType: item.file.type || 'audio/x-wav',
-                fileType: 'stem',
-              }),
+          await runUploadDance({
+            projectId,
+            file: item.file,
+            kind: 'stem',
+            onProgress: (progress) => {
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.id === item.id ? { ...f, progress } : f,
+                ),
+              )
             },
-          )
-          if (!registerRes.ok) {
-            const data = (await registerRes.json().catch(() => ({}))) as {
-              error?: string
-            }
-            throw new Error(data.error || 'Failed to register file')
-          }
-          const { fileId, uploadUrl } = (await registerRes.json()) as {
-            fileId: string
-            uploadUrl: string
-          }
-
-          await uploadFile(item.file, uploadUrl, (progress) => {
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.id === item.id ? { ...f, progress } : f,
-              ),
-            )
+            onUploaded: () => {
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.id === item.id
+                    ? { ...f, status: 'uploaded' as const, progress: 100 }
+                    : f,
+                ),
+              )
+            },
           })
-
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.id === item.id
-                ? { ...f, status: 'uploaded' as const, progress: 100 }
-                : f,
-            ),
-          )
-
-          const confirmRes = await fetch(
-            `/api/portal/projects/${projectId}/files/${fileId}/confirm`,
-            { method: 'POST' },
-          )
-          if (!confirmRes.ok) {
-            throw new Error('Failed to confirm file upload')
-          }
 
           setFiles((prev) =>
             prev.map((f) =>

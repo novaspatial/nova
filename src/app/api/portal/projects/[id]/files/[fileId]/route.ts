@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { getProjectOrApiNotFound, requireApiProfile } from '@/lib/auth/server'
+import { requireApiProfile, requireProjectChild } from '@/lib/auth/server'
+import { removeStorageObjects } from '@/lib/portal/storage'
 import { canUploadStems, type ProjectStatus } from '@/lib/portal/workflow'
 
 export async function DELETE(
@@ -11,43 +12,38 @@ export async function DELETE(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user, profile } = auth
+  const { supabase } = auth
 
-  const projectResult = await getProjectOrApiNotFound<{
-    id: string
-    status: ProjectStatus
-  }>(supabase, projectId, 'id, status', profile?.role)
-  if ('response' in projectResult) {
-    return projectResult.response
+  const childResult = await requireProjectChild<
+    { storage_path: string; uploaded_by: string },
+    { id: string; owner_id: string; status: ProjectStatus }
+  >(auth, {
+    projectId,
+    table: 'project_files',
+    rowId: fileId,
+    select: 'storage_path, uploaded_by',
+    authorField: 'uploaded_by',
+    notFoundMessage: 'File not found',
+    projectSelect: 'id, owner_id, status',
+  })
+  if ('response' in childResult) {
+    return childResult.response
   }
-  const { project } = projectResult
+  const { project, row: file, isStudio, isAuthor } = childResult
 
-  const { data: file } = await supabase
-    .from('project_files')
-    .select('storage_path, uploaded_by')
-    .eq('id', fileId)
-    .eq('project_id', projectId)
-    .single()
-
-  if (!file) {
-    return NextResponse.json({ error: 'File not found' }, { status: 404 })
-  }
-
-  const isStudio = profile?.role === 'studio'
-  const isOwner = file.uploaded_by === user.id
   // Clients may reshape their upload only while stems are still uploadable.
-  const clientCanDelete = isOwner && canUploadStems(project.status)
+  const clientCanDelete = isAuthor && canUploadStems(project.status)
 
   if (!isStudio && !clientCanDelete) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { error: storageError } = await supabase.storage
-    .from('project-uploads')
-    .remove([file.storage_path])
+  const { error: storageError } = await removeStorageObjects(supabase, 'stem', [
+    file.storage_path,
+  ])
 
   if (storageError) {
-    return NextResponse.json({ error: storageError.message }, { status: 500 })
+    return NextResponse.json({ error: storageError }, { status: 500 })
   }
 
   const { error: dbError } = await supabase

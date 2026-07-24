@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import {
-  getProjectOrApiNotFound,
-  requireApiProfile,
-} from '@/lib/auth/server'
+import { requireApiProfile, requireProjectChild } from '@/lib/auth/server'
+import { removeStorageObjects } from '@/lib/portal/storage'
 
 export async function DELETE(
   _request: NextRequest,
@@ -13,31 +11,24 @@ export async function DELETE(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user, profile } = auth
+  const { supabase } = auth
 
-  const projectResult = await getProjectOrApiNotFound<{ id: string }>(
-    supabase,
+  const childResult = await requireProjectChild<{
+    id: string
+    author_id: string
+  }>(auth, {
     projectId,
-    'id',
-    profile?.role,
-  )
-  if ('response' in projectResult) {
-    return projectResult.response
+    table: 'project_comments',
+    rowId: commentId,
+    select: 'id, author_id',
+    authorField: 'author_id',
+    notFoundMessage: 'Comment not found',
+  })
+  if ('response' in childResult) {
+    return childResult.response
   }
+  const { isStudio, isAuthor } = childResult
 
-  const { data: comment } = await supabase
-    .from('project_comments')
-    .select('id, author_id')
-    .eq('id', commentId)
-    .eq('project_id', projectId)
-    .single()
-
-  if (!comment) {
-    return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
-  }
-
-  const isStudio = profile?.role === 'studio'
-  const isAuthor = comment.author_id === user.id
   if (!isStudio && !isAuthor) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -82,9 +73,7 @@ export async function DELETE(
   }
 
   const storagePaths = (attachmentRows ?? []).map((row) => row.storage_path)
-  if (storagePaths.length > 0) {
-    await supabase.storage.from('project-uploads').remove(storagePaths)
-  }
+  await removeStorageObjects(supabase, 'comment_attachment', storagePaths)
 
   return new NextResponse(null, { status: 204 })
 }

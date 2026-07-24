@@ -4,6 +4,7 @@ import {
   getProjectOrNotFound,
   requirePageProfile,
 } from '@/lib/auth/server'
+import { signedUrlFor } from '@/lib/portal/storage'
 import { ListenView } from './ListenView'
 import type {
   ProjectComment,
@@ -59,18 +60,16 @@ export default async function ListenPage({
   const audioFiles = await Promise.all(
     (files || []).map(async (file) => {
       const [streamResult, downloadResult] = await Promise.all([
-        supabase.storage
-          .from('project-uploads')
-          .createSignedUrl(file.storage_path, 3600),
-        supabase.storage
-          .from('project-uploads')
-          .createSignedUrl(file.storage_path, 3600, { download: file.file_name }),
+        signedUrlFor(supabase, 'mix', file.storage_path),
+        signedUrlFor(supabase, 'mix', file.storage_path, {
+          downloadName: file.file_name,
+        }),
       ])
 
       return {
         ...file,
-        signedUrl: streamResult.data?.signedUrl ?? null,
-        downloadUrl: downloadResult.data?.signedUrl ?? null,
+        signedUrl: 'url' in streamResult ? streamResult.url : null,
+        downloadUrl: 'url' in downloadResult ? downloadResult.url : null,
       }
     }),
   )
@@ -82,19 +81,15 @@ export default async function ListenPage({
       const signed = await Promise.all(
         rawAttachments.map(async (attachment) => {
           const [viewResult, downloadResult] = await Promise.all([
-            supabase.storage
-              .from('project-uploads')
-              .createSignedUrl(attachment.storage_path, 3600),
-            supabase.storage
-              .from('project-uploads')
-              .createSignedUrl(attachment.storage_path, 3600, {
-                download: attachment.file_name,
-              }),
+            signedUrlFor(supabase, 'comment_attachment', attachment.storage_path),
+            signedUrlFor(supabase, 'comment_attachment', attachment.storage_path, {
+              downloadName: attachment.file_name,
+            }),
           ])
           return {
             ...attachment,
-            view_url: viewResult.data?.signedUrl ?? null,
-            download_url: downloadResult.data?.signedUrl ?? null,
+            view_url: 'url' in viewResult ? viewResult.url : null,
+            download_url: 'url' in downloadResult ? downloadResult.url : null,
           }
         }),
       )

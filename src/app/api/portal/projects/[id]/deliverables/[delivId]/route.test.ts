@@ -43,45 +43,8 @@ describe('DELETE /api/portal/projects/[id]/deliverables/[delivId]', () => {
     expect(res.status).toBe(403)
   })
 
-  test('returns 404 when project not visible to studio', async () => {
-    const profileChain = createChainMock({
-      data: { id: 'studio-1', role: 'studio' },
-      error: null,
-    })
-    const projectsChain = createChainMock({ data: null, error: null })
-    const supabase = createSupabaseMock({
-      fromMocks: { profiles: profileChain, projects: projectsChain },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest(undefined, { method: 'DELETE' })
-    const res = await DELETE(req as NextRequest, makeParams('proj-1', 'd-1'))
-    expect(res.status).toBe(404)
-  })
-
-  test('returns 404 when deliverable missing', async () => {
-    const profileChain = createChainMock({
-      data: { id: 'studio-1', role: 'studio' },
-      error: null,
-    })
-    const projectsChain = createChainMock({
-      data: { id: 'proj-1' },
-      error: null,
-    })
-    const deliverablesChain = createChainMock({ data: null, error: null })
-    const supabase = createSupabaseMock({
-      fromMocks: {
-        profiles: profileChain,
-        projects: projectsChain,
-        deliverables: deliverablesChain,
-      },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest(undefined, { method: 'DELETE' })
-    const res = await DELETE(req as NextRequest, makeParams('proj-1', 'd-1'))
-    expect(res.status).toBe(404)
-  })
+  // Project-visibility and missing-row 404s are requireProjectChild
+  // choreography, covered once in src/lib/auth/server.test.ts (#37).
 
   test('returns 500 when storage.remove fails and skips DB delete', async () => {
     const profileChain = createChainMock({

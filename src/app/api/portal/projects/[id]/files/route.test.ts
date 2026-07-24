@@ -69,6 +69,30 @@ describe('POST /api/portal/projects/[id]/files', () => {
     expect(body.error).toBe('fileName, fileSize, and mimeType are required')
   })
 
+  test('returns 400 for a fileType outside stem/master_ref/mix', async () => {
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', owner_id: 'user-1', status: 'uploading' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    // 'deliverable' rows belong to the deliverables route, not project_files.
+    const req = createMockRequest({
+      fileName: 'track.wav',
+      fileSize: 2048,
+      mimeType: 'audio/wav',
+      fileType: 'deliverable',
+    })
+    const res = await POST(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(400)
+
+    const body = await res.json()
+    expect(body.error).toBe('Invalid fileType')
+  })
+
   test('registers file and returns signed upload URL', async () => {
     const projectsChain = createChainMock({
       data: { id: 'proj-1', owner_id: 'user-1', status: 'uploading' },
@@ -111,84 +135,9 @@ describe('POST /api/portal/projects/[id]/files', () => {
     expect(supabase.storage.from).toHaveBeenCalledWith('project-uploads')
   })
 
-  test('constructs storage path from owner_id/project_id/filename', async () => {
-    const projectsChain = createChainMock({
-      data: { id: 'proj-42', owner_id: 'owner-99', status: 'uploading' },
-      error: null,
-    })
-    const filesChain = createChainMock({
-      data: { id: 'file-1' },
-      error: null,
-    })
-    const signedUploadMock = vi.fn().mockResolvedValue({
-      data: { signedUrl: 'https://example.com/upload' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: {
-        projects: projectsChain,
-        project_files: filesChain,
-      },
-      storageMocks: {
-        'project-uploads': {
-          createSignedUploadUrl: signedUploadMock,
-        },
-      },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({
-      fileName: 'bass.wav',
-      fileSize: 2048,
-      mimeType: 'audio/wav',
-    })
-    await POST(req as NextRequest, makeParams('proj-42'))
-
-    // Verify the storage path follows {owner_id}/{project_id}/{filename}
-    expect(signedUploadMock).toHaveBeenCalledWith(
-      'owner-99/proj-42/bass.wav',
-      { upsert: false }
-    )
-  })
-
-  test('does not insert a project_files row when the signed URL call fails', async () => {
-    const projectsChain = createChainMock({
-      data: { id: 'proj-1', owner_id: 'owner-1', status: 'uploading' },
-      error: null,
-    })
-    const filesChain = createChainMock({
-      data: { id: 'file-1' },
-      error: null,
-    })
-    const signedUploadMock = vi.fn().mockResolvedValue({
-      data: null,
-      error: { message: 'The resource already exists' },
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: {
-        projects: projectsChain,
-        project_files: filesChain,
-      },
-      storageMocks: {
-        'project-uploads': {
-          createSignedUploadUrl: signedUploadMock,
-        },
-      },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const req = createMockRequest({
-      fileName: 'dup.wav',
-      fileSize: 2048,
-      mimeType: 'audio/wav',
-    })
-    const res = await POST(req as NextRequest, makeParams('proj-1'))
-
-    expect(res.status).toBe(500)
-    const body = await res.json()
-    expect(body.error).toBe('The resource already exists')
-    expect(filesChain.insert).not.toHaveBeenCalled()
-  })
+  // Path templates, URL-before-insert ordering, and collision behavior are
+  // createUpload choreography, covered once in src/lib/portal/storage.test.ts
+  // (#35).
 
   test('returns 402 when stem upload is attempted on a pending_payment project', async () => {
     const projectsChain = createChainMock({

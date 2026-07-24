@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { notFoundResponse, requireApiUser } from '@/lib/auth/server'
+import {
+  getProjectOrApiNotFound,
+  notFoundResponse,
+  requireApiUser,
+} from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { claimProjectPayment } from '@/lib/portal/paymentClaim'
@@ -18,7 +22,6 @@ type ProjectRow = {
   status: ProjectStatus
   paid_at: string | null
   stripe_payment_intent_id: string | null
-  client_deleted_at: string | null
   song_count: number | null
   add_ons: AddOn[] | null
   applied_coupon_code: string | null
@@ -63,20 +66,18 @@ export async function GET(
   }
   const { supabase, user } = auth
 
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select(
-      'id, owner_id, status, paid_at, stripe_payment_intent_id, client_deleted_at, song_count, add_ons, applied_coupon_code',
-    )
-    .eq('id', id)
-    .maybeSingle<ProjectRow>()
+  // viewerRole omitted = client-side visibility (client_deleted_at), matching
+  // this poller's session-only auth. Ownership stays an explicit 404 below.
+  const projectResult = await getProjectOrApiNotFound<ProjectRow>(
+    supabase,
+    id,
+    'id, owner_id, status, paid_at, stripe_payment_intent_id, song_count, add_ons, applied_coupon_code',
+  )
+  if ('response' in projectResult) {
+    return projectResult.response
+  }
+  const { project } = projectResult
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-  if (!project || project.client_deleted_at) {
-    return notFoundResponse('Project not found')
-  }
   if (project.owner_id !== user.id) {
     return notFoundResponse('Project not found')
   }
