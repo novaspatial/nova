@@ -79,7 +79,7 @@ describe('POST /api/portal/projects/[id]/files', () => {
     })
     mockCreateClient.mockResolvedValue(supabase)
 
-    // 'deliverable' rows belong to the deliverables route, not project_files.
+    // 'deliverable' is a removed legacy value — it must stay rejected.
     const req = createMockRequest({
       fileName: 'track.wav',
       fileSize: 2048,

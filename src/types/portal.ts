@@ -9,7 +9,7 @@ export type ProjectStatus =
   | 'approved'
   | 'delivered'
 
-export type FileType = 'stem' | 'master_ref' | 'mix' | 'deliverable'
+export type FileType = 'stem' | 'master_ref' | 'mix'
 
 export type UploadStatus = 'pending' | 'uploading' | 'uploaded' | 'failed'
 
@@ -20,8 +20,6 @@ export interface FileUploadItem {
   status: 'pending' | 'uploading' | 'uploaded' | 'syncing' | 'synced' | 'failed'
   error?: string
 }
-
-export type DeliverableFormat = 'adm_bwf' | 'binaural_wav' | 'dolby_atmos_adm'
 
 export type UserRole = 'client' | 'studio'
 
@@ -212,16 +210,4 @@ export interface ProjectComment {
     role: UserRole
   }
   attachments?: ProjectCommentAttachment[]
-}
-
-export interface Deliverable {
-  id: string
-  project_id: string
-  file_name: string
-  file_size: number
-  storage_path: string
-  format: DeliverableFormat | null
-  approved_at: string | null
-  approved_by: string | null
-  created_at: string
 }

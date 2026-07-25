@@ -3,7 +3,6 @@
 // NewProjectForm, ReviewTimeline). One dance per file:
 //
 //   stem/master_ref/mix   register → PUT → confirm   (two-phase)
-//   deliverable           register → PUT             (single-phase)
 //   comment_attachment    register → PUT             (row created later by
 //                                                     the listen POST)
 //
@@ -16,12 +15,10 @@ export type UploadDanceKind =
   | 'stem'
   | 'master_ref'
   | 'mix'
-  | 'deliverable'
   | 'comment_attachment'
 
 export type UploadDanceResult = {
   fileId?: string
-  deliverableId?: string
   storagePath?: string
 }
 
@@ -65,19 +62,6 @@ export async function runUploadDance({
   const base = `/api/portal/projects/${projectId}`
   const noop = () => {}
   const reportProgress = onProgress ?? noop
-
-  if (kind === 'deliverable') {
-    const { deliverableId, uploadUrl } = await register(
-      `${base}/deliverables`,
-      { fileName: file.name, fileSize: file.size },
-      'Failed to register deliverable',
-    )
-
-    await uploadFile(file, uploadUrl, reportProgress)
-    onUploaded?.()
-
-    return { deliverableId }
-  }
 
   if (kind === 'comment_attachment') {
     const { storagePath, uploadUrl } = await register(

@@ -421,8 +421,8 @@ describe('auth server helpers', () => {
             data: { id: 'proj-1', owner_id: 'user-1' },
             error: null,
           }),
-          deliverables: createChainMock({
-            data: { storage_path: 'o/p/master.wav' },
+          project_comment_attachments: createChainMock({
+            data: { storage_path: 'o/p/comments/u/note.pdf' },
             error: null,
           }),
         },
@@ -432,8 +432,8 @@ describe('auth server helpers', () => {
         makeAuth(supabase, 'studio', 'user-1'),
         {
           projectId: 'proj-1',
-          table: 'deliverables',
-          rowId: 'd-1',
+          table: 'project_comment_attachments',
+          rowId: 'a-1',
           select: 'storage_path',
         },
       )

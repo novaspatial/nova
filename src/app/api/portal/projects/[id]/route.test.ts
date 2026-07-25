@@ -49,7 +49,7 @@ describe('GET /api/portal/projects/[id]', () => {
     expect(res.status).toBe(404)
   })
 
-  test('returns project with files, comments, and deliverables', async () => {
+  test('returns project with files and comments', async () => {
     const projectData = {
       id: 'proj-1',
       title: 'Test',
@@ -67,17 +67,12 @@ describe('GET /api/portal/projects/[id]', () => {
       data: [{ id: 'comment-1', body: 'Great mix' }],
       error: null,
     })
-    const deliverablesChain = createChainMock({
-      data: [],
-      error: null,
-    })
 
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
         project_files: filesChain,
         project_comments: commentsChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -90,7 +85,6 @@ describe('GET /api/portal/projects/[id]', () => {
     expect(body.id).toBe('proj-1')
     expect(body.files).toHaveLength(1)
     expect(body.comments).toHaveLength(1)
-    expect(body.deliverables).toHaveLength(0)
   })
 
   test('falls back to empty arrays when related queries fail', async () => {
@@ -106,17 +100,12 @@ describe('GET /api/portal/projects/[id]', () => {
       data: [],
       error: null,
     })
-    const deliverablesChain = createChainMock({
-      data: [],
-      error: null,
-    })
 
     const supabase = createSupabaseMock({
       fromMocks: {
         projects: projectsChain,
         project_files: filesChain,
         project_comments: commentsChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -131,7 +120,6 @@ describe('GET /api/portal/projects/[id]', () => {
       status: 'review',
       files: [],
       comments: [],
-      deliverables: [],
     })
   })
 })
@@ -401,11 +389,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const uploadsBucket = {
-      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-    }
-    const deliverablesBucket = {
       remove: vi.fn().mockResolvedValue({ data: null, error: null }),
     }
     const supabase = createSupabaseMock({
@@ -414,11 +398,9 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
       storageMocks: {
         'project-uploads': uploadsBucket,
-        'project-deliverables': deliverablesBucket,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -468,14 +450,12 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const supabase = createSupabaseMock({
       user: { id: 'studio-1', email: 'studio@test.com' },
       fromMocks: {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -533,7 +513,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const rpcMock = vi
       .fn()
       .mockResolvedValue({ data: null, error: null })
@@ -543,7 +522,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
       rpc: rpcMock,
     })
@@ -597,7 +575,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const sessionRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
@@ -606,7 +583,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
       rpc: sessionRpc,
     })
@@ -673,7 +649,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
       user: { id: 'user-1', email: 'client@test.com' },
@@ -681,7 +656,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -730,7 +704,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: { message: 'JSON object requested, multiple (or no) rows returned' },
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const deliverablesChain = createChainMock({ data: [], error: null })
     const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
       user: { id: 'user-1', email: 'client@test.com' },
@@ -738,7 +711,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
       rpc: rpcMock,
     })
@@ -783,14 +755,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
       data: [{ storage_path: 'user-1/proj-1/stems.wav' }],
       error: null,
     })
-    const deliverablesChain = createChainMock({
-      data: [{ storage_path: 'user-1/proj-1/final.wav' }],
-      error: null,
-    })
     const uploadsBucket = {
-      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-    }
-    const deliverablesBucket = {
       remove: vi.fn().mockResolvedValue({ data: null, error: null }),
     }
     const supabase = createSupabaseMock({
@@ -799,11 +764,9 @@ describe('DELETE /api/portal/projects/[id]', () => {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
       storageMocks: {
         'project-uploads': uploadsBucket,
-        'project-deliverables': deliverablesBucket,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -820,9 +783,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
     expect(projectsChain.delete).toHaveBeenCalledTimes(1)
     expect(uploadsBucket.remove).toHaveBeenCalledWith([
       'user-1/proj-1/stems.wav',
-    ])
-    expect(deliverablesBucket.remove).toHaveBeenCalledWith([
-      'user-1/proj-1/final.wav',
     ])
   })
 
@@ -863,14 +823,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
       data: [{ storage_path: 'client-1/proj-1/comments/c1/note.png' }],
       error: null,
     })
-    const deliverablesChain = createChainMock({
-      data: [{ storage_path: 'client-1/proj-1/final.wav' }],
-      error: null,
-    })
     const uploadsBucket = {
-      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-    }
-    const deliverablesBucket = {
       remove: vi.fn().mockResolvedValue({ data: null, error: null }),
     }
     const supabase = createSupabaseMock({
@@ -880,11 +833,9 @@ describe('DELETE /api/portal/projects/[id]', () => {
         projects: projectsChain,
         project_files: filesChain,
         project_comment_attachments: attachmentsChain,
-        deliverables: deliverablesChain,
       },
       storageMocks: {
         'project-uploads': uploadsBucket,
-        'project-deliverables': deliverablesBucket,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -896,9 +847,6 @@ describe('DELETE /api/portal/projects/[id]', () => {
     expect(uploadsBucket.remove).toHaveBeenCalledWith([
       'client-1/proj-1/stems.wav',
       'client-1/proj-1/comments/c1/note.png',
-    ])
-    expect(deliverablesBucket.remove).toHaveBeenCalledWith([
-      'client-1/proj-1/final.wav',
     ])
   })
 
@@ -930,17 +878,12 @@ describe('DELETE /api/portal/projects/[id]', () => {
       data: null,
       error: { message: 'Files lookup failed' },
     })
-    const deliverablesChain = createChainMock({
-      data: [],
-      error: null,
-    })
     const supabase = createSupabaseMock({
       user: { id: 'user-1', email: 'client@test.com' },
       fromMocks: {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)
@@ -986,17 +929,12 @@ describe('DELETE /api/portal/projects/[id]', () => {
       data: [],
       error: null,
     })
-    const deliverablesChain = createChainMock({
-      data: [],
-      error: null,
-    })
     const supabase = createSupabaseMock({
       user: { id: 'user-1', email: 'client@test.com' },
       fromMocks: {
         profiles: profileChain,
         projects: projectsChain,
         project_files: filesChain,
-        deliverables: deliverablesChain,
       },
     })
     mockCreateClient.mockResolvedValue(supabase)

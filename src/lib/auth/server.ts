@@ -212,7 +212,6 @@ type ProjectChildOptions = {
     | 'project_files'
     | 'project_comments'
     | 'project_comment_attachments'
-    | 'deliverables'
   rowId: string
   select: string
   authorField?: 'uploaded_by' | 'author_id'

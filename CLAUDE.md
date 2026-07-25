@@ -6,7 +6,7 @@ NovaSpatial is a Next.js 15 (App Router) + React 19 site and **client portal** f
 
 - **Architecture:** see `ARCHITECTURE.md` (system structure, data flow, auth, storage, payments).
 - **Domain language:** see `CONTEXT.md` (glossary — use these exact terms). Key decisions: `docs/adr/`.
-- **Audio is native to Supabase** (no Samply — it was removed). `project_files.file_type` is `stem | master_ref | mix | deliverable`.
+- **Audio is native to Supabase** (no Samply — it was removed). `project_files.file_type` is `stem | master_ref | mix`.
 
 ## Commands
 

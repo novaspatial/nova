@@ -52,7 +52,6 @@ Route handlers under `src/app/api`. Each file exports `GET`/`POST`/`PATCH`/`DELE
 | Checkout & pay | `POST /api/portal/projects/checkout`; `POST /api/stripe/webhook`; `GET /api/portal/projects/[id]/payment-status` |
 | Files | `POST /api/portal/projects/[id]/files`; `POST …/files/[fileId]/confirm`; `GET …/files/[fileId]/download`; `DELETE …/files/[fileId]`; `POST …/finish-upload` |
 | Comments | `GET/POST /api/portal/projects/[id]/listen` (list/create comments); `DELETE …/comments/[commentId]`; `POST …/comment-attachments/register`; `GET …/comment-attachments/[attachmentId]/download` |
-| Deliverables | `GET/POST /api/portal/projects/[id]/deliverables`; `GET …/deliverables/[delivId]/download`; `DELETE …/deliverables/[delivId]` |
 | Archive | `POST/DELETE /api/portal/projects/[id]/archive` |
 | Blog admin | `POST /api/blog/admin/blog/posts`; `PATCH/DELETE …/posts/[id]` |
 
@@ -77,7 +76,7 @@ Three clients live in `src/lib/supabase/`, picked by execution context:
 
 **Authorization is RLS-first** (see `docs/adr/0002-rls-first-authorization.md`). Postgres Row Level Security in the migrations is the enforcement floor; API role checks are defense-in-depth and for clean error codes. Broad strokes:
 - **profiles** — anyone can read; you can update only your own.
-- **projects / project_files / project_comments / deliverables** — visible to the owning Client and all Studio; Studio-only writes for status and deliverables; comment INSERT/DELETE scoped to author-or-Studio.
+- **projects / project_files / project_comments** — visible to the owning Client and all Studio; Studio-only writes for status; comment INSERT/DELETE scoped to author-or-Studio.
 
 - **archive (`projects.archived_at`)** — **studio-only write, enforced at the DB level** by the `projects_enforce_studio_only_archive` BEFORE UPDATE trigger (migration `20260625`): any change to `archived_at` is rejected unless the caller is a Studio profile. Postgres RLS can't compare OLD/NEW and Supabase clients/studio share the one `authenticated` role, so a trigger — not a column policy — is the enforcement floor. Read is intentionally **not** restricted: archiving doesn't change what the Client sees (archived projects stay visible to their owner; the `.is('archived_at', null)` filter is studio-dashboard-only), so the timestamp carries no Client-relevant state and splitting it into a separate table to hide one column from the shared role isn't worth the cost.
 - **contact_inquiries** — public INSERT, no public SELECT.
@@ -87,10 +86,9 @@ API error codes are consistent: `400` validation, `401` unauthenticated, `403` w
 
 ## Storage
 
-Three buckets (defined and resized in the `2026030x`/`20260425`/`20260428` migrations):
+Two buckets (defined and resized in the `2026030x`/`20260425`/`20260428` migrations; the dormant `project-deliverables` bucket was removed in `20260725`):
 
 - **project-uploads** (private, 5 GiB/file) — stems, mixes, and comment attachments. Paths: `{owner}/{project}/{file}` (stems), `{owner}/{project}/mixes/{file}` (mixes), `{owner}/{project}/comments/{uuid}/{file}` (attachments).
-- **project-deliverables** (private, 5 GiB/file) — approved final files.
 - **blog-assets** (public, 20 MB, images only) — Studio-only writes.
 
 Large audio never streams through the API. Uploads use a **register → PUT → confirm** dance with signed upload URLs; downloads/playback use short-lived signed download URLs. See `docs/adr/0003-signed-url-direct-storage.md`.
@@ -119,7 +117,7 @@ See `docs/adr/0004-stripe-payment-gating.md`.
 3. **Hand over** — Client uploads stems on `/upload` (register → PUT → confirm), then `finish-upload` moves the Project to `in_review`.
 4. **Mix** — Studio reviews, uploads Mixes (same upload dance, `file_type: 'mix'`), and PATCHes status toward `review`.
 5. **Review** — On `/listen`, the Client plays Mixes (signed streaming URLs) and leaves timestamped Comments tied to a `track_id`, optionally with attachments. Studio iterates through `revision`.
-6. **Deliver** — Studio sets `approved` (with a delivery format), uploads Deliverables, and sets `delivered`; the Client downloads via signed URLs.
+6. **Deliver** — Studio sets `approved`, then `delivered`; the final Mix files on `/listen` are the Deliverables, downloaded via signed URLs.
 7. **Archive** — Studio archives the finished Project to clear it from the studio dashboard (reversible; studio-only write enforced at the DB level — see the archive note above). Archiving doesn't change the Client's view; full delete also removes storage objects.
 
 ## Status state machine

@@ -11,11 +11,8 @@ const paidProject = { id: 'proj-1' }
 describe('cleanupProjectArtifacts', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  test('sweeps files + comment attachments from uploads and deliverables from its bucket', async () => {
+  test('sweeps files + comment attachments from the uploads bucket', async () => {
     const uploadsBucket = {
-      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
-    }
-    const deliverablesBucket = {
       remove: vi.fn().mockResolvedValue({ data: null, error: null }),
     }
     const supabase = createSupabaseMock({
@@ -28,14 +25,9 @@ describe('cleanupProjectArtifacts', () => {
           data: [{ storage_path: 'user-1/proj-1/comments/c1/note.png' }],
           error: null,
         }),
-        deliverables: createChainMock({
-          data: [{ storage_path: 'user-1/proj-1/final.wav' }],
-          error: null,
-        }),
       },
       storageMocks: {
         'project-uploads': uploadsBucket,
-        'project-deliverables': deliverablesBucket,
       },
     })
 
@@ -47,9 +39,6 @@ describe('cleanupProjectArtifacts', () => {
       'user-1/proj-1/stems.wav',
       'user-1/proj-1/comments/c1/note.png',
     ])
-    expect(deliverablesBucket.remove).toHaveBeenCalledWith([
-      'user-1/proj-1/final.wav',
-    ])
   })
 
   test('skips empty buckets and never calls remove with no paths', async () => {
@@ -60,7 +49,6 @@ describe('cleanupProjectArtifacts', () => {
       fromMocks: {
         project_files: createChainMock({ data: [], error: null }),
         project_comment_attachments: createChainMock({ data: [], error: null }),
-        deliverables: createChainMock({ data: [], error: null }),
       },
       storageMocks: { 'project-uploads': uploadsBucket },
     })
@@ -78,7 +66,6 @@ describe('cleanupProjectArtifacts', () => {
       fromMocks: {
         project_files: createChainMock({ data: [], error: null }),
         project_comment_attachments: createChainMock({ data: [], error: null }),
-        deliverables: createChainMock({ data: [], error: null }),
       },
     })
 
@@ -95,7 +82,6 @@ describe('cleanupProjectArtifacts', () => {
           data: null,
           error: { message: 'Attachment lookup failed' },
         }),
-        deliverables: createChainMock({ data: [], error: null }),
       },
     })
 

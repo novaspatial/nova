@@ -18,10 +18,9 @@ export type StorageKind =
   | 'stem'
   | 'master_ref'
   | 'mix'
-  | 'deliverable'
   | 'comment_attachment'
 
-export type StorageBucket = 'project-uploads' | 'project-deliverables'
+export type StorageBucket = 'project-uploads'
 
 export const SIGNED_URL_TTL_SECONDS = 3600
 
@@ -30,21 +29,19 @@ export const SIGNED_URL_TTL_SECONDS = 3600
 // opaque storage PUT failure. Raising the bucket limit means raising this.
 export const MAX_UPLOAD_BYTES = 5 * 1024 ** 3
 
+// One bucket since 20260725 removed project-deliverables; the kind parameter
+// stays so a second bucket is a mapping change, not a call-site change.
 export function bucketFor(kind: StorageKind): StorageBucket {
-  return kind === 'deliverable' ? 'project-deliverables' : 'project-uploads'
+  void kind
+  return 'project-uploads'
 }
 
 export function tableFor(
   kind: StorageKind,
-): 'project_files' | 'deliverables' | 'project_comment_attachments' {
-  switch (kind) {
-    case 'deliverable':
-      return 'deliverables'
-    case 'comment_attachment':
-      return 'project_comment_attachments'
-    default:
-      return 'project_files'
-  }
+): 'project_files' | 'project_comment_attachments' {
+  return kind === 'comment_attachment'
+    ? 'project_comment_attachments'
+    : 'project_files'
 }
 
 export type StoragePathContext = {
@@ -104,15 +101,11 @@ export type UploadInput = {
  * syntax, and path-safety rejections are new.
  */
 export function validateUploadInput(
-  kind: StorageKind,
+  _kind: StorageKind,
   { fileName, fileSize, mimeType }: UploadInput,
 ): string | null {
-  const requiresMime = kind !== 'deliverable'
-
-  if (!fileName || !fileSize || (requiresMime && !mimeType)) {
-    return requiresMime
-      ? 'fileName, fileSize, and mimeType are required'
-      : 'fileName and fileSize are required'
+  if (!fileName || !fileSize || !mimeType) {
+    return 'fileName, fileSize, and mimeType are required'
   }
 
   if (typeof fileName !== 'string' || hasUnsafePathSegment(fileName)) {
@@ -131,7 +124,7 @@ export function validateUploadInput(
     return 'File exceeds the 5 GB upload limit'
   }
 
-  if (requiresMime && (typeof mimeType !== 'string' || !MIME_SYNTAX.test(mimeType))) {
+  if (typeof mimeType !== 'string' || !MIME_SYNTAX.test(mimeType)) {
     return 'mimeType must be a valid MIME type'
   }
 
@@ -150,8 +143,6 @@ export type CreateUploadContext = {
   mimeType?: unknown
   /** stems/master refs/mixes only — stamped into `uploaded_by`. */
   uploadedBy?: string
-  /** deliverables only. */
-  format?: string | null
 }
 
 export type CreateUploadResult =
@@ -170,8 +161,6 @@ export type CreateUploadResult =
  *  - stem/master_ref/mix: signed upload URL FIRST (a storage collision must
  *    not leave a dangling project_files row), then insert the row. Mixes
  *    upsert so the studio can re-upload updated mixes.
- *  - deliverable: insert the deliverables row first, then a signed URL with
- *    upsert.
  *  - comment_attachment: signed URL only under a fresh UUID — no row; the
  *    listen POST creates rows when the comment is submitted.
  */
@@ -218,48 +207,6 @@ export async function createUpload(
     projectId: ctx.projectId,
     fileName,
   })
-
-  if (kind === 'deliverable') {
-    const { data: deliverable, error: insertError } = await supabase
-      .from('deliverables')
-      .insert({
-        project_id: ctx.projectId,
-        file_name: fileName,
-        file_size: fileSize,
-        storage_path: storagePath,
-        format: ctx.format || null,
-      })
-      .select()
-      .single()
-
-    if (insertError || !deliverable) {
-      return {
-        ok: false,
-        status: 500,
-        error: insertError?.message || 'Failed to create deliverable',
-      }
-    }
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(bucketFor(kind))
-      .createSignedUploadUrl(storagePath, { upsert: true })
-
-    if (uploadError || !uploadData) {
-      console.error('[storage createUpload] Storage Signed URL Error:', uploadError)
-      return {
-        ok: false,
-        status: 500,
-        error: uploadError?.message || 'Failed to create upload URL',
-      }
-    }
-
-    return {
-      ok: true,
-      row: deliverable,
-      storagePath,
-      uploadUrl: uploadData.signedUrl,
-    }
-  }
 
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from(bucketFor(kind))
@@ -325,21 +272,17 @@ export async function signedUrlFor(
 }
 
 /**
- * Signed download URL for a child row. Uploads-bucket kinds force the stored
- * file name as the download name; deliverables sign plain (their existing
- * behavior — unifying is a #13 concern).
+ * Signed download URL for a child row, forcing the stored file name as the
+ * download name.
  */
 export async function signedDownload(
   supabase: AnySupabase,
   kind: StorageKind,
   file: { storage_path: string; file_name: string },
 ): Promise<{ url: string } | { error: string }> {
-  return signedUrlFor(
-    supabase,
-    kind,
-    file.storage_path,
-    kind === 'deliverable' ? undefined : { downloadName: file.file_name },
-  )
+  return signedUrlFor(supabase, kind, file.storage_path, {
+    downloadName: file.file_name,
+  })
 }
 
 export async function removeStorageObjects(
@@ -358,7 +301,7 @@ export async function removeStorageObjects(
 
 type DownloadRouteConfig = {
   kind: StorageKind
-  paramName: 'fileId' | 'delivId' | 'attachmentId'
+  paramName: 'fileId' | 'attachmentId'
   notFoundMessage: string
   /** 403 for non-studio callers, checked before any project load. */
   studioOnly?: boolean
@@ -409,21 +352,15 @@ function createDownloadRoute({
   }
 }
 
-// The three production download handlers. Route files re-export these so the
+// The two production download handlers. Route files re-export these so the
 // choreography is defined — and tested — exactly once. Only studio may pull
-// client stems through the files endpoint; deliverable and attachment
-// downloads are open to any project viewer.
+// client stems through the files endpoint; attachment downloads are open to
+// any project viewer.
 export const stemDownloadRoute = createDownloadRoute({
   kind: 'stem',
   paramName: 'fileId',
   notFoundMessage: 'File not found',
   studioOnly: true,
-})
-
-export const deliverableDownloadRoute = createDownloadRoute({
-  kind: 'deliverable',
-  paramName: 'delivId',
-  notFoundMessage: 'Deliverable not found',
 })
 
 export const attachmentDownloadRoute = createDownloadRoute({

@@ -38,7 +38,7 @@ export async function GET(
   const { project } = projectResult
 
   // Fetch related data
-  const [filesResult, commentsResult, deliverablesResult] = await Promise.all([
+  const [filesResult, commentsResult] = await Promise.all([
     supabase
       .from('project_files')
       .select('*')
@@ -51,18 +51,12 @@ export async function GET(
       )
       .eq('project_id', id)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('deliverables')
-      .select('*')
-      .eq('project_id', id)
-      .order('created_at', { ascending: true }),
   ])
 
   return NextResponse.json({
     ...project,
     files: filesResult.data || [],
     comments: commentsResult.data || [],
-    deliverables: deliverablesResult.data || [],
   })
 }
 
@@ -75,7 +69,7 @@ export async function PATCH(
   if ('response' in auth) {
     return auth.response
   }
-  const { supabase, user, profile } = auth
+  const { supabase, profile } = auth
 
   const projectResult = await getProjectOrApiNotFound<{
     id: string
@@ -87,30 +81,17 @@ export async function PATCH(
   const currentStatus = projectResult.project.status
 
   const body = await request.json()
-  const { status, deliverable_format } = body
+  const { status } = body
 
   if (!isProjectStatus(status)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
-  // Legality check must precede the deliverables side-write below, so an
-  // illegal jump to `approved` can't mutate deliverables first.
   if (!canTransition(currentStatus, status, 'studio')) {
     return NextResponse.json(
       { error: `Cannot change status from ${currentStatus} to ${status}` },
       { status: 400 },
     )
-  }
-
-  if (status === 'approved' && deliverable_format) {
-    const { error: fmtError } = await supabase
-      .from('deliverables')
-      .update({ format: deliverable_format, approved_at: new Date().toISOString(), approved_by: user.id })
-      .eq('project_id', id)
-
-    if (fmtError) {
-      return NextResponse.json({ error: fmtError.message }, { status: 500 })
-    }
   }
 
   // Compare-and-swap on the status read above: a concurrent transition
@@ -164,8 +145,8 @@ export async function DELETE(
     return forbiddenResponse()
   }
 
-  // Sweep storage objects (uploads, comment attachments, deliverables)
-  // before the row + children cascade.
+  // Sweep storage objects (uploads, comment attachments) before the row +
+  // children cascade.
   const { error: cleanupError } = await cleanupProjectArtifacts(supabase, project)
   if (cleanupError) {
     return NextResponse.json({ error: cleanupError }, { status: 500 })

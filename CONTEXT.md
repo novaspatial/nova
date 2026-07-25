@@ -61,11 +61,8 @@ A Studio-produced version of the Project's audio that the Client listens to and 
 _Avoid_: track (use "Mix" for the Studio version; reserve "Stem" for Client source), version.
 
 **Deliverable**:
-A final, approved mix file the Client downloads. Distinct from a Mix: a Deliverable is the signed-off output in a specific delivery format.
+A final Mix the Client downloads from the Listen page after sign-off. A business term, not a separate artifact: the signed-off Mix files *are* the deliverables (the dormant `deliverables` table was removed in `20260725`).
 _Avoid_: master, final, export.
-
-**Delivery format**:
-The technical format of a Deliverable: ADM Broadcast WAV for Dolby Atmos (`adm_bwf` / `dolby_atmos_adm`) or headphone stereo (`binaural_wav`). Unset until the Studio approves the Deliverable.
 
 ### Review & comments
 

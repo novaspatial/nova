@@ -131,27 +131,6 @@ describe('runUploadDance', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1) // no confirm
   })
 
-  test('deliverable: single-phase register → PUT, no confirm', async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse({ deliverableId: 'd-1', uploadUrl: 'https://put' }),
-    )
-
-    const result = await runUploadDance({
-      projectId: 'proj-1',
-      file: makeFile('master.wav'),
-      kind: 'deliverable',
-    })
-
-    expect(result).toEqual({ deliverableId: 'd-1' })
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/api/portal/projects/proj-1/deliverables',
-      expect.objectContaining({
-        body: JSON.stringify({ fileName: 'master.wav', fileSize: 4 }),
-      }),
-    )
-  })
-
   test('comment_attachment: returns the storage path for the later comment POST', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ storagePath: 'o/p/comments/u/note.pdf', uploadUrl: 'https://put' }),

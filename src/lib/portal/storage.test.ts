@@ -18,7 +18,6 @@ import {
   attachmentDownloadRoute,
   bucketFor,
   createUpload,
-  deliverableDownloadRoute,
   isCommentAttachmentPath,
   pathFor,
   removeStorageObjects,
@@ -35,8 +34,7 @@ function asClient(mock: SupabaseMock) {
 }
 
 describe('bucketFor / tableFor', () => {
-  test('deliverables live in their own bucket; everything else shares uploads', () => {
-    expect(bucketFor('deliverable')).toBe('project-deliverables')
+  test('every kind shares the uploads bucket', () => {
     for (const kind of ['stem', 'master_ref', 'mix', 'comment_attachment'] as const) {
       expect(bucketFor(kind)).toBe('project-uploads')
     }
@@ -46,7 +44,6 @@ describe('bucketFor / tableFor', () => {
     expect(tableFor('stem')).toBe('project_files')
     expect(tableFor('master_ref')).toBe('project_files')
     expect(tableFor('mix')).toBe('project_files')
-    expect(tableFor('deliverable')).toBe('deliverables')
     expect(tableFor('comment_attachment')).toBe('project_comment_attachments')
   })
 })
@@ -54,10 +51,9 @@ describe('bucketFor / tableFor', () => {
 describe('pathFor', () => {
   const ctx = { ownerId: 'owner-1', projectId: 'proj-1', fileName: 'kick.wav' }
 
-  test('stems, master refs, and deliverables use the flat template', () => {
+  test('stems and master refs use the flat template', () => {
     expect(pathFor('stem', ctx)).toBe('owner-1/proj-1/kick.wav')
     expect(pathFor('master_ref', ctx)).toBe('owner-1/proj-1/kick.wav')
-    expect(pathFor('deliverable', ctx)).toBe('owner-1/proj-1/kick.wav')
   })
 
   test('mixes get their subfolder', () => {
@@ -92,20 +88,14 @@ describe('validateUploadInput', () => {
 
   test('passes a well-formed input', () => {
     expect(validateUploadInput('stem', valid)).toBeNull()
-    expect(
-      validateUploadInput('deliverable', { ...valid, mimeType: undefined }),
-    ).toBeNull()
   })
 
-  test('keeps the exact presence messages per kind', () => {
+  test('keeps the exact presence message', () => {
     expect(validateUploadInput('stem', {})).toBe(
       'fileName, fileSize, and mimeType are required',
     )
     expect(validateUploadInput('comment_attachment', {})).toBe(
       'fileName, fileSize, and mimeType are required',
-    )
-    expect(validateUploadInput('deliverable', {})).toBe(
-      'fileName and fileSize are required',
     )
   })
 
@@ -132,14 +122,10 @@ describe('validateUploadInput', () => {
     ).toBeNull()
   })
 
-  test('rejects malformed MIME types where required', () => {
+  test('rejects malformed MIME types', () => {
     expect(validateUploadInput('stem', { ...valid, mimeType: 'not a mime' })).toBe(
       'mimeType must be a valid MIME type',
     )
-    // Deliverables never took a mimeType — still don't.
-    expect(
-      validateUploadInput('deliverable', { ...valid, mimeType: undefined }),
-    ).toBeNull()
   })
 })
 
@@ -254,62 +240,6 @@ describe('createUpload', () => {
     mockConsoleError.mockRestore()
   })
 
-  test('deliverable: inserts the row first, then signs with upsert', async () => {
-    const createSignedUploadUrl = vi.fn().mockResolvedValue({
-      data: { signedUrl: 'https://storage.example.com/put' },
-      error: null,
-    })
-    const deliverablesChain = createChainMock({
-      data: { id: 'd-1' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { deliverables: deliverablesChain },
-      storageMocks: { 'project-deliverables': { createSignedUploadUrl } },
-    })
-
-    const result = await createUpload(asClient(supabase), 'deliverable', {
-      ...ctx,
-      mimeType: undefined,
-      format: 'atmos',
-    })
-
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.row?.id).toBe('d-1')
-    }
-    expect(deliverablesChain.insert).toHaveBeenCalledWith({
-      project_id: 'proj-1',
-      file_name: 'kick.wav',
-      file_size: 1024,
-      storage_path: 'owner-1/proj-1/kick.wav',
-      format: 'atmos',
-    })
-    expect(createSignedUploadUrl).toHaveBeenCalledWith('owner-1/proj-1/kick.wav', {
-      upsert: true,
-    })
-  })
-
-  test('deliverable: a failed insert never reaches storage', async () => {
-    const createSignedUploadUrl = vi.fn()
-    const deliverablesChain = createChainMock({
-      data: null,
-      error: { message: 'insert boom' },
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: { deliverables: deliverablesChain },
-      storageMocks: { 'project-deliverables': { createSignedUploadUrl } },
-    })
-
-    const result = await createUpload(asClient(supabase), 'deliverable', {
-      ...ctx,
-      mimeType: undefined,
-    })
-
-    expect(result).toMatchObject({ ok: false, status: 500, error: 'insert boom' })
-    expect(createSignedUploadUrl).not.toHaveBeenCalled()
-  })
-
   test('comment_attachment: signs under a uuid without creating a row', async () => {
     const createSignedUploadUrl = vi.fn().mockResolvedValue({
       data: { signedUrl: 'https://storage.example.com/put' },
@@ -339,7 +269,7 @@ describe('createUpload', () => {
 })
 
 describe('signedDownload / signedUrlFor / removeStorageObjects', () => {
-  test('uploads-bucket kinds force the file name as the download name', async () => {
+  test('forces the stored file name as the download name', async () => {
     const createSignedUrl = vi.fn().mockResolvedValue({
       data: { signedUrl: 'https://example.com/signed' },
       error: null,
@@ -358,27 +288,6 @@ describe('signedDownload / signedUrlFor / removeStorageObjects', () => {
       'o/p/kick.wav',
       SIGNED_URL_TTL_SECONDS,
       { download: 'kick.wav' },
-    )
-  })
-
-  test('deliverables sign without a download name (existing behavior)', async () => {
-    const createSignedUrl = vi.fn().mockResolvedValue({
-      data: { signedUrl: 'https://example.com/signed' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      storageMocks: { 'project-deliverables': { createSignedUrl } },
-    })
-
-    await signedDownload(asClient(supabase), 'deliverable', {
-      storage_path: 'o/p/master.wav',
-      file_name: 'master.wav',
-    })
-
-    expect(createSignedUrl).toHaveBeenCalledWith(
-      'o/p/master.wav',
-      SIGNED_URL_TTL_SECONDS,
-      undefined,
     )
   })
 
@@ -402,18 +311,18 @@ describe('signedDownload / signedUrlFor / removeStorageObjects', () => {
   test('removeStorageObjects routes to the kind bucket and skips empty lists', async () => {
     const remove = vi.fn().mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
-      storageMocks: { 'project-deliverables': { remove } },
+      storageMocks: { 'project-uploads': { remove } },
     })
 
     expect(
-      await removeStorageObjects(asClient(supabase), 'deliverable', ['o/p/a.wav']),
+      await removeStorageObjects(asClient(supabase), 'stem', ['o/p/a.wav']),
     ).toEqual({ error: null })
     expect(remove).toHaveBeenCalledWith(['o/p/a.wav'])
 
     remove.mockClear()
-    expect(
-      await removeStorageObjects(asClient(supabase), 'deliverable', []),
-    ).toEqual({ error: null })
+    expect(await removeStorageObjects(asClient(supabase), 'stem', [])).toEqual({
+      error: null,
+    })
     expect(remove).not.toHaveBeenCalled()
   })
 })
@@ -567,41 +476,4 @@ describe('download route handlers', () => {
     })
   })
 
-  test('deliverables: clients may download, and no download name is forced', async () => {
-    const createSignedUrl = vi.fn().mockResolvedValue({
-      data: { signedUrl: 'https://example.com/signed' },
-      error: null,
-    })
-    const supabase = createSupabaseMock({
-      fromMocks: {
-        profiles: createChainMock({
-          data: { id: 'user-1', role: 'client' },
-          error: null,
-        }),
-        projects: createChainMock({
-          data: { id: 'proj-1', owner_id: 'user-1' },
-          error: null,
-        }),
-        deliverables: createChainMock({
-          data: { storage_path: 'o/p/master.wav', file_name: 'master.wav' },
-          error: null,
-        }),
-      },
-      storageMocks: { 'project-deliverables': { createSignedUrl } },
-    })
-    mockCreateClient.mockResolvedValue(supabase)
-
-    const res = await deliverableDownloadRoute(
-      createMockRequest() as NextRequest,
-      makeParams({ id: 'proj-1', delivId: 'd-1' }),
-    )
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.url).toBe('https://example.com/signed')
-    expect(createSignedUrl).toHaveBeenCalledWith(
-      'o/p/master.wav',
-      3600,
-      undefined,
-    )
-  })
 })
