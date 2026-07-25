@@ -35,6 +35,10 @@ drop policy "Project deliverables insertable by authenticated users" on storage.
 drop policy "Project deliverables updatable by authenticated users" on storage.objects;
 drop policy "Project deliverables deletable by authenticated users" on storage.objects;
 
+-- storage.protect_delete() blocks direct deletes unless this transaction-local
+-- opt-in is set; the guard above proved the bucket is empty, so no objects can
+-- be orphaned. `set local` reverts on commit.
+set local storage.allow_delete_query = 'true';
 delete from storage.buckets where id = 'project-deliverables';
 
 -- Narrow file_type to the values the portal writes (the 20260304 definition
