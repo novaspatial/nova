@@ -1012,7 +1012,7 @@ export function ReviewTimeline({
           type="button"
           onClick={() => setSectionOpen((v) => !v)}
           aria-expanded={sectionOpen}
-          className="group flex w-full min-w-0 flex-1 items-start justify-between gap-2.5 rounded-lg text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+          className="flex w-full min-w-0 flex-1 items-start rounded-lg text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -1029,12 +1029,6 @@ export function ReviewTimeline({
               )}
             </div>
           </div>
-          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-400 transition-colors duration-150 group-hover:border-violet-400/50 group-hover:bg-violet-500/20 group-hover:text-violet-300">
-            <ChevronDownIcon
-              className={`size-4 transition-transform duration-200 ${sectionOpen ? '' : '-rotate-90'}`}
-              aria-hidden="true"
-            />
-          </span>
         </button>
         {sectionOpen && (
           <div className="order-last w-full sm:order-0 sm:w-auto sm:shrink-0">
@@ -1082,6 +1076,18 @@ export function ReviewTimeline({
             )}
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setSectionOpen((v) => !v)}
+          aria-expanded={sectionOpen}
+          aria-label={sectionOpen ? 'Collapse comments' : 'Expand comments'}
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-400 transition-colors duration-150 hover:border-violet-400/50 hover:bg-violet-500/20 hover:text-violet-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+        >
+          <ChevronDownIcon
+            className={`size-4 transition-transform duration-200 ${sectionOpen ? '' : '-rotate-90'}`}
+            aria-hidden="true"
+          />
+        </button>
       </div>
 
       {sectionOpen && (
