@@ -1,0 +1,9 @@
+# Comment clock extraction
+
+Date: 2026-07-26
+
+Goal: make the Listen step's central interaction testable (#36). The comment clock — the off/armed/live/locked machine that captures the time range a comment refers to — lived as inline state in ReviewTimeline (1,332 lines, no test file), its transitions spread across a toggle handler, a keydown handler, a drag callback, 2 effects, and the submit path, each reaching into the player's anchors. It is now useCommentClock (7b43587), a hook beside its consumer, and ReviewTimeline shrank by 71 lines into a caller that renders state and reports events.
+
+The issue sketched arm/cancel/lockEnd/clear; the shipped interface is state, disabled, toggle, handleComposerKeyDown, handleAnchorBDrag, and clear. Per-verb methods would have made the component branch on state to pick one, re-smearing the transition table the extraction centralizes — instead the component reports what happened and the hook owns what it means, including the typing filter that marks the start and the disabled derivation from the selected track. The player parameter is CommentClockPlayer, a 7-member structural subset of the AudioProvider api — the full AudioPlayerAPI is unexported and a divergent type of that name already ships from player/types.ts — which also keeps the test fake trivial. Behaviour is unchanged, down to the 3-way reset asymmetry (locked-toggle and clear drop the selection; losing the track does not) and the rAF loop's deliberate re-base on every native timeupdate.
+
+29 tests cover the transition table, the disabled derivation, the keydown filter, and the rAF end-anchor advance (clamping, re-basing, cancellation) — the suite's first fake-timer/rAF usage, so this file is the pattern reference. Suite 860, lint and build green; no schema change, ADR-0001 untouched. useWaveformBinding still carries a near-identical rAF interpolation loop; a shared primitive is the obvious follow-on if either changes.
