@@ -95,7 +95,7 @@ export function PriceCalculator() {
             <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
               Price Your Mix
             </h2>
-            <p className="mt-2.5 text-sm leading-relaxed text-zinc-300 sm:mt-5 sm:text-base md:text-lg 3xl:mt-6 3xl:text-xl">
+            <p className="mt-2.5 text-base leading-relaxed text-zinc-300 sm:mt-5 sm:text-lg md:text-xl 3xl:mt-6 3xl:text-2xl">
               Per-song pricing with automatic album discounts. Configure your
               project and carry it straight into the portal.
             </p>
@@ -109,7 +109,7 @@ export function PriceCalculator() {
                 <div>
                   <label
                     htmlFor="calculator-song-count"
-                    className="block text-xs font-medium text-zinc-300 sm:text-sm"
+                    className="block text-sm font-medium text-zinc-300 sm:text-base"
                   >
                     Number of Songs
                   </label>
@@ -125,17 +125,17 @@ export function PriceCalculator() {
                 </div>
 
                 <fieldset>
-                  <legend className="block text-xs font-medium text-zinc-300 sm:text-sm">
+                  <legend className="block text-sm font-medium text-zinc-300 sm:text-base">
                     Add-ons
                   </legend>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 flex flex-col gap-2">
                     {ADD_ON_OPTIONS.map((option) => (
                       <Checkbox
                         key={option.value}
                         isSelected={addOns.includes(option.value)}
                         onChange={toggleAddOn(option.value)}
                       >
-                        <span className="text-xs text-zinc-300 sm:text-sm">
+                        <span className="text-sm text-zinc-300 sm:text-base">
                           {option.label}
                         </span>
                       </Checkbox>
@@ -153,14 +153,14 @@ export function PriceCalculator() {
                   />
                 )}
                 {welcomeWins && (
-                  <p className="text-xs text-violet-300 sm:text-sm">
-                    Includes code {WELCOME_COUPON_CODE} —{' '}
-                    {WELCOME_DISCOUNT_PCT}% off your first mix for new
+                  <p className="text-sm text-violet-300 sm:text-base">
+                    Includes code {WELCOME_COUPON_CODE} {' '}
+                    {WELCOME_DISCOUNT_PCT}% off your first mix for <br /> new
                     clients, verified at checkout.
                   </p>
                 )}
                 {base && !welcomeWins && (
-                  <p className="text-xs text-zinc-500 sm:text-sm">
+                  <p className="text-sm text-zinc-500 sm:text-base">
                     Your album discount already beats the {WELCOME_COUPON_CODE}{' '}
                     welcome offer.
                   </p>
@@ -171,7 +171,7 @@ export function PriceCalculator() {
             <div className="mt-7 flex justify-center sm:mt-9 3xl:mt-11">
               <Link
                 href={ctaHref}
-                className="group/cta relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-linear-to-r from-violet-950 via-purple-900 to-violet-950 px-5 py-2.5 text-xs font-semibold text-white ring-1 ring-violet-400/30 transition-all duration-300 hover:scale-[1.03] hover:ring-violet-300/50 hover:shadow-lg hover:shadow-violet-500/30 sm:px-7 sm:py-3 sm:text-sm 3xl:px-8 3xl:py-3.5 3xl:text-base"
+                className="group/cta relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-linear-to-r from-violet-950 via-purple-900 to-violet-950 px-5 py-2.5 text-sm font-semibold text-white ring-1 ring-violet-400/30 transition-all duration-300 hover:scale-[1.03] hover:ring-violet-300/50 hover:shadow-lg hover:shadow-violet-500/30 sm:px-7 sm:py-3 sm:text-base 3xl:px-8 3xl:py-3.5 3xl:text-lg"
               >
                 <span className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover/cta:translate-x-full" />
                 <span className="relative">Start Your Project</span>

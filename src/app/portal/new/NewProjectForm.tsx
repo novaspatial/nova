@@ -650,7 +650,7 @@ export function NewProjectForm({
         <legend className="block text-xs font-medium text-zinc-300 sm:text-sm">
           Add-ons <span className="text-zinc-500">(optional)</span>
         </legend>
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 flex flex-col gap-2">
           {ADD_ON_OPTIONS.map((option) => (
             <Checkbox
               key={option.value}
