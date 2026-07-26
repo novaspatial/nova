@@ -13,7 +13,6 @@ import {
   CODE_REJECTION_MESSAGES,
   finalizeDiscountConsumption,
   reserveOrderDiscount,
-  WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import { TERMS_VERSION } from '@/lib/legal/terms'
 import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
@@ -216,31 +215,23 @@ export async function POST(request: NextRequest) {
 
   // Resolve every throwing client BEFORE reserving the discount: a throw
   // after the reservation would burn the hold with nothing left to restore
-  // it (the seam contract). Stripe is needed for real payments; the service
-  // client for (a) the dev-bypass born-paid insert — a system write, the
-  // 20260708 insert fence 42501s client sessions creating anything but
-  // unpaid pending_payment rows — and (b) catalog-code holds, whose
-  // reserve/restore RPCs are EXECUTE-granted to service_role only
-  // (20260715). WELCOME rides the insert-time one-per-owner index instead,
-  // so welcome-only checkouts keep working without the service key. A
-  // malformed code resolves the client before its 400 — accepted;
-  // resolve-before-reserve is the contract.
+  // it (the seam contract). The service client is required for EVERY
+  // checkout since the 20260726 fence (#42/#43): project rows are born
+  // only from system writes, so both branches insert on it — and it
+  // already carries the catalog-code holds, whose reserve/restore RPCs are
+  // EXECUTE-granted to service_role only (20260715). Stripe stays needed
+  // for real payments only. A malformed code resolves both clients before
+  // its 400 — accepted; resolve-before-reserve is the contract.
   const devBypass = process.env.PAYMENTS_DEV_BYPASS === 'true'
-  const normalizedCode = submittedCode ? submittedCode.toUpperCase() : null
-  const needsServiceClient =
-    devBypass ||
-    (normalizedCode !== null && normalizedCode !== WELCOME_COUPON_CODE)
   let stripe: ReturnType<typeof getStripe> | null = null
-  let serviceSupabase: SupabaseClient | null = null
-  if (needsServiceClient) {
-    try {
-      serviceSupabase = createServiceClient()
-    } catch {
-      return NextResponse.json(
-        { error: 'Payments not configured' },
-        { status: 500 },
-      )
-    }
+  let serviceSupabase: SupabaseClient
+  try {
+    serviceSupabase = createServiceClient()
+  } catch {
+    return NextResponse.json(
+      { error: 'Payments not configured' },
+      { status: 500 },
+    )
   }
   if (!devBypass) {
     try {
@@ -320,12 +311,6 @@ export async function POST(request: NextRequest) {
   }
 
   if (devBypass) {
-    if (!serviceSupabase) {
-      return NextResponse.json(
-        { error: 'Payments not configured' },
-        { status: 500 },
-      )
-    }
     // Dev-only: the charge is skipped (amount 0), but the order fields keep
     // the real quote so the downstream UI can be exercised against it. The
     // insert runs on the service client — it creates a born-paid row, which
@@ -426,7 +411,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 })
   }
 
-  const { data: project, error: insertError } = await supabase
+  // System write (#42/#43): the 20260726 fence 42501s any client-session
+  // projects INSERT, so the row rides the service client — the intent id
+  // only ever arrives via a system write. owner_id still binds to the
+  // authenticated session user, the one field RLS used to pin.
+  const { data: project, error: insertError } = await serviceSupabase
     .from('projects')
     .insert({
       owner_id: user.id,

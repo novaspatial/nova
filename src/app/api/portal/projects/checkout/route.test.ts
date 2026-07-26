@@ -97,10 +97,14 @@ function lookupRpc(result: {
 }
 
 describe('POST /api/portal/projects/checkout', () => {
-  // Catalog-code holds and consumption run on the service client (#26) —
-  // its rpc dispatches by name (reserve defaults to a won CAS) so tests
-  // override per name without shadowing the session client's lookup.
+  // The service client carries the catalog-code holds (#26) and, since the
+  // 20260726 fence (#42/#43), EVERY projects insert. Its rpc dispatches by
+  // name (reserve defaults to a won CAS) and its projects chain defaults to
+  // a good insert; tests customize either by reassigning
+  // serviceProjectsChain before POST (the beforeEach implementation reads
+  // it at call time) or by overriding mockCreateServiceClient.
   let serviceRpc: ReturnType<typeof vi.fn>
+  let serviceProjectsChain: ReturnType<typeof makeProjectsChain>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -124,8 +128,12 @@ describe('POST /api/portal/projects/checkout', () => {
           : { data: null, error: null },
       ),
     )
+    serviceProjectsChain = makeProjectsChain({})
     mockCreateServiceClient.mockImplementation(() =>
-      createSupabaseMock({ rpc: serviceRpc }),
+      createSupabaseMock({
+        fromMocks: { projects: serviceProjectsChain },
+        rpc: serviceRpc,
+      }),
     )
   })
 
@@ -257,7 +265,7 @@ describe('POST /api/portal/projects/checkout', () => {
     )
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({ format: 'atmos', reference_tracks: null }),
     )
   })
@@ -276,6 +284,24 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(res.status).toBe(500)
     // The reservation must never fire — a throw here would otherwise burn it.
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  test('returns 500 before any side effect when the service client is unavailable', async () => {
+    const rpc = vi.fn()
+    mockCreateServiceClient.mockImplementation(() => {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({ fromMocks: { projects: makeProjectsChain({}) }, rpc }),
+    )
+
+    const req = createMockRequest(orderBody())
+    const res = await POST(req as NextRequest)
+    expect(res.status).toBe(500)
+    // Since 20260726 every checkout inserts on the service client — the
+    // throw must land before the reservation and before any intent exists.
+    expect(rpc).not.toHaveBeenCalled()
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
   })
 
   test('creates the intent with redirect-based payment methods disabled', async () => {
@@ -333,8 +359,11 @@ describe('POST /api/portal/projects/checkout', () => {
         total_cents: 32500,
       },
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
+        // The service insert bypasses RLS's WITH CHECK — owner_id must
+        // still bind to the authenticated session user.
+        owner_id: 'user-1',
         status: 'pending_payment',
         stripe_payment_intent_id: 'pi_test_123',
         format: 'atmos',
@@ -352,13 +381,14 @@ describe('POST /api/portal/projects/checkout', () => {
         applied_coupon_code: null,
       }),
     )
-    // The client-session insert must be born unpaid or the 20260708 fence
-    // 42501s every real checkout: no paid_at, no born-past-pending status.
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    // Born unpaid even as a system write: paid_at belongs to the payment
+    // writers (the claimProjectPayment CAS), never the checkout insert.
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.not.objectContaining({ paid_at: expect.anything() }),
     )
-    // The Stripe branch stays on the user's session — RLS applies.
-    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    // 20260726 (#42/#43): project rows are born only from system writes —
+    // the session client must never insert.
+    expect(projectsChain.insert).not.toHaveBeenCalled()
     // The receipt (#24) waits for the payment writers (webhook/poll claim);
     // an unpaid checkout never sends it.
     expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
@@ -393,7 +423,7 @@ describe('POST /api/portal/projects/checkout', () => {
       subtotal_cents: 130000,
       total_cents: 130000,
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         format: 'both',
         amount_cents: 130000,
@@ -443,7 +473,7 @@ describe('POST /api/portal/projects/checkout', () => {
         total_cents: 27625,
       },
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         amount_cents: 27625,
         subtotal_cents: 27625,
@@ -518,7 +548,7 @@ describe('POST /api/portal/projects/checkout', () => {
         total_cents: 36725,
       },
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         amount_cents: 36725,
         subtotal_cents: 32500,
@@ -584,7 +614,7 @@ describe('POST /api/portal/projects/checkout', () => {
     )
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         tax_cents: 0,
         buyer_country: 'US',
@@ -629,7 +659,7 @@ describe('POST /api/portal/projects/checkout', () => {
       subtotal_cents: 52400,
       total_cents: 52400,
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         add_ons: ['extra_revision', 'rush_48h'],
         amount_cents: 52400,
@@ -692,7 +722,7 @@ describe('POST /api/portal/projects/checkout', () => {
     }
     expect(rpc).not.toHaveBeenCalled()
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
   })
 
   test('de-duplicates add-ons and persists them in canonical order', async () => {
@@ -716,7 +746,7 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
       add_ons: 'extra_revision,rush_48h',
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({ add_ons: ['extra_revision', 'rush_48h'] }),
     )
   })
@@ -733,7 +763,7 @@ describe('POST /api/portal/projects/checkout', () => {
     // [] (not null — null is reserved for pre-#19 rows), and add_ons is
     // always stamped: '' means "post-#19, none purchased", absent means a
     // pre-#19 intent the payment-status cross-check must skip.
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({ add_ons: [] }),
     )
     expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
@@ -759,7 +789,8 @@ describe('POST /api/portal/projects/checkout', () => {
   })
 
   test('cancels the intent and restores the reservation when insert fails', async () => {
-    const projectsChain = makeProjectsChain({
+    const projectsChain = makeProjectsChain({})
+    serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'db down' } },
     })
     const rpc = vi
@@ -785,7 +816,6 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass skips Stripe and stores the real quote on a $0 project', async () => {
     const projectsChain = makeProjectsChain({})
-    const serviceProjectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({
@@ -793,9 +823,6 @@ describe('POST /api/portal/projects/checkout', () => {
         rpc,
       }),
     )
-    mockCreateServiceClient.mockReturnValue({
-      from: vi.fn(() => serviceProjectsChain),
-    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
@@ -834,7 +861,7 @@ describe('POST /api/portal/projects/checkout', () => {
       })
       expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
       // The born-paid insert is a system write: service client, not the
-      // session — the 20260708 insert fence rejects the latter.
+      // session — the 20260726 fence rejects any client-session insert.
       expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           owner_id: 'user-1',
@@ -873,14 +900,10 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass persists add-ons on the $0 project', async () => {
     const projectsChain = makeProjectsChain({})
-    const serviceProjectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
     )
-    mockCreateServiceClient.mockReturnValue({
-      from: vi.fn(() => serviceProjectsChain),
-    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
@@ -947,7 +970,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass restores the reservation when the insert fails', async () => {
     const projectsChain = makeProjectsChain({})
-    const serviceProjectsChain = makeProjectsChain({
+    serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'insert failed' } },
     })
     const rpc = vi
@@ -960,9 +983,6 @@ describe('POST /api/portal/projects/checkout', () => {
         rpc,
       }),
     )
-    mockCreateServiceClient.mockReturnValue({
-      from: vi.fn(() => serviceProjectsChain),
-    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
@@ -1000,7 +1020,7 @@ describe('POST /api/portal/projects/checkout', () => {
     const req = createMockRequest(orderBody())
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(502)
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
     expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
@@ -1057,7 +1077,7 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     expect(body.breakdown.bulk_discount_cents).toBeGreaterThan(0)
     expect(body.breakdown.code_discount_cents).toBeGreaterThan(0)
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         amount_cents: expected.total_cents,
         discount_applied: false,
@@ -1177,7 +1197,7 @@ describe('POST /api/portal/projects/checkout', () => {
         p_code: 'DEEP',
       })
       expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-      expect(projectsChain.insert).not.toHaveBeenCalled()
+      expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
     },
   )
 
@@ -1205,7 +1225,7 @@ describe('POST /api/portal/projects/checkout', () => {
     const body = await res.json()
     expect(body.error).toBe('That code is no longer available.')
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
     // A lost CAS holds nothing — no restore may fire.
     expect(serviceRpc).not.toHaveBeenCalledWith(
       'restore_discount_code',
@@ -1251,24 +1271,28 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
   })
 
-  test('a WELCOME checkout never needs the service client', async () => {
+  test('a WELCOME checkout uses the service client only for the insert', async () => {
     const projectsChain = makeProjectsChain({ pendingCount: 0 })
-    mockCreateServiceClient.mockImplementation(() => {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured')
-    })
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'WELCOME' }))
     const res = await POST(req as NextRequest)
-    // The index on the insert is WELCOME's hold — no service key required.
     expect(res.status).toBe(200)
-    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    // The one-per-owner index on the insert is still WELCOME's hold — no
+    // catalog reserve RPC fires; since 20260726 the insert itself is the
+    // system write that rides the service client.
+    expect(serviceRpc).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ applied_coupon_code: 'WELCOME' }),
+    )
+    expect(projectsChain.insert).not.toHaveBeenCalled()
   })
 
   test('cancels the intent and restores the catalog hold when insert fails', async () => {
-    const projectsChain = makeProjectsChain({
+    const projectsChain = makeProjectsChain({})
+    serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'db down' } },
     })
     const rpc = lookupRpc({ data: [catalogRow()], error: null })
@@ -1297,7 +1321,7 @@ describe('POST /api/portal/projects/checkout', () => {
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(502)
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
     expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
       p_code: 'SUMMER10',
     })
@@ -1342,7 +1366,7 @@ describe('POST /api/portal/projects/checkout', () => {
     const body = await res.json()
     expect(body.error).toBe("That code isn't valid.")
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
   })
 
   test('rejects an expired code with 400 and its message', async () => {
@@ -1401,7 +1425,7 @@ describe('POST /api/portal/projects/checkout', () => {
       discountApplied: false,
       appliedCouponCode: 'WELCOME',
     })
-    expect(projectsChain.insert).toHaveBeenCalledWith(
+    expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         amount_cents: expected.total_cents,
         discount_applied: false,
@@ -1429,15 +1453,16 @@ describe('POST /api/portal/projects/checkout', () => {
     const body = await res.json()
     expect(body.error).toBe('That code is only valid on your first order.')
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled()
-    expect(projectsChain.insert).not.toHaveBeenCalled()
+    expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
   })
 
   test('maps the one-WELCOME-per-owner index violation to 400 and cancels the intent', async () => {
     // The losing side of the concurrent-D5 race (#25 residual): both
     // checkouts passed eligibility, the second insert dies on the 20260715
-    // partial unique index.
-    const projectsChain = makeProjectsChain({
-      pendingCount: 0,
+    // partial unique index — role-agnostic, so it fires for the service
+    // insert too.
+    const projectsChain = makeProjectsChain({ pendingCount: 0 })
+    serviceProjectsChain = makeProjectsChain({
       insertResult: {
         data: null,
         error: {
@@ -1463,8 +1488,8 @@ describe('POST /api/portal/projects/checkout', () => {
   })
 
   test('a non-WELCOME duplicate-key insert failure stays a 500', async () => {
-    const projectsChain = makeProjectsChain({
-      pendingCount: 0,
+    const projectsChain = makeProjectsChain({ pendingCount: 0 })
+    serviceProjectsChain = makeProjectsChain({
       insertResult: {
         data: null,
         error: {
@@ -1485,7 +1510,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass maps the WELCOME index violation to the same 400', async () => {
     const projectsChain = makeProjectsChain({ pendingCount: 0 })
-    const serviceProjectsChain = makeProjectsChain({
+    serviceProjectsChain = makeProjectsChain({
       insertResult: {
         data: null,
         error: {
@@ -1498,10 +1523,6 @@ describe('POST /api/portal/projects/checkout', () => {
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
-    mockCreateServiceClient.mockReturnValue({
-      from: vi.fn(() => serviceProjectsChain),
-      rpc: serviceRpc,
-    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
@@ -1540,7 +1561,6 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass persists the redeemed code and consumes it inline', async () => {
     const projectsChain = makeProjectsChain({})
-    const serviceProjectsChain = makeProjectsChain({})
     const rpc = lookupRpc({ data: [catalogRow()], error: null })
     mockCreateClient.mockResolvedValue(
       createSupabaseMock({
@@ -1548,10 +1568,6 @@ describe('POST /api/portal/projects/checkout', () => {
         rpc,
       }),
     )
-    mockCreateServiceClient.mockReturnValue({
-      from: vi.fn(() => serviceProjectsChain),
-      rpc: serviceRpc,
-    })
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
 
