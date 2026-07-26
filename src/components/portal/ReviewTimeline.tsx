@@ -34,11 +34,9 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAudioPlayer } from '@/components/audio/AudioProvider'
 import { useWaveformBinding } from '@/components/audio/player/useWaveformBinding'
-import {
-  formatTrackTime,
-  Waveform,
-} from '@/components/audio/player/Waveform'
+import { formatTrackTime, Waveform } from '@/components/audio/player/Waveform'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
+import { useCommentClock } from '@/components/portal/useCommentClock'
 import { formatFileSize } from '@/lib/formatFileSize'
 import { runUploadDance } from '@/lib/portal/uploadRunner'
 
@@ -111,12 +109,9 @@ function CommentAttachmentList({
                 <a
                   href={downloadHref}
                   aria-label={`Download ${attachment.file_name}`}
-                  className="absolute top-1 right-1 inline-flex size-6 items-center justify-center rounded-md bg-black/70 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-violet-600 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
+                  className="absolute top-1 right-1 inline-flex size-6 items-center justify-center rounded-md bg-black/70 text-white opacity-0 backdrop-blur-sm transition group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-violet-600 focus:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50"
                 >
-                  <ArrowDownTrayIcon
-                    className="size-3.5"
-                    aria-hidden="true"
-                  />
+                  <ArrowDownTrayIcon className="size-3.5" aria-hidden="true" />
                 </a>
               )}
             </li>
@@ -142,10 +137,7 @@ function CommentAttachmentList({
                   aria-label={`Download ${attachment.file_name}`}
                   className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
                 >
-                  <ArrowDownTrayIcon
-                    className="size-3.5"
-                    aria-hidden="true"
-                  />
+                  <ArrowDownTrayIcon className="size-3.5" aria-hidden="true" />
                 </a>
               )}
             </div>
@@ -542,6 +534,7 @@ export function ReviewTimeline({
 }) {
   const router = useRouter()
   const player = useAudioPlayer()
+  const clock = useCommentClock(player, selectedTrackId)
   const setComments = onCommentsChange
   const [body, setBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -553,9 +546,6 @@ export function ReviewTimeline({
   const [deleteTarget, setDeleteTarget] = useState<ProjectComment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [clockState, setClockState] = useState<
-    'off' | 'armed' | 'live' | 'locked'
-  >('off')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewUrlsRef = useRef<Set<string>>(new Set())
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -607,8 +597,7 @@ export function ReviewTimeline({
               ? {
                   ...entry,
                   status: 'failed',
-                  error:
-                    err instanceof Error ? err.message : 'Upload failed',
+                  error: err instanceof Error ? err.message : 'Upload failed',
                 }
               : entry,
           ),
@@ -851,92 +840,22 @@ export function ReviewTimeline({
     (body.trim().length > 0 || uploadedAttachments.length > 0)
 
   const selection = player.selection
-  const clockDisabled =
-    !player.mixedMusicFile ||
-    String(player.mixedMusicFile.id) !== selectedTrackId
   const clockAriaLabel =
-    clockState === 'off'
+    clock.state === 'off'
       ? 'Arm timestamp capture'
-      : clockState === 'armed'
+      : clock.state === 'armed'
         ? 'Cancel timestamp capture'
-        : clockState === 'live'
+        : clock.state === 'live'
           ? 'Lock timestamp range'
           : 'Clear timestamp range'
   const clockTitle =
-    clockState === 'off'
+    clock.state === 'off'
       ? 'Click to arm, then type to mark the start. Click again to lock the end. Drag the waveform handles to fine-tune.'
-      : clockState === 'armed'
+      : clock.state === 'armed'
         ? 'Start typing to mark the start. Click to cancel.'
-        : clockState === 'live'
+        : clock.state === 'live'
           ? 'Click to lock the end of the range.'
           : 'Click to clear the timestamp range.'
-
-  const handleToggleClock = useCallback(() => {
-    if (clockDisabled) return
-    if (clockState === 'off') {
-      setClockState('armed')
-    } else if (clockState === 'armed') {
-      setClockState('off')
-    } else if (clockState === 'live') {
-      setClockState('locked')
-    } else {
-      player.clearSelection()
-      setClockState('off')
-    }
-  }, [clockDisabled, clockState, player])
-
-  const handleTextareaKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (clockState !== 'armed') return
-      if (event.ctrlKey || event.metaKey || event.altKey) return
-      const isPrintable = event.key.length === 1
-      const isEditingKey =
-        event.key === 'Backspace' ||
-        event.key === 'Delete' ||
-        event.key === 'Enter'
-      if (!isPrintable && !isEditingKey) return
-      if (!Number.isFinite(player.currentTime)) return
-      const nowMs = Math.round(player.currentTime * 1000)
-      player.setAnchorA(nowMs)
-      player.setAnchorB(nowMs)
-      setClockState('live')
-    },
-    [clockState, player],
-  )
-
-  const handleComposerAnchorBDrag = useCallback(() => {
-    setClockState((s) => (s === 'live' ? 'locked' : s))
-  }, [])
-
-  useEffect(() => {
-    if (clockDisabled) setClockState('off')
-  }, [clockDisabled])
-
-  useEffect(() => {
-    if (clockState !== 'live' || !player.playing) return
-    if (!Number.isFinite(player.currentTime)) return
-    let rafId = 0
-    const baseTime = player.currentTime
-    const baseWall =
-      typeof performance !== 'undefined' ? performance.now() : Date.now()
-    const tick = () => {
-      const now =
-        typeof performance !== 'undefined' ? performance.now() : Date.now()
-      const elapsed = (now - baseWall) / 1000
-      const next = baseTime + elapsed
-      const clamped =
-        Number.isFinite(player.duration) && player.duration > 0
-          ? Math.min(next, player.duration)
-          : next
-      if (Number.isFinite(clamped)) {
-        player.setAnchorB(Math.round(clamped * 1000))
-      }
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clockState, player.playing, player.currentTime, player.duration])
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
@@ -978,8 +897,7 @@ export function ReviewTimeline({
           return []
         })
         setBody('')
-        player.clearSelection()
-        setClockState('off')
+        clock.clear()
         setScrollRequest({ kind: 'bottom' })
         router.refresh()
       } catch {
@@ -990,6 +908,7 @@ export function ReviewTimeline({
     },
     [
       body,
+      clock,
       hasUploading,
       player,
       postComment,
@@ -1092,216 +1011,219 @@ export function ReviewTimeline({
 
       {sectionOpen && (
         <>
-
-      {/* Composer waveform — mirrors the dock so users can mark timestamps without looking away */}
-      <ComposerWaveform
-        selectedTrackId={selectedTrackId}
-        onAnchorBDrag={handleComposerAnchorBDrag}
-      />
-
-      {/* New comment form */}
-      <form onSubmit={handleSubmit}>
-        <div className="rounded-xl border border-white/10 bg-white/2 transition focus-within:border-violet-500/50 focus-within:ring-1 focus-within:ring-violet-500/50">
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            onKeyDown={handleTextareaKeyDown}
-            placeholder="Add a mix note or feedback..."
-            rows={2}
-            className="w-full resize-none border-0 bg-transparent px-4 pt-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+          {/* Composer waveform — mirrors the dock so users can mark timestamps without looking away */}
+          <ComposerWaveform
+            selectedTrackId={selectedTrackId}
+            onAnchorBDrag={clock.handleAnchorBDrag}
           />
-          {pendingAttachments.length > 0 && (
-            <ul
-              role="list"
-              aria-label="Pending attachments"
-              className="flex flex-wrap gap-2 px-3 pt-1"
-            >
-                {pendingAttachments.map((attachment) => {
-                  const statusLabel =
-                    attachment.status === 'uploading'
-                      ? `Uploading ${attachment.progress}%`
-                      : attachment.status === 'failed'
-                        ? `Upload failed${attachment.error ? `: ${attachment.error}` : ''}`
-                        : 'Uploaded'
-                  return (
-                    <li key={attachment.id}>
-                      <div
-                        className={`group flex items-center gap-2 rounded-lg border py-1.5 pr-1 pl-2 text-xs text-zinc-300 ${
-                          attachment.status === 'failed'
-                            ? 'border-rose-500/30 bg-rose-500/5'
-                            : 'border-white/10 bg-white/5'
-                        }`}
-                        aria-label={`${attachment.file.name}, ${formatFileSize(attachment.file.size)}, ${statusLabel}`}
-                      >
-                        {attachment.previewUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={attachment.previewUrl}
-                            alt=""
-                            aria-hidden="true"
-                            className="size-6 shrink-0 rounded object-cover"
-                          />
-                        ) : (
-                          <DocumentIcon
-                            className="size-4 shrink-0 text-zinc-400"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span className="max-w-40 truncate">
-                          {attachment.file.name}
-                        </span>
-                        <span className="shrink-0 text-zinc-500">
-                          {formatFileSize(attachment.file.size)}
-                        </span>
-                        {attachment.status === 'uploading' && (
-                          <span className="shrink-0 font-mono text-[10px] text-violet-300">
-                            {attachment.progress}%
-                          </span>
-                        )}
-                        {attachment.status === 'failed' && (
-                          <>
-                            <ExclamationCircleIcon
-                              className="size-4 shrink-0 text-rose-400"
+
+          {/* New comment form */}
+          <form onSubmit={handleSubmit}>
+            <div className="rounded-xl border border-white/10 bg-white/2 transition focus-within:border-violet-500/50 focus-within:ring-1 focus-within:ring-violet-500/50">
+              <textarea
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                onKeyDown={clock.handleComposerKeyDown}
+                placeholder="Add a mix note or feedback..."
+                rows={2}
+                className="w-full resize-none border-0 bg-transparent px-4 pt-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
+              />
+              {pendingAttachments.length > 0 && (
+                <ul
+                  role="list"
+                  aria-label="Pending attachments"
+                  className="flex flex-wrap gap-2 px-3 pt-1"
+                >
+                  {pendingAttachments.map((attachment) => {
+                    const statusLabel =
+                      attachment.status === 'uploading'
+                        ? `Uploading ${attachment.progress}%`
+                        : attachment.status === 'failed'
+                          ? `Upload failed${attachment.error ? `: ${attachment.error}` : ''}`
+                          : 'Uploaded'
+                    return (
+                      <li key={attachment.id}>
+                        <div
+                          className={`group flex items-center gap-2 rounded-lg border py-1.5 pr-1 pl-2 text-xs text-zinc-300 ${
+                            attachment.status === 'failed'
+                              ? 'border-rose-500/30 bg-rose-500/5'
+                              : 'border-white/10 bg-white/5'
+                          }`}
+                          aria-label={`${attachment.file.name}, ${formatFileSize(attachment.file.size)}, ${statusLabel}`}
+                        >
+                          {attachment.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={attachment.previewUrl}
+                              alt=""
+                              aria-hidden="true"
+                              className="size-6 shrink-0 rounded object-cover"
+                            />
+                          ) : (
+                            <DocumentIcon
+                              className="size-4 shrink-0 text-zinc-400"
                               aria-hidden="true"
                             />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleRetryAttachment(attachment.id)
-                              }
-                              aria-label={`Retry upload of ${attachment.file.name}`}
-                              className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
-                            >
-                              <ArrowPathIcon
-                                className="size-3.5"
+                          )}
+                          <span className="max-w-40 truncate">
+                            {attachment.file.name}
+                          </span>
+                          <span className="shrink-0 text-zinc-500">
+                            {formatFileSize(attachment.file.size)}
+                          </span>
+                          {attachment.status === 'uploading' && (
+                            <span className="shrink-0 font-mono text-[10px] text-violet-300">
+                              {attachment.progress}%
+                            </span>
+                          )}
+                          {attachment.status === 'failed' && (
+                            <>
+                              <ExclamationCircleIcon
+                                className="size-4 shrink-0 text-rose-400"
                                 aria-hidden="true"
                               />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAttachment(attachment.id)}
-                          aria-label={`Remove ${attachment.file.name}`}
-                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
-                        >
-                          <XMarkIcon className="size-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          <div className="flex items-center gap-3 px-3 pt-2 pb-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleToggleClock}
-                disabled={clockDisabled}
-                aria-label={clockAriaLabel}
-                aria-pressed={clockState !== 'off'}
-                title={clockTitle}
-                className={`inline-flex size-9 items-center justify-center rounded-xl border transition focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  clockState === 'off'
-                    ? 'border-white/10 bg-white/5 text-zinc-400 hover:border-violet-500/40 hover:text-violet-300'
-                    : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                }`}
-              >
-                <ClockIcon
-                  className={`size-4 ${clockState === 'live' ? 'animate-pulse' : ''}`}
-                  aria-hidden="true"
-                />
-              </button>
-              {selection != null && clockState !== 'armed' && (
-                <span className="flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
-                  {selection.anchorBMs != null
-                    ? `${formatTimestamp(selection.startMs)} – ${formatTimestamp(selection.endMs)}`
-                    : formatTimestamp(selection.anchorAMs)}
-                </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRetryAttachment(attachment.id)
+                                }
+                                aria-label={`Retry upload of ${attachment.file.name}`}
+                                className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
+                              >
+                                <ArrowPathIcon
+                                  className="size-3.5"
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoveAttachment(attachment.id)
+                            }
+                            aria-label={`Remove ${attachment.file.name}`}
+                            className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:bg-white/10 focus-visible:text-white"
+                          >
+                            <XMarkIcon
+                              className="size-3.5"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               )}
+              <div className="flex items-center gap-3 px-3 pt-2 pb-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={clock.toggle}
+                    disabled={clock.disabled}
+                    aria-label={clockAriaLabel}
+                    aria-pressed={clock.state !== 'off'}
+                    title={clockTitle}
+                    className={`inline-flex size-9 items-center justify-center rounded-xl border transition focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      clock.state === 'off'
+                        ? 'border-white/10 bg-white/5 text-zinc-400 hover:border-violet-500/40 hover:text-violet-300'
+                        : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                    }`}
+                  >
+                    <ClockIcon
+                      className={`size-4 ${clock.state === 'live' ? 'animate-pulse' : ''}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {selection != null && clock.state !== 'armed' && (
+                    <span className="flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                      {selection.anchorBMs != null
+                        ? `${formatTimestamp(selection.startMs)} – ${formatTimestamp(selection.endMs)}`
+                        : formatTimestamp(selection.anchorAMs)}
+                    </span>
+                  )}
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFilesSelected}
+                    className="hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label="Attach files"
+                    className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
+                  >
+                    <PaperClipIcon className="size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!canPost}
+                    className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <PaperAirplaneIcon className="size-4" />
+                    {submitting
+                      ? 'Posting...'
+                      : hasUploading
+                        ? 'Uploading...'
+                        : 'Post'}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFilesSelected}
-                className="hidden"
-                aria-hidden="true"
-                tabIndex={-1}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach files"
-                className="inline-flex size-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition hover:border-violet-500/40 hover:text-violet-300 focus:outline-none focus-visible:border-violet-500/50 focus-visible:ring-1 focus-visible:ring-violet-500/50"
-              >
-                <PaperClipIcon className="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="submit"
-                disabled={!canPost}
-                className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <PaperAirplaneIcon className="size-4" />
-                {submitting
-                  ? 'Posting...'
-                  : hasUploading
-                    ? 'Uploading...'
-                    : 'Post'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
+          </form>
 
-      {/* Comments list — fixed height, internal scroll */}
-      <div className="h-[clamp(14rem,40vh,22rem)]">
-        {hasAnyComments ? (
-          visibleThreads.length > 0 ? (
-            <div
-              ref={scrollContainerRef}
-              className="nova-scrollbar h-full space-y-6 overflow-y-auto p-4 sm:p-6"
-            >
-              {visibleThreads.map(({ parent, replies }) => (
-                <CommentThread
-                  key={parent.id}
-                  parent={parent}
-                  replies={replies}
-                  onSeek={handleSeek}
-                  onReply={handleReply}
-                  onDelete={handleDeleteRequest}
-                  canDelete={canDelete}
-                  forceExpanded={isSearching}
-                />
-              ))}
-            </div>
-          ) : (
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex h-full flex-col items-center justify-center px-6 text-center"
-            >
-              <MagnifyingGlassIcon
-                className="size-10 text-zinc-600"
-                aria-hidden="true"
-              />
-              <p className="mt-3 text-sm text-zinc-400">
-                No comments matching &ldquo;{searchQuery.trim()}&rdquo;
-              </p>
-            </div>
-          )
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-            <ChatBubbleLeftRightIcon className="size-10 text-zinc-600" />
-            <p className="mt-3 text-sm text-zinc-400">
-              No comments yet. Add your first timestamped note above.
-            </p>
+          {/* Comments list — fixed height, internal scroll */}
+          <div className="h-[clamp(14rem,40vh,22rem)]">
+            {hasAnyComments ? (
+              visibleThreads.length > 0 ? (
+                <div
+                  ref={scrollContainerRef}
+                  className="nova-scrollbar h-full space-y-6 overflow-y-auto p-4 sm:p-6"
+                >
+                  {visibleThreads.map(({ parent, replies }) => (
+                    <CommentThread
+                      key={parent.id}
+                      parent={parent}
+                      replies={replies}
+                      onSeek={handleSeek}
+                      onReply={handleReply}
+                      onDelete={handleDeleteRequest}
+                      canDelete={canDelete}
+                      forceExpanded={isSearching}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex h-full flex-col items-center justify-center px-6 text-center"
+                >
+                  <MagnifyingGlassIcon
+                    className="size-10 text-zinc-600"
+                    aria-hidden="true"
+                  />
+                  <p className="mt-3 text-sm text-zinc-400">
+                    No comments matching &ldquo;{searchQuery.trim()}&rdquo;
+                  </p>
+                </div>
+              )
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <ChatBubbleLeftRightIcon className="size-10 text-zinc-600" />
+                <p className="mt-3 text-sm text-zinc-400">
+                  No comments yet. Add your first timestamped note above.
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
         </>
       )}
 
@@ -1312,7 +1234,7 @@ export function ReviewTimeline({
         title="Remove this comment?"
         description={
           deleteTarget?.body?.trim() ? (
-            <p className="line-clamp-3 italic text-zinc-300">
+            <p className="line-clamp-3 text-zinc-300 italic">
               &ldquo;{deleteTarget.body.trim()}&rdquo;
             </p>
           ) : undefined
