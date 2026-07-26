@@ -111,11 +111,13 @@ export interface Project {
   // Stored de-duplicated in canonical order (extra_revision, rush_48h).
   add_ons: AddOn[] | null
 
-  // Lifecycle surface the purge slice will add. Declared optional + nullable
-  // so current `select *` reads (whose rows lack these columns) stay
-  // type-safe; each column lands in its owning slice.
-  delivered_at?: string | null // final-masters delivery, drives 90-day purge (#27)
-  files_purged_at?: string | null
+  // Delivery anchor + purge tombstone — live in DB since migration 20260726
+  // (S18 #27; D7/D7b). delivered_at is stamped by the PATCH route on the
+  // transition into 'delivered' and anchors the 90-day retention window;
+  // files_purged_at marks the tombstone the purge cron leaves behind (audio
+  // gone, order row kept).
+  delivered_at: string | null
+  files_purged_at: string | null
 }
 
 export type DiscountKind = 'percent' | 'fixed'

@@ -94,11 +94,23 @@ export async function PATCH(
     )
   }
 
+  const stampedAt = new Date().toISOString()
+  const update: {
+    status: ProjectStatus
+    updated_at: string
+    delivered_at?: string
+  } = { status, updated_at: stampedAt }
+  // Entering 'delivered' stamps the delivery anchor the 90-day retention
+  // purge counts from (#27, D7). Only this transition touches it.
+  if (status === 'delivered') {
+    update.delivered_at = stampedAt
+  }
+
   // Compare-and-swap on the status read above: a concurrent transition
   // makes this a 0-row update instead of silently clobbering it.
   const { data: project, error } = await supabase
     .from('projects')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(update)
     .eq('id', id)
     .eq('status', currentStatus)
     .select()

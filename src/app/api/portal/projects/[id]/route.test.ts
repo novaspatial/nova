@@ -204,6 +204,73 @@ describe('PATCH /api/portal/projects/[id]', () => {
     expect(projectsChain.eq).toHaveBeenCalledWith('status', 'review')
   })
 
+  test('stamps delivered_at when transitioning into delivered', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', status: 'delivered' },
+      error: null,
+    })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'review' },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'delivered' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ status: 'delivered' })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(200)
+
+    expect(projectsChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'delivered',
+        delivered_at: expect.any(String),
+      }),
+    )
+  })
+
+  test('leaves delivered_at alone on non-delivery transitions', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', status: 'approved' },
+      error: null,
+    })
+    projectsChain.single.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'review' },
+      error: null,
+    })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'approved' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ status: 'approved' })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+    expect(res.status).toBe(200)
+
+    expect(projectsChain.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ delivered_at: expect.anything() }),
+    )
+  })
+
   test('returns 500 when project update fails', async () => {
     const profileChain = createChainMock({
       data: { role: 'studio' },
