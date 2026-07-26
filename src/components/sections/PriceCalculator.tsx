@@ -91,7 +91,7 @@ export function PriceCalculator() {
     >
       <Container>
         <FadeIn>
-          <div className="mx-auto max-w-2xl text-center 3xl:max-w-3xl">
+          <div className="mx-auto max-w-3xl text-center 3xl:max-w-4xl">
             <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
               Price Your Mix
             </h2>
@@ -103,7 +103,7 @@ export function PriceCalculator() {
         </FadeIn>
 
         <FadeIn>
-          <div className="mx-auto mt-6 max-w-3xl rounded-2xl bg-white/3 p-5 ring-1 ring-white/10 backdrop-blur-sm sm:mt-10 sm:p-7 3xl:mt-12 3xl:p-9">
+          <div className="mx-auto mt-6 max-w-4xl rounded-2xl bg-white/3 p-5 ring-1 ring-white/10 backdrop-blur-sm sm:mt-10 sm:p-7 3xl:mt-12 3xl:p-9">
             <div className="grid gap-6 sm:grid-cols-2 sm:gap-8">
               <div className="space-y-5">
                 <div>

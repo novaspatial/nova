@@ -21,12 +21,12 @@ export function Testimonials() {
     <div className="mt-16 mb-16 sm:mt-24 sm:mb-32 md:mt-32 xl:mt-40 xl:mb-40 3xl:mt-52 3xl:mb-52">
       <Container>
         <FadeIn>
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto max-w-3xl text-center">
             <h2 className="font-display text-xl font-medium tracking-tight text-white sm:text-2xl md:text-4xl lg:text-5xl 3xl:text-6xl">
               Over 20 Years of Mixing Excellence
             </h2>
           </div>
-          <div className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-4 sm:mt-10 sm:grid-cols-4 sm:gap-6 md:gap-10 3xl:mt-12 3xl:max-w-4xl 3xl:gap-14">
+          <div className="mx-auto mt-6 grid max-w-4xl grid-cols-2 gap-4 sm:mt-10 sm:grid-cols-4 sm:gap-6 md:gap-10 3xl:mt-12 3xl:max-w-5xl 3xl:gap-14">
             {highlights.map(({ icon: Icon, label }) => (
               <div
                 key={label}
