@@ -6,4 +6,4 @@ The key still 404'd at first: the variable had been pasted as a file-type value,
 
 Find of the day: `PAYMENTS_DEV_BYPASS` was defined in Production+Preview — the switch that skips Stripe and creates $0 "paid" projects. Its value was unreadable (Sensitive) and probably never `'true'`, but it has no business in prod. Deleted.
 
-Left: see one `[indexnow] ping accepted` in the logs on the next blog publish (closes #33), enable the Analytics + Speed Insights toggles, the Owner invite for durable access, and the GoDaddy delegate.
+Verified later the same day: a no-op re-save of the published post in `/blog/admin` fired `[indexnow] ping accepted` 202, the engine fetched `/indexnow-key.txt` (200) to validate the key, and a second save got a 200 — #33 closed, all 4 boxes ticked. The Analytics + Speed Insights toggles turned out to be on too (both `/_vercel/*/script.js` endpoints serve 200 in prod). The Owner-invite idea died: Hobby has no team invites (Pro feature), so access stays via the client's account. Left: the GoDaddy delegate.
