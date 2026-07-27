@@ -33,6 +33,8 @@ export async function pingIndexNow(urls: string[]): Promise<void> {
     })
     if (!res.ok) {
       console.error('[indexnow] ping rejected', res.status)
+    } else {
+      console.log('[indexnow] ping accepted', res.status)
     }
   } catch (err) {
     console.error('[indexnow] ping failed', err)
