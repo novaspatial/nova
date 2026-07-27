@@ -52,6 +52,12 @@ function applyCode(code: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 }
 
+// The selects are Headless UI Listboxes (ui/Select) — open, then pick.
+function selectOption(label: string | RegExp, option: string) {
+  fireEvent.click(screen.getByLabelText(label))
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
 const checkoutResponse = {
   ok: true,
   json: async () => ({
@@ -85,9 +91,7 @@ function fillRequiredFields(songCount = '1') {
   fireEvent.change(screen.getByLabelText('Number of Songs'), {
     target: { value: songCount },
   })
-  fireEvent.change(screen.getByLabelText('Billing Country'), {
-    target: { value: 'US' },
-  })
+  selectOption('Billing Country', 'United States')
   fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
   fireEvent.click(screen.getByRole('checkbox', { name: /agree to the Terms/i }))
 }
@@ -150,9 +154,7 @@ describe('NewProjectForm', () => {
 
     render(<NewProjectForm />)
     fillRequiredFields('5')
-    fireEvent.change(screen.getByLabelText('Service'), {
-      target: { value: 'both' },
-    })
+    selectOption('Service', 'Both (Atmos + Binaural)')
     fireEvent.change(screen.getByLabelText(/Reference Tracks/), {
       target: { value: 'Song X — Artist Y' },
     })
@@ -234,26 +236,22 @@ describe('NewProjectForm', () => {
       screen.queryByLabelText('Province / Territory'),
     ).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Billing Country'), {
-      target: { value: 'CA' },
-    })
+    selectOption('Billing Country', 'Canada')
     const provinceSelect = screen.getByLabelText('Province / Territory')
-    expect(provinceSelect).toBeRequired()
+    expect(provinceSelect).toHaveAttribute('aria-required', 'true')
 
     // Country alone isn't a complete location — still untaxed. (The footnote
     // always mentions "GST/HST", so assert on the tax-row label.)
     const quote = screen.getByTestId('live-quote')
     expect(quote).not.toHaveTextContent('HST (13%)')
 
-    fireEvent.change(provinceSelect, { target: { value: 'ON' } })
+    selectOption('Province / Territory', 'Ontario')
     expect(quote).toHaveTextContent('HST (13%)')
     expect(quote).toHaveTextContent('$42.25')
     expect(quote).toHaveTextContent('$367.25')
 
     // Switching away from Canada drops the tax line and the province field.
-    fireEvent.change(screen.getByLabelText('Billing Country'), {
-      target: { value: 'US' },
-    })
+    selectOption('Billing Country', 'United States')
     expect(quote).not.toHaveTextContent('HST (13%)')
     expect(quote).toHaveTextContent('$325')
     expect(
@@ -285,9 +283,7 @@ describe('NewProjectForm', () => {
     fireEvent.change(screen.getByLabelText('Project Title'), {
       target: { value: 'My Album' },
     })
-    fireEvent.change(screen.getByLabelText('Billing Country'), {
-      target: { value: 'US' },
-    })
+    selectOption('Billing Country', 'United States')
     fireEvent.click(screen.getByRole('button', { name: 'Add stems' }))
     fireEvent.click(
       screen.getByRole('button', { name: 'Create Project & Upload' }),

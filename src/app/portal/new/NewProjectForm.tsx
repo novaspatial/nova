@@ -8,6 +8,7 @@ import { FileUploader, PaymentStep } from '@/components/portal'
 import { QuoteBreakdown } from '@/components/portal/QuoteBreakdown'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { NumberInput } from '@/components/ui/NumberInput'
+import { Select } from '@/components/ui/Select'
 import type {
   AddOn,
   BuyerCountry,
@@ -77,25 +78,6 @@ const PROVINCE_OPTIONS: { value: CAProvince; label: string }[] = [
   { value: 'SK', label: 'Saskatchewan' },
   { value: 'YT', label: 'Yukon' },
 ]
-
-function SelectChevron() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 16 16"
-      fill="none"
-      className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
-    >
-      <path
-        d="M4 6l4 4 4-4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 type CheckoutResponse = {
   projectId: string
@@ -603,26 +585,14 @@ export function NewProjectForm({
           >
             Service
           </label>
-          <div className="relative mt-2">
-            <select
-              id="service"
-              value={format}
-              onChange={(e) => setFormat(e.target.value as ServiceFormat)}
-              className={`appearance-none pr-10 ${inputClassName}`}
-              disabled={submitting || phase === 'uploading'}
-            >
-              {SERVICE_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  className="bg-zinc-900"
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <SelectChevron />
-          </div>
+          <Select<ServiceFormat>
+            id="service"
+            value={format}
+            onChange={setFormat}
+            options={SERVICE_OPTIONS}
+            className="mt-2"
+            disabled={submitting || phase === 'uploading'}
+          />
         </div>
 
         <div>
@@ -731,34 +701,19 @@ export function NewProjectForm({
           >
             Billing Country
           </label>
-          <div className="relative mt-2">
-            <select
-              id="billing-country"
-              required
-              value={billingCountry}
-              onChange={(e) => {
-                const value = e.target.value as '' | BuyerCountry
-                setBillingCountry(value)
-                if (value !== 'CA') setBillingProvince('')
-              }}
-              className={`appearance-none pr-10 ${inputClassName}`}
-              disabled={submitting || phase === 'uploading'}
-            >
-              <option value="" disabled className="bg-zinc-900">
-                Select country…
-              </option>
-              {COUNTRY_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  className="bg-zinc-900"
-                >
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <SelectChevron />
-          </div>
+          <Select<'' | BuyerCountry>
+            id="billing-country"
+            required
+            value={billingCountry}
+            onChange={(value) => {
+              setBillingCountry(value)
+              if (value !== 'CA') setBillingProvince('')
+            }}
+            options={COUNTRY_OPTIONS}
+            placeholder="Select country…"
+            className="mt-2"
+            disabled={submitting || phase === 'uploading'}
+          />
         </div>
 
         {billingCountry === 'CA' && (
@@ -769,32 +724,16 @@ export function NewProjectForm({
             >
               Province / Territory
             </label>
-            <div className="relative mt-2">
-              <select
-                id="billing-province"
-                required
-                value={billingProvince}
-                onChange={(e) =>
-                  setBillingProvince(e.target.value as '' | CAProvince)
-                }
-                className={`appearance-none pr-10 ${inputClassName}`}
-                disabled={submitting || phase === 'uploading'}
-              >
-                <option value="" disabled className="bg-zinc-900">
-                  Select province…
-                </option>
-                {PROVINCE_OPTIONS.map((option) => (
-                  <option
-                    key={option.value}
-                    value={option.value}
-                    className="bg-zinc-900"
-                  >
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <SelectChevron />
-            </div>
+            <Select<'' | CAProvince>
+              id="billing-province"
+              required
+              value={billingProvince}
+              onChange={setBillingProvince}
+              options={PROVINCE_OPTIONS}
+              placeholder="Select province…"
+              className="mt-2"
+              disabled={submitting || phase === 'uploading'}
+            />
           </div>
         )}
       </div>

@@ -19,6 +19,8 @@ export function Select<T extends string>({
   value,
   onChange,
   options,
+  placeholder,
+  required,
   disabled,
   className,
 }: {
@@ -26,6 +28,8 @@ export function Select<T extends string>({
   value: T
   onChange: (value: T) => void
   options: SelectOption<T>[]
+  placeholder?: string
+  required?: boolean
   disabled?: boolean
   className?: string
 }) {
@@ -36,9 +40,17 @@ export function Select<T extends string>({
       <div className={clsx('relative', className)}>
         <ListboxButton
           id={id}
+          aria-required={required || undefined}
           className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-xs text-white outline-none transition focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50 data-open:border-violet-400/40 sm:text-sm"
         >
-          <span className="min-w-0 flex-1 truncate">{selected?.label}</span>
+          <span
+            className={clsx(
+              'min-w-0 flex-1 truncate',
+              !selected && 'text-zinc-500',
+            )}
+          >
+            {selected?.label ?? placeholder}
+          </span>
           <ChevronUpDownIcon
             aria-hidden="true"
             className="h-4 w-4 shrink-0 text-zinc-400"
