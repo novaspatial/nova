@@ -26,7 +26,7 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 
 | Issue | Fix | Type | Status |
 |---|---|---|---|
-| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration | ⏳ |
+| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration | 🔒 tech half shipped; open on ops |
 | #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops | 🔒 tech half shipped; open on ops |
 
 **Work:**
@@ -46,12 +46,12 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 
 ## Phase 1 — High severity (before launch) 🟠
 
-| Issue | Fix | Type |
-|---|---|---|
-| #46 Cross-project comment injection | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK` | Migration |
-| #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration |
-| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code |
-| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code |
+| Issue | Fix | Type | Status |
+|---|---|---|---|
+| #46 Cross-project comment injection | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK` | Migration | ✅ closed 2026-07-30 |
+| #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration | ✅ closed 2026-07-30 |
+| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code | ⏳ |
+| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code | ⏳ |
 
 **Batching:** #46 + #47 join #44 in the coordinated RLS migration PR. #48 + #49 are handler
 edits in a second PR. Regenerate `src/types/portal.ts` if column exposure changes.
@@ -137,4 +137,5 @@ Phase 3 (#59) — after launch
 
 ## Log
 
+- 2026-07-30 — #44/#46/#47 coordinated RLS unit: `is_studio()` helper + privileged-column fence & grant narrowing on `profiles`, membership predicate on the comment INSERT floor, profiles SELECT restricted to self/studio (anon reads 0). Probes: escalation and injection both denied 42501, anon 0 rows, allowed paths (self read/rename, studio-row read, studio sees all) intact; advisors show no new errors. #46/#47 closed; #44 open on ops.
 - 2026-07-30 — #45 tech half: `isPaymentsDevBypassEnabled` seam forces the bypass off in production (Vercel preview stays usable); `.env.example` default commented out; suite 868 green. Open on ops (Vercel prod env check).

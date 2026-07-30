@@ -57,7 +57,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 
 - Plain SQL in `supabase/migrations/`, named `YYYYMMDD_description.sql`. Each migration that adds a table also enables RLS and defines its policies; storage buckets are created here too.
 - Read migrations chronologically — later ones override earlier constraints; same-day files apply alphabetically (e.g. `20260726_add_delivery_purge` before `20260726_system_only_project_inserts`). Apply via the Supabase CLI / MCP (migrations are **not** run in CI).
-- Sensitive writes follow one **fence pattern**: `SECURITY DEFINER` trigger functions that allow service contexts (`auth.uid() IS NULL`) and studio profiles, else raise `42501` — archive (`20260625`), order-field freeze (`20260702`/`20260724`), status (`20260705`), system-only `projects` INSERTs (`20260726`), delivery/purge stamps (`20260726`). Match this pattern when adding a fence.
+- Sensitive writes follow one **fence pattern**: `SECURITY DEFINER` trigger functions that allow service contexts (`auth.uid() IS NULL`) and studio profiles, else raise `42501` — archive (`20260625`), order-field freeze (`20260702`/`20260724`), status (`20260705`), system-only `projects` INSERTs (`20260726`), delivery/purge stamps (`20260726`), privileged `profiles` columns (`20260730`). Match this pattern when adding a fence.
 - When changing schema, update the RLS policies and the types in `src/types/portal.ts` together.
 
 ## Deploy / CI
