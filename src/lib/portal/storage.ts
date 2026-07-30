@@ -9,10 +9,10 @@ import {
 
 // The single seam for portal file storage (#35): buckets, tables, path
 // templates, signed-URL TTL, and server-side upload validation exist only
-// here. ADR-0003's register→PUT→confirm choreography is unchanged — the
+// here. The register→PUT→confirm choreography is unchanged — the
 // server half of the register step lives in `createUpload`, the client half
 // in `src/lib/portal/uploadRunner.ts`. RLS and storage policies are the
-// enforcement floor (ADR-0002) and are untouched by this module.
+// enforcement floor and are untouched by this module.
 
 export type StorageKind =
   | 'stem'
@@ -156,7 +156,7 @@ export type CreateUploadResult =
   | { ok: false; status: number; error: string; details?: unknown }
 
 /**
- * The server half of ADR-0003's register step, per kind and with each kind's
+ * The server half of the register step, per kind and with each kind's
  * existing choreography preserved:
  *  - stem/master_ref/mix: signed upload URL FIRST (a storage collision must
  *    not leave a dangling project_files row), then insert the row. Mixes

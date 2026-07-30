@@ -223,7 +223,7 @@ type ProjectChildOptions = {
  * Project-child authorization: loads the project (soft-delete visibility per
  * the caller's role), then the child row scoped to it, and derives the three
  * facts every child handler used to hand-roll. RLS stays the enforcement
- * floor (ADR-0002) — this is the app-layer defense-in-depth, deduplicated.
+ * floor — this is the app-layer defense-in-depth, deduplicated.
  *
  * `isOwner` is project ownership; `isAuthor` is row creatorship via
  * `authorField` (false when the table has no author column). Forbidden (403)

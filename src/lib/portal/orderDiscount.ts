@@ -8,7 +8,7 @@ import {
 /**
  * Discount orchestration for a checkout order (#38, #25).
  *
- * Owns the app side of the atomic first-mix RPCs (ADR-0004) and, since #25,
+ * Owns the app side of the atomic first-mix RPCs and, since #25,
  * the resolution of a client-submitted discount code: the welcome offer
  * (code-enforced per D11, eligibility per D5) and catalog codes (#17's
  * `discount_codes`, read through the narrow `lookup_discount_code` RPC —

@@ -1,4 +1,4 @@
-// The client half of ADR-0003's signed-URL upload choreography, extracted
+// The client half of the signed-URL upload choreography, extracted
 // from the three components that used to hand-copy it (useFileUpload,
 // NewProjectForm, ReviewTimeline). One dance per file:
 //
