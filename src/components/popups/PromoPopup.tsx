@@ -3,7 +3,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { checkEmail } from '../../app/actions/checkEmail'
 import {
   WELCOME_DISCOUNT_PCT,
   WELCOME_PROMO_TOKEN,
@@ -29,7 +28,6 @@ export function PromoPopup() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -47,21 +45,15 @@ export function PromoPopup() {
     localStorage.setItem('promo-dismissed', '1')
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!email) return
 
+    // No existence pre-check (#52): any answer here would tell an
+    // anonymous visitor whether an account exists, and the old probe sent
+    // that person a real login email to find out. The signup form handles
+    // an already-registered address with Supabase's own obfuscated reply.
     setLoading(true)
-    setErrorMsg('')
-
-    const { exists } = await checkEmail(email)
-
-    if (exists) {
-      setLoading(false)
-      setErrorMsg('This email is already registered.')
-      return
-    }
-
     setSubmitted(true)
     setTimeout(() => {
       router.push(
@@ -142,15 +134,10 @@ export function PromoPopup() {
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
                     >
                       {loading
-                        ? 'Checking...'
+                        ? 'One moment…'
                         : `Claim ${WELCOME_DISCOUNT_PCT}% Off`}
                     </button>
                   </div>
-                  {errorMsg && (
-                    <p className="mt-2 text-center text-xs text-red-400">
-                      {errorMsg}
-                    </p>
-                  )}
                 </form>
               )}
             </div>

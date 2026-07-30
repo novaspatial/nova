@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: 'Terms & Conditions',
   description:
     'The terms that govern ordering a Dolby Atmos mix from NOVA Spatial.',
+  alternates: { canonical: '/terms' },
 }
 
 function Section({
