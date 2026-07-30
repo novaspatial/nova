@@ -67,7 +67,7 @@ edits in a second PR. Regenerate `src/types/portal.ts` if column exposure change
 ## Phase 2 — Medium severity (target pre-launch; legal items human-owned) 🟡
 
 **Security (`ready-for-agent`):**
-- #50 CSP → enforce (nonce/hash inline scripts, drop `unsafe-eval` if unused) + add a report endpoint.
+- 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added *(shipped 2026-07-30; enforce flip is an ops step after a soak)*.
 - 🔒 #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30; captcha deferred — open on an ops decision)*.
 - ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. *(closed 2026-07-30)*
 - ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. *(closed 2026-07-30)*
@@ -137,6 +137,7 @@ Phase 3 (#59) — after launch
 
 ## Log
 
+- 2026-07-30 — #50: security headers moved into a tested builder (`src/lib/security/csp.ts`, config renamed to `next.config.ts`), `/api/csp-report` sink added (both wire formats, extension noise filtered, query strings stripped), Stripe's `m.stripe.network`/`r.stripe.com`/`m.stripe.com` added — Report-Only had been hiding their absence, so enforcing the old list would have broken checkout. Ships report-only; `CSP_MODE=enforce` is the flip. Suite 962 green.
 - 2026-07-30 — #58: `project_comments.track_id` is nullable with `ON DELETE SET NULL`, so purging or deleting a Mix detaches its comments instead of destroying the conversation — which also ends the orphaned attachment objects. Probe: after a mix delete, comment survives with `track_id IS NULL` and its attachment row is intact.
 - 2026-07-30 — #57: register step is idempotent per `(project_id, storage_path)` — a re-uploaded mix reuses its row (id survives, comments stay attached) and same-name stems upsert instead of 500ing; MIME allowlist by family + 200-char filename cap; unique index applied (0 duplicates in prod). Suite 927 green.
 - 2026-07-30 — #51: contact endpoint hardened — validation seam with length caps and header-safety, per-email/per-IP-hash rate limit (3 / 10 min), guarded JSON parse, studio-owned Subject line, and the anon INSERT policy dropped so inquiries are service-only writes (also clears the advisor's rls_policy_always_true finding). Probe: anon insert denied 42501. Suite 915 green.

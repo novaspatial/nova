@@ -56,6 +56,7 @@ Route handlers under `src/app/api`. Each file exports `GET`/`POST`/`PATCH`/`DELE
 | Archive | `POST/DELETE /api/portal/projects/[id]/archive` |
 | Blog admin | `POST /api/blog/admin/blog/posts`; `PATCH/DELETE …/posts/[id]` |
 | Cron | `GET /api/cron/purge-delivered` — `CRON_SECRET` bearer, scheduled daily by `vercel.json` |
+| Security | `POST /api/csp-report` — browser CSP violation sink; unauthenticated by protocol necessity and write-only (no DB surface), bounded and logged |
 
 > Note: `…/listen` is the comments endpoint (named for its page). `GET` returns the project's comments with authors and attachments; `POST` creates a comment on a Mix.
 
@@ -156,7 +157,7 @@ Per-post SEO is built by `src/lib/blog/metadata.ts` (metadata + `BlogPosting` JS
 
 - **Tests:** Vitest + jsdom + Testing Library, co-located `*.test.ts(x)` (72 files / ~860 tests). Supabase is mocked via `src/test/helpers/supabaseMock.ts`. See `CLAUDE.md` for commands.
 - **Migrations:** plain SQL in `supabase/migrations/`, `YYYYMMDD_description.sql` (same-day files apply alphabetically), applied via the Supabase CLI / MCP (not in CI). RLS and storage buckets are defined here too.
-- **Deploy:** Vercel. CI (`.github/workflows/main.yml`) installs, lints, runs the vitest suite, and builds on push/PR. `next.config.mjs` ships the CSP in **Report-Only** mode (Stripe + the Supabase origin/websocket allowed; not yet enforcing) plus enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff) and long-lived immutable caching for static media. `vercel.json` schedules the daily purge cron.
+- **Deploy:** Vercel. CI (`.github/workflows/main.yml`) installs, lints, runs the vitest suite, and builds on push/PR. `next.config.ts` derives its headers from `src/lib/security/csp.ts` — a pure, tested builder (the config is transpiled by SWC, so that module stays free of runtime imports). The CSP is **Report-Only by default**, flipped with `CSP_MODE=enforce`; it allows Stripe's script, frame (including `m.stripe.network`) and telemetry hosts plus the Supabase origin/websocket, drops `'unsafe-eval'` outside development, and names `/api/csp-report` in both `report-uri` and `report-to`. Enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff, Referrer-Policy, Permissions-Policy) and long-lived immutable caching for static media ship alongside. `vercel.json` schedules the daily purge cron.
 
 ## Status
 

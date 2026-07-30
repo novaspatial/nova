@@ -48,7 +48,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 - **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (client); `SUPABASE_SERVICE_ROLE_KEY` (server, secret).
 - **Stripe:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (client); `STRIPE_SECRET_KEY`, `STRIPE_RESTRICTED_KEY`, `STRIPE_WEBHOOK_SECRET` (server).
 - **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_INBOX_TO` (optional — unset stores inquiries but skips the notification email).
-- **Site/ops:** `NEXT_PUBLIC_SITE_URL` (client; canonical origin for metadata/sitemap/pings); `INDEXNOW_KEY` (server — echoed at `/indexnow-key.txt` by a route handler, unset disables pings); `CRON_SECRET` (server — bearer auth for `/api/cron/purge-delivered`, which fails closed without it).
+- **Site/ops:** `CSP_MODE` (server, optional — `report-only` unless set to `enforce`); `NEXT_PUBLIC_SITE_URL` (client; canonical origin for metadata/sitemap/pings); `INDEXNOW_KEY` (server — echoed at `/indexnow-key.txt` by a route handler, unset disables pings); `CRON_SECRET` (server — bearer auth for `/api/cron/purge-delivered`, which fails closed without it).
 - **Dev only:** `PAYMENTS_DEV_BYPASS=true` skips Stripe and creates paid $0 projects. **Never set in production.**
 
 > Never put a personal email address in code, config, or docs. Use `noreply@nova-spatial.com` / `contact@nova-spatial.com`.
@@ -62,7 +62,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 
 ## Deploy / CI
 
-Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build on push/PR to `main`. `next.config.mjs` ships the CSP in **Report-Only** mode (Stripe + the Supabase origin/websocket allowed; not yet enforcing) plus enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff) and long-lived immutable caching for `/videos` and `/images`. `vercel.json` defines the one cron: `/api/cron/purge-delivered`, daily 06:00 UTC, gated by `CRON_SECRET`.
+Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build on push/PR to `main`. `next.config.ts` builds its headers from `src/lib/security/csp.ts` (tested): the CSP ships **Report-Only by default**, with `CSP_MODE=enforce` as the flip (compiled at build time, so it needs a redeploy), violations posted to `POST /api/csp-report` and logged; plus enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff) and long-lived immutable caching for `/videos` and `/images`. `vercel.json` defines the one cron: `/api/cron/purge-delivered`, daily 06:00 UTC, gated by `CRON_SECRET`.
 
 ## Agent skills
 
@@ -70,7 +70,7 @@ Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build 
 
 Issues and PRDs live in novaspatial/nova's GitHub Issues, via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`. (The tracker was cleared on 2026-07-30 for a fresh start.)
 
-> **Deliberate residuals — decisions, not bugs; don't "fix" without a new ruling:** a deep-linked `?code=` prefills without auto-applying, so the form quote reads undiscounted until Apply (the charge re-validates and is correct); abandoned pending checkouts hold coupon capacity until deleted (no sweep — accepted); rush has **no availability gate**, and refunds / revision tracking / post-order extras are **manual**; the live T&C deliberately omits the stem-prep-guide link (guard comment in `terms/page.tsx`; material changes bump `TERMS_VERSION`) — the guide itself is `UploadPrep.tsx` on the client dashboard; the dormant `first_mix_discount` flag survives only as the no-code fallback; only the Stripe webhook and the payment-status poll claim via `claimProjectPayment` — the dev-bypass inserts a born-paid row directly (all three send the receipt); the CSP is Report-Only (see Deploy / CI).
+> **Deliberate residuals — decisions, not bugs; don't "fix" without a new ruling:** a deep-linked `?code=` prefills without auto-applying, so the form quote reads undiscounted until Apply (the charge re-validates and is correct); abandoned pending checkouts hold coupon capacity until deleted (no sweep — accepted); rush has **no availability gate**, and refunds / revision tracking / post-order extras are **manual**; the live T&C deliberately omits the stem-prep-guide link (guard comment in `terms/page.tsx`; material changes bump `TERMS_VERSION`) — the guide itself is `UploadPrep.tsx` on the client dashboard; the dormant `first_mix_discount` flag survives only as the no-code fallback; only the Stripe webhook and the payment-status poll claim via `claimProjectPayment` — the dev-bypass inserts a born-paid row directly (all three send the receipt); the CSP stays Report-Only until the enforce flip is made deliberately — `CSP_MODE` is the lever and `/api/csp-report` the evidence (see Deploy / CI).
 
 ### Triage labels
 
