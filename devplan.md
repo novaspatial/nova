@@ -1,9 +1,10 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** NO-GO until Phase 0 closes · **Tracker:** GitHub issues #44–#59 · **Refreshed:** 2026-07-30
+**Created:** 2026-07-30 · **Status:** all agent-side work shipped — GO pending human ops (#44/#45 checklists, #55 legal, #50 CSP flip) · **Tracker:** GitHub issues #44–#59 · **Refreshed:** 2026-07-30
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
-Verdict: do not launch until the two blockers close. This plan sequences all 16 filed issues
+Original verdict: do not launch until the two blockers close. As of 2026-07-30 every technical
+fix is on `main` and applied to production; what remains is human-owned (see the ops checklist). This plan sequences all 16 filed issues
 into gated phases. Migrations follow the repo's fence pattern; each RLS change updates the
 policy, `src/types/portal.ts`, and tests together, is applied via the Supabase CLI/MCP (not
 CI), and is followed by a fresh `get_advisors(security)` run.
@@ -74,8 +75,8 @@ edits in a second PR. Regenerate `src/types/portal.ts` if column exposure change
 
 **SEO / content / legal:**
 - ✅ #53 Per-page self-referential canonicals (SEO — important for the marketing push). *(closed 2026-07-30)*
-- #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`**).
-- #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership**).
+- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned).
+- 🚫 #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership** — skipped by the loop; still the one hard launch blocker for taking payments).
 
 **Data integrity:**
 - ✅ #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` + row reuse), stem re-upload path, MIME allowlist + filename length cap. *(closed 2026-07-30)*
@@ -88,10 +89,11 @@ per page; privacy policy published and Terms expanded (legal sign-off); #57/#58 
 
 ## Phase 3 — Low / fast-follow ⚪
 
-- #59 batch (8 items): enable leaked-password protection; Stripe `idempotencyKey`; wire
-  error reporting (Sentry/OTel) + metadata-mismatch alert; tighten discount RPC grants
-  (`lookup_discount_code`, first-mix RPCs); harden `confirm` route + stop leaking error
-  details; re-pin Stripe API version; cosmetic/config cleanup; orphan-row sweeper.
+- 🔒 #59 batch (8 items). **Shipped:** Stripe `idempotencyKey`, re-pinned API version, hardened
+  `confirm` route, no more raw error details, contact-address and sender-fallback fixes.
+  **Open:** leaked-password protection (dashboard), error reporting + mismatch alert (needs a
+  vendor decision), discount RPC grants (touches the money path — its own unit), remaining
+  config cosmetics, orphan-row sweeper.
 
 Split any item into its own issue if it grows beyond a cleanup.
 
@@ -126,7 +128,15 @@ Phase 3 (#59) — after launch
 
 ## Ops checklist (launch day)
 
-- [ ] Vercel production env: `PAYMENTS_DEV_BYPASS` unset/false (#45).
+Everything below needs a human — none of it is visible from or fixable in the repo.
+
+- [ ] Vercel production env: `PAYMENTS_DEV_BYPASS` unset/false (#45 — the code now forces it
+      off in production regardless, but a clean env is still the ask).
+- [ ] Confirm the two existing `role = 'studio'` profiles are intended accounts, and record how
+      studio access gets granted from here (#44).
+- [ ] Soak `/api/csp-report`, then set `CSP_MODE=enforce` and redeploy; smoke-test checkout with
+      a 3DS card afterwards (#50).
+- [ ] Decide whether the contact form needs a captcha on top of the shipped rate limit (#51).
 - [ ] Supabase Auth: leaked-password protection enabled (#59).
 - [ ] All Phase 0 + Phase 1 migrations applied to production DB (manual, via CLI/MCP).
 - [ ] `get_advisors(security)` clean on production.
