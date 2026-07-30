@@ -15,9 +15,11 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 
 1. **RLS-first.** Every authorization fix lands as a Postgres policy/trigger change first;
    app-layer checks are defense-in-depth, never the only layer.
-2. **Blockers before anything else.** Phase 0 gates the launch; nothing ships until it's green.
-3. **Batch by seam.** The three RLS fixes (#44, #46, #47) ride one coordinated migration PR;
-   handler fixes ride a second; the trailing tiers are independent.
+2. **Blockers before anything else.** Phase 0 gated the work; it was taken first.
+3. **Batch by seam.** The three RLS fixes (#44, #46, #47) rode one coordinated migration
+   commit; the handler fixes rode a second; the trailing tiers were independent. (Written as
+   "PR" originally — the work landed as direct commits to `main`, one per unit, each with CI
+   green before the next started.)
 4. **Verify each fix adversarially** — from a non-privileged session, confirm the hole is
    actually closed, not just that the app path behaves.
 
@@ -30,18 +32,21 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 | #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration | 🔒 tech half shipped; open on ops |
 | #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops | 🔒 tech half shipped; open on ops |
 
-**Work:**
-- New migration `20260730_fence_profile_role.sql` (mirror the `enforce_status_write_roles`
-  pattern: service `auth.uid() IS NULL` and studio pass; else `raise 42501` on role/flag change).
-- Guard in `src/app/api/portal/projects/checkout/route.ts` around line 225; edit `.env.example:29`.
-- **Human/ops action:** confirm `PAYMENTS_DEV_BYPASS` is unset/false in Vercel production
-  (not visible from the repo).
+**Shipped (54161d7, 91adecb):**
+- `20260730_fence_profile_role.sql` — the `is_studio()` helper plus a `BEFORE UPDATE` fence on
+  `role` / `first_mix_discount` / `email`. The planned column `REVOKE` turned out to be a no-op
+  (column privileges were never granted separately), so the grant itself was narrowed:
+  `REVOKE UPDATE ON profiles` then `GRANT UPDATE (display_name, avatar_url, updated_at)`.
+- `isPaymentsDevBypassEnabled` in `src/lib/stripe/devBypass.ts` replaces the raw env read in
+  the checkout route; `.env.example` ships the flag commented out.
 
-**Exit gate (all required):**
-- From an authenticated non-studio session, `PATCH /rest/v1/profiles {"role":"studio"}` → 42501/403.
-- `pg_trigger` shows the new profiles trigger; `get_advisors(security)` clean of new criticals.
-- Unit test asserts `devBypass` is false under production env; Vercel prod verified.
-- Co-located RLS/route tests added for both.
+**Exit gate:**
+- [x] Non-studio `PATCH {"role":"studio"}` → denied. Verified twice: the grant layer refuses it
+      (`permission denied for table profiles`) and, tested in isolation, the trigger raises `42501`.
+- [x] Trigger present; `get_advisors(security)` shows no ERROR-level findings.
+- [x] Six unit cases assert `devBypass` is false under production env (Vercel preview still works),
+      plus a route-level test that a production env takes the real Stripe path.
+- [ ] **Human/ops:** Vercel production env verified (see the ops checklist).
 
 ---
 
@@ -54,14 +59,21 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 | #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code + migration | ✅ closed 2026-07-30 |
 | #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code | ✅ closed 2026-07-30 |
 
-**Batching:** #46 + #47 join #44 in the coordinated RLS migration PR. #48 + #49 are handler
-edits in a second PR. Regenerate `src/types/portal.ts` if column exposure changes.
+**Batching (as shipped):** #46 + #47 rode with #44 in 54161d7 (`20260730_harden_comment_inserts`,
+`20260730_restrict_profile_reads`). #48 + #49 rode in 64194e9, plus one migration the plan didn't
+anticipate — `20260730_fence_paid_project_delete` — because the paid-delete rule belongs at the
+DB floor, not only in the handler. `src/types/portal.ts` needed no change here (no column
+exposure changed); it changed later for #58.
 
 **Exit gate:**
-- Direct PostgREST `POST /rest/v1/project_comments` into a foreign `project_id` → denied.
-- Anon `select email from profiles` → no rows; owner reads only own row.
-- DELETE on a paid project → refused; cleanup-ordering test passes.
-- Simulated Resend throw on PATCH/finish-upload → 200 (or logged), not 500.
+- [x] Foreign-project comment insert from a simulated client session → `42501`. Positive control
+      first: the same insert succeeded before the migration.
+- [x] Anon reads 0 profile rows; a client reads 0 foreign client rows, still sees its own row and
+      studio rows (which comment authorship renders from), and can still rename itself.
+- [x] Client DELETE of a paid row → `42501` at the DB and 403 in the handler; unpaid client delete
+      and studio paid delete still work. Storage sweep now runs after the row delete, with a test
+      that a failed delete leaves the audio untouched.
+- [x] Thrown Resend error on PATCH → 200, not 500 (unit tests on the sender plus a route test).
 
 ---
 
@@ -82,8 +94,14 @@ edits in a second PR. Regenerate `src/types/portal.ts` if column exposure change
 - ✅ #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` + row reuse), stem re-upload path, MIME allowlist + filename length cap. *(closed 2026-07-30)*
 - ✅ #58 Ruled in favor of the documented behavior: comments detach from a purged Mix instead of cascading; code + docs agree. *(closed 2026-07-30)*
 
-**Exit gate:** enforcing CSP live; contact-form abuse controls in place; canonicals correct
-per page; privacy policy published and Terms expanded (legal sign-off); #57/#58 resolved with tests.
+**Exit gate:**
+- [x] Contact-form abuse controls in place (rate limit, caps, validation, header-safety,
+      service-only writes).
+- [x] Canonicals correct per page, with a metadata test guarding the regression.
+- [x] #57 / #58 resolved with tests and adversarial DB checks.
+- [ ] Enforcing CSP live — the endpoint and the corrected policy shipped; the flip is an ops
+      step (#50).
+- [ ] Privacy policy published and Terms expanded, with legal sign-off (#55).
 
 ---
 
@@ -101,20 +119,20 @@ Split any item into its own issue if it grows beyond a cleanup.
 
 ## Sequencing & dependencies
 
-```
-Phase 0 (#44, #45) ──► LAUNCH GATE ◄── Phase 1 (#46, #47, #48, #49)
-        │                                        │
-        └──► RLS migration PR: #44 + #46 + #47 ──┘   (one coordinated migration)
-             Handler PR: #48 + #49
+Executed order, one commit per unit, CI green before the next:
 
-Phase 2 (security #50/#51/#52/#56, SEO #53, legal #54/#55, data #57/#58) — parallelizable
-Phase 3 (#59) — after launch
 ```
+#45 ─► #44+#46+#47 (RLS) ─► #48+#49 (handlers) ─► #56 ─► #52+#53 ─► #51 ─► #57 ─► #58 ─► #50 ─► #59
+```
+
+`#50` was taken last on purpose: the header is compiled into the build, so a wrong directive
+would mean a redeploy to recover, and the report data it adds is what makes the flip decidable.
 
 - The launch gate = Phase 0 **and** Phase 1 green, plus the legal minimum from #55 (privacy
-  policy + refund terms) if taking real payments at launch.
-- Phase 2 security + SEO items should also land pre-launch where feasible; they don't hard-block
-  but materially affect a public marketing launch.
+  policy + refund terms) if taking real payments at launch. Phase 0 and 1 are green on the
+  technical side; **#55 is the one remaining hard blocker.**
+- Phase 2 security + SEO items landed pre-launch, except the CSP enforce flip and the captcha
+  decision, which are ops calls rather than code.
 
 ---
 
@@ -137,16 +155,26 @@ Everything below needs a human — none of it is visible from or fixable in the 
 - [ ] Soak `/api/csp-report`, then set `CSP_MODE=enforce` and redeploy; smoke-test checkout with
       a 3DS card afterwards (#50).
 - [ ] Decide whether the contact form needs a captcha on top of the shipped rate limit (#51).
-- [ ] Supabase Auth: leaked-password protection enabled (#59).
-- [ ] All Phase 0 + Phase 1 migrations applied to production DB (manual, via CLI/MCP).
-- [ ] `get_advisors(security)` clean on production.
+- [ ] Supabase Auth: leaked-password protection enabled (#59) — still showing in the advisors.
+- [x] All migrations applied to the production DB via MCP, each with a pre-migration positive
+      control and a post-migration probe: `20260730_fence_profile_role`,
+      `_harden_comment_inserts`, `_restrict_profile_reads`, `_fence_paid_project_delete`,
+      `_harden_contact_inquiries`, `_dedupe_project_files`, `_detach_comments_from_tracks`.
+- [x] `get_advisors(security)` on production: no ERROR-level findings. The
+      `rls_policy_always_true` warning on `contact_inquiries` is gone; what remains are the
+      pre-existing SECURITY DEFINER-callable warnings (the whole `enforce_*` fence family shares
+      them) and the leaked-password item above.
 - [ ] Privacy policy + refund terms live (#55).
-- [ ] Error reporting receiving events (#59) before opening the funnel.
+- [ ] Error reporting receiving events (#59) before opening the funnel — needs a vendor choice
+      before any code is worth writing.
 
 ---
 
 ## Log
 
+- 2026-07-30 — Tracker sync: #50 and #51 relabelled `ready-for-human` (their remaining work is an
+  ops flip and a captcha decision, not code); #59 stays `ready-for-agent` for the grants, sweeper
+  and cosmetics still in it. Worklog written to `docs/worklogs/2026-07-30-launch-readiness-sweep.md`.
 - 2026-07-30 — #59 partial: Stripe idempotency key on intent creation + API version re-pinned to the installed SDK; confirm route gated to the registrant and to the pending→uploaded edge; register 500s stop forwarding raw storage/PG errors; contact address and Resend sender fallback corrected. Remaining items (leaked-password toggle, Sentry/OTel, discount-RPC grants, orphan sweeper, misc config) stay on the issue. Suite 969 green.
 - 2026-07-30 — #50: security headers moved into a tested builder (`src/lib/security/csp.ts`, config renamed to `next.config.ts`), `/api/csp-report` sink added (both wire formats, extension noise filtered, query strings stripped), Stripe's `m.stripe.network`/`r.stripe.com`/`m.stripe.com` added — Report-Only had been hiding their absence, so enforcing the old list would have broken checkout. Ships report-only; `CSP_MODE=enforce` is the flip. Suite 962 green.
 - 2026-07-30 — #58: `project_comments.track_id` is nullable with `ON DELETE SET NULL`, so purging or deleting a Mix detaches its comments instead of destroying the conversation — which also ends the orphaned attachment objects. Probe: after a mix delete, comment survives with `track_id IS NULL` and its attachment row is intact.
