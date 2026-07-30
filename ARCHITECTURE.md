@@ -146,7 +146,7 @@ Per-post SEO is built by `src/lib/blog/metadata.ts` (metadata + `BlogPosting` JS
 5. **Review** — On `/listen`, the Client plays Mixes (signed streaming URLs) and leaves timestamped Comments tied to a `track_id`, optionally with attachments. Studio iterates through `revision`.
 6. **Deliver** — Studio sets `approved`, then `delivered` (the PATCH stamps `delivered_at` inside the same CAS); the final Mix files on `/listen` are the Deliverables, downloaded via signed URLs.
 7. **Archive** — Studio archives the finished Project to clear it from the studio dashboard (reversible; studio-only write enforced at the DB level). Archiving doesn't change the Client's view; full delete also removes storage objects.
-8. **Purge** — 90 days after delivery, the daily cron (`/api/cron/purge-delivered`, 06:00 UTC) removes stem + mix audio in batches and stamps the `files_purged_at` tombstone; the project row survives as the order/consent/tax record. `master_ref` files and comment attachments are deliberately not purged.
+8. **Purge** — 90 days after delivery, the daily cron (`/api/cron/purge-delivered`, 06:00 UTC) removes stem + mix audio in batches and stamps the `files_purged_at` tombstone; the project row survives as the order/consent/tax record. `master_ref` files and comment attachments are deliberately not purged, and since `20260730` deleting a Mix row **detaches** its comments (`track_id` nulls out) instead of cascading them away — the conversation and its attachments outlive the audio. A detached comment is preserved in the record but no longer rendered on `/listen`, which has no track to hang it under.
 
 ## Status state machine
 

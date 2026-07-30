@@ -199,7 +199,8 @@ export interface ProjectCommentAttachment {
 export interface ProjectComment {
   id: string
   project_id: string
-  track_id: string
+  /** Null once the Mix it was anchored to is purged or deleted (#58). */
+  track_id: string | null
   author_id: string
   body: string | null
   timestamp_ms: number | null

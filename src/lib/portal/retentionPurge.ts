@@ -11,6 +11,12 @@ export const RETENTION_DAYS = 90
 // deliverables pipeline, deliverables are the mix-type project_files rows.
 // master_ref rows are deliberately outside the decided scope, and comment
 // attachments are conversation, not audio delivery — both stay.
+//
+// Deleting the mix rows *detaches* their comments rather than cascading
+// them away (20260730, #58): the conversation and its attachments outlive
+// the audio, matching what this module has always claimed. A detached
+// comment has `track_id IS NULL` and is no longer rendered anywhere —
+// it survives as part of the project record, not as a visible thread.
 export const PURGED_FILE_TYPES = ['stem', 'mix'] as const
 
 // Bounds one cron run; the daily schedule drains any backlog. Surfaced via
