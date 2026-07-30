@@ -10,8 +10,7 @@ For domain vocabulary (Project, Stem, Mix, Deliverable, the comment clock, lifec
 
 ```text
 src/
-├── app/            # App Router: pages + API route handlers + server actions
-│   ├── actions/    # Server actions (checkEmail)
+├── app/            # App Router: pages + API route handlers
 │   └── api/        # Route handlers (auth, portal, stripe, admin, blog admin, contact, cron)
 ├── components/     # React components (audio, portal, blog, sections, layout, ui, popups)
 ├── hooks/          # Client hooks (useAuthUser, useProfile, useFileUpload, …)
@@ -97,10 +96,10 @@ API error codes are consistent: `400` validation, `401` unauthenticated, `402` s
 
 Two buckets (defined and resized in the `2026030x`/`20260425`/`20260428` migrations; the dormant `project-deliverables` bucket was removed in `20260725`):
 
-- **project-uploads** (private, 5 GiB/file) — stems **and master refs** (`{owner}/{project}/{file}`), mixes (`{owner}/{project}/mixes/{file}` — upserts, so the Studio can replace a mix in place), comment attachments (`{owner}/{project}/comments/{uuid}/{file}`).
+- **project-uploads** (private, 5 GiB/file) — stems **and master refs** (`{owner}/{project}/{file}`), mixes (`{owner}/{project}/mixes/{file}` — upserts, so the Studio can replace a mix in place; since `20260730` the `project_files` row is reused too, keyed by a unique `(project_id, storage_path)`, so a replacement keeps its id and its comments instead of duplicating the track), comment attachments (`{owner}/{project}/comments/{uuid}/{file}`).
 - **blog-assets** (public, 20 MB, images only) — Studio-only writes.
 
-Large audio never streams through the API. The server half of the seam is `src/lib/portal/storage.ts`: buckets, path templates, `SIGNED_URL_TTL_SECONDS` (1 h), upload validation (5 GiB cap, filename/MIME checks), `createUpload` (signed upload URL first, then the `project_files` row born `upload_status: 'pending'` — a storage collision can't leave a dangling row; only `confirm` flips it to `uploaded`), `signedDownload`, and a download-route factory whose prebuilt products (`stemDownloadRoute` — studio-only; `attachmentDownloadRoute` — any project viewer) are re-exported by the route files. The client half is `src/lib/portal/uploadRunner.ts` — the **register → PUT → confirm** dance (comment attachments register + PUT only; their row is created by the listen POST, which rolls the comment back if the attachment insert fails). Mixes are streamed/downloaded via signed URLs minted server-side in the `/listen` page — there is no mix API route. Bucket-level storage RLS is deliberately coarse (any authenticated user may touch the private bucket); real per-project authorization happens at the table/API layer, because signed URLs are only ever minted server-side behind the auth guards.
+Large audio never streams through the API. The server half of the seam is `src/lib/portal/storage.ts`: buckets, path templates, `SIGNED_URL_TTL_SECONDS` (1 h), upload validation (5 GiB cap, 200-char filename cap, MIME allowlist — the `audio/*` family plus archives and `application/octet-stream` for audio kinds, images/PDF/text for attachments, never SVG), `createUpload` (signed upload URL first, then the `project_files` row born `upload_status: 'pending'` — a storage collision can't leave a dangling row; only `confirm` flips it to `uploaded`), `signedDownload`, and a download-route factory whose prebuilt products (`stemDownloadRoute` — studio-only; `attachmentDownloadRoute` — any project viewer) are re-exported by the route files. The client half is `src/lib/portal/uploadRunner.ts` — the **register → PUT → confirm** dance (comment attachments register + PUT only; their row is created by the listen POST, which rolls the comment back if the attachment insert fails). Mixes are streamed/downloaded via signed URLs minted server-side in the `/listen` page — there is no mix API route. Bucket-level storage RLS is deliberately coarse (any authenticated user may touch the private bucket); real per-project authorization happens at the table/API layer, because signed URLs are only ever minted server-side behind the auth guards.
 
 ## Payments
 

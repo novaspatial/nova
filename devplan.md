@@ -78,7 +78,7 @@ edits in a second PR. Regenerate `src/types/portal.ts` if column exposure change
 - #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership**).
 
 **Data integrity:**
-- #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` or upsert), stem re-upload path, MIME allowlist + filename length cap.
+- ✅ #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` + row reuse), stem re-upload path, MIME allowlist + filename length cap. *(closed 2026-07-30)*
 - #58 Decide purge-vs-comment-cascade behavior; make code + `ARCHITECTURE.md`/`retentionPurge.ts` agree.
 
 **Exit gate:** enforcing CSP live; contact-form abuse controls in place; canonicals correct
@@ -137,6 +137,7 @@ Phase 3 (#59) — after launch
 
 ## Log
 
+- 2026-07-30 — #57: register step is idempotent per `(project_id, storage_path)` — a re-uploaded mix reuses its row (id survives, comments stay attached) and same-name stems upsert instead of 500ing; MIME allowlist by family + 200-char filename cap; unique index applied (0 duplicates in prod). Suite 927 green.
 - 2026-07-30 — #51: contact endpoint hardened — validation seam with length caps and header-safety, per-email/per-IP-hash rate limit (3 / 10 min), guarded JSON parse, studio-owned Subject line, and the anon INSERT policy dropped so inquiries are service-only writes (also clears the advisor's rls_policy_always_true finding). Probe: anon insert denied 42501. Suite 915 green.
 - 2026-07-30 — #52/#53: `checkEmail` server action deleted (enumeration oracle + unsolicited login mail); PromoPopup forwards straight to the signup link. Self-referential canonicals on /about, /contact, /terms, /blog with a metadata test. Suite 887 green.
 - 2026-07-30 — #56: `safeNextPath` sanitizer wired into the callback, the signup email link, and the login page's `router.push` (the actually-exploitable consumer); callback host now comes from an allowlist (`resolveRedirectOrigin`) instead of a raw `x-forwarded-host`. Suite 887 green.

@@ -236,6 +236,8 @@ describe('POST /api/portal/projects/[id]/files', () => {
       data: { id: 'file-mix-1', file_name: 'mix.wav' },
       error: null,
     })
+    // No row at this path yet, so the register probe inserts (#57).
+    filesChain.maybeSingle.mockResolvedValue({ data: null, error: null })
     const signedUploadMock = vi.fn().mockResolvedValue({
       data: { signedUrl: 'https://example.com/mix-upload' },
       error: null,

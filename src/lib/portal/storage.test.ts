@@ -25,6 +25,7 @@ import {
   stemDownloadRoute,
   tableFor,
   validateUploadInput,
+  MAX_FILE_NAME_LENGTH,
 } from './storage'
 
 type SupabaseMock = ReturnType<typeof createSupabaseMock>
@@ -127,6 +128,59 @@ describe('validateUploadInput', () => {
       'mimeType must be a valid MIME type',
     )
   })
+
+  test.each([
+    'audio/wav',
+    'audio/x-aiff',
+    'audio/flac',
+    'audio/mpeg',
+    // What browsers actually report for .wav/.aif more often than not.
+    'application/octet-stream',
+    'application/zip',
+  ])('accepts %s for audio uploads', (mimeType) => {
+    expect(validateUploadInput('stem', { ...valid, mimeType })).toBeNull()
+  })
+
+  test.each(['text/html', 'application/x-msdownload', 'application/javascript'])(
+    'rejects %s (#57)',
+    (mimeType) => {
+      expect(validateUploadInput('stem', { ...valid, mimeType })).toBe(
+        'This file type is not accepted',
+      )
+    },
+  )
+
+  test('comment attachments accept images and PDFs but never SVG', () => {
+    const attachment = { fileName: 'note.png', fileSize: 10 }
+    expect(
+      validateUploadInput('comment_attachment', {
+        ...attachment,
+        mimeType: 'image/png',
+      }),
+    ).toBeNull()
+    expect(
+      validateUploadInput('comment_attachment', {
+        ...attachment,
+        mimeType: 'application/pdf',
+      }),
+    ).toBeNull()
+    // SVG executes script when served inline from a signed URL.
+    expect(
+      validateUploadInput('comment_attachment', {
+        ...attachment,
+        mimeType: 'image/svg+xml',
+      }),
+    ).toBe('This file type is not accepted')
+  })
+
+  test('caps the file name length', () => {
+    expect(
+      validateUploadInput('stem', {
+        ...valid,
+        fileName: `${'x'.repeat(MAX_FILE_NAME_LENGTH)}.wav`,
+      }),
+    ).toBe(`fileName must be ${MAX_FILE_NAME_LENGTH} characters or fewer`)
+  })
 })
 
 describe('createUpload', () => {
@@ -164,6 +218,8 @@ describe('createUpload', () => {
       data: { id: 'file-1', storage_path: 'owner-1/proj-1/kick.wav' },
       error: null,
     })
+    // No row yet at this path — the register probe finds nothing (#57).
+    filesChain.maybeSingle.mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
       fromMocks: { project_files: filesChain },
       storageMocks: { 'project-uploads': { createSignedUploadUrl } },
@@ -178,7 +234,7 @@ describe('createUpload', () => {
       expect(result.storagePath).toBe('owner-1/proj-1/kick.wav')
     }
     expect(createSignedUploadUrl).toHaveBeenCalledWith('owner-1/proj-1/kick.wav', {
-      upsert: false,
+      upsert: true,
     })
     expect(filesChain.insert).toHaveBeenCalledWith({
       project_id: 'proj-1',
@@ -198,6 +254,7 @@ describe('createUpload', () => {
       error: null,
     })
     const filesChain = createChainMock({ data: { id: 'file-2' }, error: null })
+    filesChain.maybeSingle.mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
       fromMocks: { project_files: filesChain },
       storageMocks: { 'project-uploads': { createSignedUploadUrl } },
@@ -212,6 +269,45 @@ describe('createUpload', () => {
     )
     expect(filesChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({ file_type: 'mix' }),
+    )
+  })
+
+  test('re-registering the same path reuses the row instead of duplicating it (#57)', async () => {
+    const createSignedUploadUrl = vi.fn().mockResolvedValue({
+      data: { signedUrl: 'https://storage.example.com/put' },
+      error: null,
+    })
+    const filesChain = createChainMock({
+      data: { id: 'file-existing', file_type: 'mix' },
+      error: null,
+    })
+    filesChain.maybeSingle.mockResolvedValue({
+      data: { id: 'file-existing' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { project_files: filesChain },
+      storageMocks: { 'project-uploads': { createSignedUploadUrl } },
+    })
+
+    const result = await createUpload(asClient(supabase), 'mix', ctx)
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      // Same row id: the Listen timeline and its comments stay attached.
+      expect(result.row?.id).toBe('file-existing')
+    }
+    expect(filesChain.insert).not.toHaveBeenCalled()
+    expect(filesChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file_name: 'kick.wav',
+        file_size: 1024,
+        upload_status: 'pending',
+      }),
+    )
+    // file_type is never rewritten on reuse — a path belongs to one kind.
+    expect(filesChain.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ file_type: expect.anything() }),
     )
   })
 

@@ -77,6 +77,42 @@ export function isCommentAttachmentPath(
 
 const MIME_SYNTAX = /^[\w.+-]+\/[\w.+-]+$/
 
+// Longest storage path segment we're willing to mint. Well under any
+// object-store limit, and long enough for real stem names.
+export const MAX_FILE_NAME_LENGTH = 200
+
+// Allowlist by family, not by exact type (#57): browsers report
+// `application/octet-stream` for .wav/.aif/.flac more often than a real
+// audio type, so an enumerated list would reject genuine uploads. What
+// matters is that nothing renderable-as-script can be stored and later
+// served from a signed URL.
+const AUDIO_UPLOAD_EXTRA_TYPES = new Set([
+  'application/octet-stream',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/x-compressed',
+  'multipart/x-zip',
+])
+
+const ATTACHMENT_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'application/pdf',
+  'text/plain',
+])
+
+function isAllowedMimeType(kind: StorageKind, mimeType: string): boolean {
+  const type = mimeType.toLowerCase()
+  if (kind === 'comment_attachment') {
+    // SVG is deliberately absent: it executes script when served inline.
+    return ATTACHMENT_TYPES.has(type) || type.startsWith('audio/')
+  }
+  return type.startsWith('audio/') || AUDIO_UPLOAD_EXTRA_TYPES.has(type)
+}
+
 // Browsers strip directories from File.name, so no legitimate client sends
 // separators — anything path-like here is a crafted request.
 function hasUnsafePathSegment(fileName: string): boolean {
@@ -101,7 +137,7 @@ export type UploadInput = {
  * syntax, and path-safety rejections are new.
  */
 export function validateUploadInput(
-  _kind: StorageKind,
+  kind: StorageKind,
   { fileName, fileSize, mimeType }: UploadInput,
 ): string | null {
   if (!fileName || !fileSize || !mimeType) {
@@ -110,6 +146,10 @@ export function validateUploadInput(
 
   if (typeof fileName !== 'string' || hasUnsafePathSegment(fileName)) {
     return 'fileName must be a plain file name'
+  }
+
+  if (fileName.length > MAX_FILE_NAME_LENGTH) {
+    return `fileName must be ${MAX_FILE_NAME_LENGTH} characters or fewer`
   }
 
   if (
@@ -126,6 +166,10 @@ export function validateUploadInput(
 
   if (typeof mimeType !== 'string' || !MIME_SYNTAX.test(mimeType)) {
     return 'mimeType must be a valid MIME type'
+  }
+
+  if (!isAllowedMimeType(kind, mimeType)) {
+    return 'This file type is not accepted'
   }
 
   return null
@@ -208,9 +252,11 @@ export async function createUpload(
     fileName,
   })
 
+  // Upsert for every kind, not just mixes (#57): a client re-uploading a
+  // corrected stem under the same name used to hit an opaque 500 here.
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from(bucketFor(kind))
-    .createSignedUploadUrl(storagePath, { upsert: kind === 'mix' })
+    .createSignedUploadUrl(storagePath, { upsert: true })
 
   if (uploadError || !uploadData) {
     console.error('[storage createUpload] Storage Signed URL Error:', uploadError)
@@ -222,20 +268,43 @@ export async function createUpload(
     }
   }
 
-  const { data: file, error: insertError } = await supabase
+  // One row per (project, path). Reusing the row is what makes a mix
+  // re-upload a real replacement: the id survives, so the Listen timeline
+  // and every comment anchored to that track stay attached instead of the
+  // mix appearing twice (#57).
+  const { data: existing } = await supabase
     .from('project_files')
-    .insert({
-      project_id: ctx.projectId,
-      file_name: fileName,
-      file_size: fileSize,
-      mime_type: mimeType,
-      file_type: kind,
-      storage_path: storagePath,
-      upload_status: 'pending',
-      uploaded_by: ctx.uploadedBy,
-    })
-    .select()
-    .single()
+    .select('id')
+    .eq('project_id', ctx.projectId)
+    .eq('storage_path', storagePath)
+    .maybeSingle()
+
+  const { data: file, error: insertError } = existing
+    ? await supabase
+        .from('project_files')
+        .update({
+          file_name: fileName,
+          file_size: fileSize,
+          mime_type: mimeType,
+          upload_status: 'pending',
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()
+    : await supabase
+        .from('project_files')
+        .insert({
+          project_id: ctx.projectId,
+          file_name: fileName,
+          file_size: fileSize,
+          mime_type: mimeType,
+          file_type: kind,
+          storage_path: storagePath,
+          upload_status: 'pending',
+          uploaded_by: ctx.uploadedBy,
+        })
+        .select()
+        .single()
 
   if (insertError || !file) {
     console.error('[storage createUpload] Insert Error:', insertError)
