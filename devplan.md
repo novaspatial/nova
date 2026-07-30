@@ -1,6 +1,6 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** NO-GO until Phase 0 closes · **Tracker:** GitHub issues #44–#59
+**Created:** 2026-07-30 · **Status:** NO-GO until Phase 0 closes · **Tracker:** GitHub issues #44–#59 · **Refreshed:** 2026-07-30
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
 Verdict: do not launch until the two blockers close. This plan sequences all 16 filed issues
@@ -24,10 +24,10 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 
 ## Phase 0 — Launch blockers (MUST close before go) 🔴
 
-| Issue | Fix | Type |
-|---|---|---|
-| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration |
-| #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops |
+| Issue | Fix | Type | Status |
+|---|---|---|---|
+| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration | ⏳ |
+| #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops | 🔒 tech half shipped; open on ops |
 
 **Work:**
 - New migration `20260730_fence_profile_role.sql` (mirror the `enforce_status_write_roles`
@@ -132,3 +132,9 @@ Phase 3 (#59) — after launch
 - [ ] `get_advisors(security)` clean on production.
 - [ ] Privacy policy + refund terms live (#55).
 - [ ] Error reporting receiving events (#59) before opening the funnel.
+
+---
+
+## Log
+
+- 2026-07-30 — #45 tech half: `isPaymentsDevBypassEnabled` seam forces the bypass off in production (Vercel preview stays usable); `.env.example` default commented out; suite 868 green. Open on ops (Vercel prod env check).

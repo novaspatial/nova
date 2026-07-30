@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
+import { isPaymentsDevBypassEnabled } from '@/lib/stripe/devBypass'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
   ADD_ON_VALUES,
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
   // EXECUTE-granted to service_role only (20260715). Stripe stays needed
   // for real payments only. A malformed code resolves both clients before
   // its 400 — accepted; resolve-before-reserve is the contract.
-  const devBypass = process.env.PAYMENTS_DEV_BYPASS === 'true'
+  const devBypass = isPaymentsDevBypassEnabled()
   let stripe: ReturnType<typeof getStripe> | null = null
   let serviceSupabase: SupabaseClient
   try {

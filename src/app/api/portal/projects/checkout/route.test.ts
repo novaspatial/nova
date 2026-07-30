@@ -898,6 +898,48 @@ describe('POST /api/portal/projects/checkout', () => {
     }
   })
 
+  test('the bypass is forced off in production env even when the flag is set', async () => {
+    const projectsChain = makeProjectsChain({})
+    const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        fromMocks: { projects: projectsChain },
+        rpc,
+      }),
+    )
+    const prevBypass = process.env.PAYMENTS_DEV_BYPASS
+    const prevVercelEnv = process.env.VERCEL_ENV
+    process.env.PAYMENTS_DEV_BYPASS = 'true'
+    process.env.VERCEL_ENV = 'production'
+
+    try {
+      const req = createMockRequest(orderBody())
+      const res = await POST(req as NextRequest)
+      expect(res.status).toBe(200)
+
+      // The real Stripe path ran: an intent was created and the row was
+      // born unpaid — nothing about the bypass branch executed (#45).
+      expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(1)
+      const body = await res.json()
+      expect(body).toMatchObject({ clientSecret: 'pi_test_123_secret' })
+      expect(serviceProjectsChain.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'pending_payment' }),
+      )
+      expect(mockSendOrderConfirmation).not.toHaveBeenCalled()
+    } finally {
+      if (prevBypass === undefined) {
+        delete process.env.PAYMENTS_DEV_BYPASS
+      } else {
+        process.env.PAYMENTS_DEV_BYPASS = prevBypass
+      }
+      if (prevVercelEnv === undefined) {
+        delete process.env.VERCEL_ENV
+      } else {
+        process.env.VERCEL_ENV = prevVercelEnv
+      }
+    }
+  })
+
   test('dev bypass persists add-ons on the $0 project', async () => {
     const projectsChain = makeProjectsChain({})
     const rpc = vi.fn().mockResolvedValueOnce({ data: false, error: null })
