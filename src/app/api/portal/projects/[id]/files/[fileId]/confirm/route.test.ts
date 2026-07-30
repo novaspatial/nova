@@ -43,7 +43,10 @@ describe('POST /api/portal/projects/[id]/files/[fileId]/confirm', () => {
   })
 
   test('returns 200 and updates file status on success', async () => {
-    const filesChain = createChainMock({ data: { id: 'file-1' }, error: null })
+    const filesChain = createChainMock({
+      data: { id: 'file-1', uploaded_by: 'user-1', upload_status: 'pending' },
+      error: null,
+    })
     const supabase = createSupabaseMock({
       fromMocks: { project_files: filesChain },
     })
@@ -57,5 +60,41 @@ describe('POST /api/portal/projects/[id]/files/[fileId]/confirm', () => {
     expect(body.status).toBe('uploaded')
     expect(filesChain.update).toHaveBeenCalledWith({ upload_status: 'uploaded' })
     expect(filesChain.eq).toHaveBeenCalledWith('project_id', 'proj-1')
+    // The CAS keeps confirm on the pending -> uploaded edge (#59).
+    expect(filesChain.eq).toHaveBeenCalledWith('upload_status', 'pending')
+  })
+
+  test('refuses to confirm someone else\'s upload (#59)', async () => {
+    const filesChain = createChainMock({
+      data: { id: 'file-1', uploaded_by: 'other-user', upload_status: 'pending' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { project_files: filesChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest()
+    const res = await POST(req as NextRequest, makeParams('proj-1', 'file-1'))
+
+    expect(res.status).toBe(403)
+    expect(filesChain.update).not.toHaveBeenCalled()
+  })
+
+  test('re-confirming an uploaded row is a no-op', async () => {
+    const filesChain = createChainMock({
+      data: { id: 'file-1', uploaded_by: 'user-1', upload_status: 'uploaded' },
+      error: null,
+    })
+    const supabase = createSupabaseMock({
+      fromMocks: { project_files: filesChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest()
+    const res = await POST(req as NextRequest, makeParams('proj-1', 'file-1'))
+
+    expect(res.status).toBe(200)
+    expect(filesChain.update).not.toHaveBeenCalled()
   })
 })

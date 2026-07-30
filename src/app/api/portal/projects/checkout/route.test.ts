@@ -316,6 +316,7 @@ describe('POST /api/portal/projects/checkout', () => {
       expect.objectContaining({
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
   })
 
@@ -337,6 +338,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 32500, currency: 'usd' }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     // No code: the conditional metadata key is omitted entirely, never "null".
     expect(
@@ -413,6 +415,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 130000, currency: 'usd' }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body.breakdown).toMatchObject({
@@ -458,6 +461,7 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 27625, currency: 'usd' }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body).toMatchObject({
@@ -510,6 +514,7 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 221000 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
   })
 
@@ -536,6 +541,7 @@ describe('POST /api/portal/projects/checkout', () => {
           tax_region: 'CA-ON',
         }),
       }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body).toMatchObject({
@@ -599,6 +605,7 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 31216 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
   })
 
@@ -640,6 +647,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 52400, currency: 'usd' }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     // Stamped on create AND on the post-insert project_id patch.
     expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
@@ -689,6 +697,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 53562 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
       add_ons: 'rush_48h',
@@ -742,6 +751,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 52400 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     expect(mockPaymentIntentsCreate.mock.calls[0][0].metadata).toMatchObject({
       add_ons: 'extra_revision,rush_48h',
@@ -1100,6 +1110,7 @@ describe('POST /api/portal/projects/checkout', () => {
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: expected.total_cents }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     expect(
       mockPaymentIntentsCreate.mock.calls[0][0].metadata,
@@ -1149,6 +1160,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 22500 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body.breakdown).toMatchObject({
@@ -1184,6 +1196,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: 17500 }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body.breakdown).toMatchObject({
@@ -1460,6 +1473,7 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(expected.total_cents).toBe(27625)
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
       expect.objectContaining({ amount: expected.total_cents }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
     const body = await res.json()
     expect(body).toMatchObject({

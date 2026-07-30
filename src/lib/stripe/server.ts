@@ -8,16 +8,13 @@ export function getStripe(): Stripe {
   if (!key) {
     throw new Error('STRIPE_SECRET_KEY is not configured')
   }
-  // Pin to the Stripe API version the integration was written against.
-  // `apiVersion` in Stripe's types is narrowed to a single string literal
-  // matching whichever version ships with the installed package, so the
-  // cast decouples this code from that moving target without changing
-  // what gets sent to Stripe at runtime.
-  type ApiVersion = NonNullable<
-    ConstructorParameters<typeof Stripe>[1]
-  >['apiVersion']
+  // Pinned deliberately, and re-pinned to the installed SDK's own version
+  // (#59): the previous pin had drifted two releases behind, and the cast
+  // that made that possible also hid the drift. Omitting `apiVersion`
+  // entirely would let an SDK upgrade change wire behavior silently, so
+  // the pin stays — bump it together with the `stripe` dependency.
   cached = new Stripe(key, {
-    apiVersion: '2026-03-25.dahlia' as ApiVersion,
+    apiVersion: '2026-05-27.dahlia',
   })
   return cached
 }

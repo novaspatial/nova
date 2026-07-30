@@ -6,4 +6,5 @@ import { Resend } from 'resend'
 // log and continue rather than throwing. Validate the env var at deploy.
 export const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build')
 
-export const RESEND_FROM = process.env.RESEND_FROM_EMAIL || 'Atmos <onboarding@resend.dev>'
+export const RESEND_FROM =
+  process.env.RESEND_FROM_EMAIL || 'NOVA Spatial <noreply@nova-spatial.com>'

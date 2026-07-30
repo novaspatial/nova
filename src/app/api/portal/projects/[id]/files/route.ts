@@ -87,10 +87,20 @@ export async function POST(
   })
 
   if (!result.ok) {
-    return NextResponse.json(
-      { error: result.error, ...(result.details !== undefined ? { details: result.details } : {}) },
-      { status: result.status },
-    )
+    // Validation messages are written for the client; storage/Postgres
+    // errors are not, and used to be forwarded verbatim (#59).
+    if (result.status >= 500) {
+      console.error('[portal files] register failed:', {
+        projectId,
+        error: result.error,
+        details: result.details,
+      })
+      return NextResponse.json(
+        { error: 'Failed to register the upload. Please try again.' },
+        { status: result.status },
+      )
+    }
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   return NextResponse.json({

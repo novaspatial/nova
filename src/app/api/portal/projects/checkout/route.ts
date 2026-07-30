@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { requireApiUser } from '@/lib/auth/server'
 import { getStripe } from '@/lib/stripe/server'
 import { isPaymentsDevBypassEnabled } from '@/lib/stripe/devBypass'
+import { buildCheckoutIdempotencyKey } from '@/lib/stripe/idempotency'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
   ADD_ON_VALUES,
@@ -377,34 +378,54 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Payments not configured' }, { status: 500 })
   }
 
+  // What makes two checkouts "the same order": everything that changes the
+  // charge or the row we would create.
+  const intentFingerprint = {
+    amountCents,
+    currency,
+    songCount,
+    stemCount,
+    addOns,
+    billingCountry,
+    billingProvince,
+    couponCode: reservation.couponCode,
+  }
+
   let intent
   try {
-    intent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency,
-      // Redirect-based methods (Klarna, Cash App Pay, ...) would navigate
-      // away and lose the in-memory stem file list before the post-payment
-      // upload runs; cards and Apple/Google Pay confirm in place. Wallet
-      // enablement beyond this is a D3 sub-decision.
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      metadata: {
-        user_id: user.id,
-        discount_applied: String(discountApplied),
-        song_count: String(songCount),
-        // Always stamped, even when empty — unlike the coupon key below,
-        // which omits-when-absent. Absent must keep meaning "pre-#19
-        // intent" so the payment-status cross-check can skip legacy
-        // intents; '' means a post-#19 order with no add-ons purchased.
-        add_ons: addOns.join(','),
-        tax_cents: String(breakdown.tax_cents),
-        tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
-        // Stripe metadata values must be strings — omit rather than "null".
-        // #26's webhook finalize reads this to consume the code on payment.
-        ...(reservation.couponCode
-          ? { applied_coupon_code: reservation.couponCode }
-          : {}),
+    intent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency,
+        // Redirect-based methods (Klarna, Cash App Pay, ...) would navigate
+        // away and lose the in-memory stem file list before the post-payment
+        // upload runs; cards and Apple/Google Pay confirm in place. Wallet
+        // enablement beyond this is a D3 sub-decision.
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+        metadata: {
+          user_id: user.id,
+          discount_applied: String(discountApplied),
+          song_count: String(songCount),
+          // Always stamped, even when empty — unlike the coupon key below,
+          // which omits-when-absent. Absent must keep meaning "pre-#19
+          // intent" so the payment-status cross-check can skip legacy
+          // intents; '' means a post-#19 order with no add-ons purchased.
+          add_ons: addOns.join(','),
+          tax_cents: String(breakdown.tax_cents),
+          tax_region: billingProvince ? `CA-${billingProvince}` : billingCountry,
+          // Stripe metadata values must be strings — omit rather than "null".
+          // #26's webhook finalize reads this to consume the code on payment.
+          ...(reservation.couponCode
+            ? { applied_coupon_code: reservation.couponCode }
+            : {}),
+        },
       },
-    })
+      // A double-submitted checkout would otherwise mint a second intent
+      // (and a second pending project) for the same order (#59). The key
+      // covers one owner's identical order within the rate-limit window;
+      // a genuinely different order differs in the hashed payload.
+      { idempotencyKey: buildCheckoutIdempotencyKey(user.id, intentFingerprint) },
+    )
   } catch (err) {
     await reservation.release()
     const message =

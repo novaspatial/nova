@@ -23,7 +23,7 @@ function ContactDetails() {
         </h2>
         <dl className="mt-6 grid grid-cols-1 gap-8 text-sm sm:grid-cols-2">
           {[
-            ['Contact', 'mix@nova-spatial.com'],
+            ['Contact', 'contact@nova-spatial.com'],
           ].map(([label, email]) => (
             <div key={email}>
               <dt className="font-semibold text-white">{label}</dt>
