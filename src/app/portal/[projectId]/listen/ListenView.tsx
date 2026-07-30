@@ -108,6 +108,9 @@ export function ListenView({
   const commentCountByTrackId = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const comment of comments) {
+      // Detached comments (their Mix was purged or deleted, #58) belong to
+      // no track and are counted against none.
+      if (!comment.track_id) continue
       counts[comment.track_id] = (counts[comment.track_id] ?? 0) + 1
     }
     return counts
