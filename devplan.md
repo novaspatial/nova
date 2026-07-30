@@ -68,7 +68,7 @@ edits in a second PR. Regenerate `src/types/portal.ts` if column exposure change
 
 **Security (`ready-for-agent`):**
 - #50 CSP → enforce (nonce/hash inline scripts, drop `unsafe-eval` if unused) + add a report endpoint.
-- #51 Contact form → rate limit, length caps, email validation, captcha; sanitize `subject`/`replyTo`; guard `request.json()`.
+- 🔒 #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30; captcha deferred — open on an ops decision)*.
 - ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. *(closed 2026-07-30)*
 - ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. *(closed 2026-07-30)*
 
@@ -137,6 +137,7 @@ Phase 3 (#59) — after launch
 
 ## Log
 
+- 2026-07-30 — #51: contact endpoint hardened — validation seam with length caps and header-safety, per-email/per-IP-hash rate limit (3 / 10 min), guarded JSON parse, studio-owned Subject line, and the anon INSERT policy dropped so inquiries are service-only writes (also clears the advisor's rls_policy_always_true finding). Probe: anon insert denied 42501. Suite 915 green.
 - 2026-07-30 — #52/#53: `checkEmail` server action deleted (enumeration oracle + unsolicited login mail); PromoPopup forwards straight to the signup link. Self-referential canonicals on /about, /contact, /terms, /blog with a metadata test. Suite 887 green.
 - 2026-07-30 — #56: `safeNextPath` sanitizer wired into the callback, the signup email link, and the login page's `router.push` (the actually-exploitable consumer); callback host now comes from an allowlist (`resolveRedirectOrigin`) instead of a raw `x-forwarded-host`. Suite 887 green.
 - 2026-07-30 — #48/#49 handler unit: paid-row delete gated in the handler **and** at the DB floor (`enforce_unpaid_client_deletes` fence), storage sweep moved after the row delete (paths collected before it, since children cascade); status notifications made best-effort like the receipt sender. Probes: client delete of a paid row denied 42501, unpaid client delete and studio paid delete still work. Suite 874 green.
