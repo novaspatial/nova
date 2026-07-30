@@ -1,0 +1,134 @@
+# NovaSpatial — Launch-Readiness Remediation Plan
+
+**Created:** 2026-07-30 · **Status:** NO-GO until Phase 0 closes · **Tracker:** GitHub issues #44–#59
+
+Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
+Verdict: do not launch until the two blockers close. This plan sequences all 16 filed issues
+into gated phases. Migrations follow the repo's fence pattern; each RLS change updates the
+policy, `src/types/portal.ts`, and tests together, is applied via the Supabase CLI/MCP (not
+CI), and is followed by a fresh `get_advisors(security)` run.
+
+---
+
+## Guiding principles
+
+1. **RLS-first.** Every authorization fix lands as a Postgres policy/trigger change first;
+   app-layer checks are defense-in-depth, never the only layer.
+2. **Blockers before anything else.** Phase 0 gates the launch; nothing ships until it's green.
+3. **Batch by seam.** The three RLS fixes (#44, #46, #47) ride one coordinated migration PR;
+   handler fixes ride a second; the trailing tiers are independent.
+4. **Verify each fix adversarially** — from a non-privileged session, confirm the hole is
+   actually closed, not just that the app path behaves.
+
+---
+
+## Phase 0 — Launch blockers (MUST close before go) 🔴
+
+| Issue | Fix | Type |
+|---|---|---|
+| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration |
+| #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops |
+
+**Work:**
+- New migration `20260730_fence_profile_role.sql` (mirror the `enforce_status_write_roles`
+  pattern: service `auth.uid() IS NULL` and studio pass; else `raise 42501` on role/flag change).
+- Guard in `src/app/api/portal/projects/checkout/route.ts` around line 225; edit `.env.example:29`.
+- **Human/ops action:** confirm `PAYMENTS_DEV_BYPASS` is unset/false in Vercel production
+  (not visible from the repo).
+
+**Exit gate (all required):**
+- From an authenticated non-studio session, `PATCH /rest/v1/profiles {"role":"studio"}` → 42501/403.
+- `pg_trigger` shows the new profiles trigger; `get_advisors(security)` clean of new criticals.
+- Unit test asserts `devBypass` is false under production env; Vercel prod verified.
+- Co-located RLS/route tests added for both.
+
+---
+
+## Phase 1 — High severity (before launch) 🟠
+
+| Issue | Fix | Type |
+|---|---|---|
+| #46 Cross-project comment injection | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK` | Migration |
+| #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration |
+| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code |
+| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code |
+
+**Batching:** #46 + #47 join #44 in the coordinated RLS migration PR. #48 + #49 are handler
+edits in a second PR. Regenerate `src/types/portal.ts` if column exposure changes.
+
+**Exit gate:**
+- Direct PostgREST `POST /rest/v1/project_comments` into a foreign `project_id` → denied.
+- Anon `select email from profiles` → no rows; owner reads only own row.
+- DELETE on a paid project → refused; cleanup-ordering test passes.
+- Simulated Resend throw on PATCH/finish-upload → 200 (or logged), not 500.
+
+---
+
+## Phase 2 — Medium severity (target pre-launch; legal items human-owned) 🟡
+
+**Security (`ready-for-agent`):**
+- #50 CSP → enforce (nonce/hash inline scripts, drop `unsafe-eval` if unused) + add a report endpoint.
+- #51 Contact form → rate limit, length caps, email validation, captcha; sanitize `subject`/`replyTo`; guard `request.json()`.
+- #52 Promo email check → replace `signInWithOtp` existence probe with a non-email-sending, rate-limited lookup; try/catch the server action.
+- #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated.
+
+**SEO / content / legal:**
+- #53 Per-page self-referential canonicals (SEO — important for the marketing push).
+- #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`**).
+- #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership**).
+
+**Data integrity:**
+- #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` or upsert), stem re-upload path, MIME allowlist + filename length cap.
+- #58 Decide purge-vs-comment-cascade behavior; make code + `ARCHITECTURE.md`/`retentionPurge.ts` agree.
+
+**Exit gate:** enforcing CSP live; contact-form abuse controls in place; canonicals correct
+per page; privacy policy published and Terms expanded (legal sign-off); #57/#58 resolved with tests.
+
+---
+
+## Phase 3 — Low / fast-follow ⚪
+
+- #59 batch (8 items): enable leaked-password protection; Stripe `idempotencyKey`; wire
+  error reporting (Sentry/OTel) + metadata-mismatch alert; tighten discount RPC grants
+  (`lookup_discount_code`, first-mix RPCs); harden `confirm` route + stop leaking error
+  details; re-pin Stripe API version; cosmetic/config cleanup; orphan-row sweeper.
+
+Split any item into its own issue if it grows beyond a cleanup.
+
+---
+
+## Sequencing & dependencies
+
+```
+Phase 0 (#44, #45) ──► LAUNCH GATE ◄── Phase 1 (#46, #47, #48, #49)
+        │                                        │
+        └──► RLS migration PR: #44 + #46 + #47 ──┘   (one coordinated migration)
+             Handler PR: #48 + #49
+
+Phase 2 (security #50/#51/#52/#56, SEO #53, legal #54/#55, data #57/#58) — parallelizable
+Phase 3 (#59) — after launch
+```
+
+- The launch gate = Phase 0 **and** Phase 1 green, plus the legal minimum from #55 (privacy
+  policy + refund terms) if taking real payments at launch.
+- Phase 2 security + SEO items should also land pre-launch where feasible; they don't hard-block
+  but materially affect a public marketing launch.
+
+---
+
+## Verification (each phase)
+
+1. **Adversarial DB check** for every RLS/authz fix — exploit the hole from a non-privileged
+   session and confirm it's closed (not just the app path).
+2. `npx vitest run` (add co-located tests per fix) and `npm run build` (the only type-check in CI).
+3. `get_advisors(security)` after every DDL change; keep it clean.
+4. Manual smoke of the affected flow (checkout, upload, listen, delete) on a preview deploy.
+
+## Ops checklist (launch day)
+
+- [ ] Vercel production env: `PAYMENTS_DEV_BYPASS` unset/false (#45).
+- [ ] Supabase Auth: leaked-password protection enabled (#59).
+- [ ] All Phase 0 + Phase 1 migrations applied to production DB (manual, via CLI/MCP).
+- [ ] `get_advisors(security)` clean on production.
+- [ ] Privacy policy + refund terms live (#55).
+- [ ] Error reporting receiving events (#59) before opening the funnel.
