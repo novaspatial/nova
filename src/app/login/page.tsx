@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
+import { safeNextPath } from '@/lib/auth/nextPath'
 
 type AuthMode = 'login' | 'signup' | 'reset'
 
@@ -56,7 +57,9 @@ function LoginForm() {
   const defaultMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login'
   const defaultEmail = searchParams.get('email') || ''
   const hasPromo = searchParams.get('promo') === WELCOME_PROMO_TOKEN
-  const nextPath = searchParams.get('next') || '/portal'
+  // router.push hands a protocol-relative href to window.location, so an
+  // unsanitized ?next= leaves the origin from here (#56).
+  const nextPath = safeNextPath(searchParams.get('next'), '/portal')
 
   const [mode, setMode] = useState<AuthMode>(defaultMode)
   const [email, setEmail] = useState(defaultEmail)

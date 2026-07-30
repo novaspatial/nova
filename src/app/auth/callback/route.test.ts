@@ -42,7 +42,8 @@ describe('GET /auth/callback', () => {
     )
   })
 
-  test('redirects to forwarded host outside local development', async () => {
+  test('honors x-forwarded-host in production only when it is the canonical host', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
     mockCreateClient.mockResolvedValue({
       auth: {
         exchangeCodeForSession: vi.fn().mockResolvedValue({
@@ -54,13 +55,54 @@ describe('GET /auth/callback', () => {
     const res = await GET(
       new Request('http://internal/auth/callback?code=abc&next=/portal', {
         headers: {
-          'x-forwarded-host': 'nova.example.com',
+          'x-forwarded-host': 'nova-spatial.com',
         },
       }),
     )
 
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('https://nova.example.com/portal')
+    expect(res.headers.get('location')).toBe('https://nova-spatial.com/portal')
+  })
+
+  test('ignores a spoofed x-forwarded-host in production (#56)', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        exchangeCodeForSession: vi.fn().mockResolvedValue({
+          error: null,
+        }),
+      },
+    })
+
+    const res = await GET(
+      new Request('http://internal/auth/callback?code=abc&next=/portal', {
+        headers: {
+          'x-forwarded-host': 'attacker.example',
+        },
+      }),
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('https://nova-spatial.com/portal')
+  })
+
+  test('drops an off-origin next before redirecting (#56)', async () => {
+    mockCreateClient.mockResolvedValue({
+      auth: {
+        exchangeCodeForSession: vi.fn().mockResolvedValue({
+          error: null,
+        }),
+      },
+    })
+
+    const res = await GET(
+      new Request(
+        'http://localhost:3000/auth/callback?code=abc&next=//attacker.example',
+      ),
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('http://localhost:3000/')
   })
 
   test('redirects to the origin during development', async () => {

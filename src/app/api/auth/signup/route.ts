@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/supabaseServer'
+import { safeNextPath } from '@/lib/auth/nextPath'
 
 async function ensureSupabaseHostReachable() {
   try {
@@ -51,8 +52,7 @@ export async function POST(request: Request) {
     }
 
     const { origin } = new URL(request.url)
-    const redirectTarget =
-      typeof next === 'string' && next.startsWith('/') ? next : '/portal'
+    const redirectTarget = safeNextPath(next, '/portal')
     const { error } = await supabase.auth.signUp({
       email,
       password,

@@ -72,6 +72,8 @@ Three clients live in `src/lib/supabase/`, picked by execution context:
 
 **Middleware** (`src/middleware.ts`, matcher `/portal/:path*`, `/profile/:path*`, `/blog/admin/:path*` — the whole private surface): every matched response carries `X-Robots-Tag: noindex, nofollow`, so private URLs get de-indexed rather than merely un-crawled. Without an `sb-*-auth-token` cookie, bare `/portal` and `/profile` redirect to `/` (marketing-first) and deeper links to `/login?next=…`; with one, validate via `getClaims()`, refreshing the session cookie (and clearing stale cookies if validation fails because Supabase is unreachable).
 
+**Redirect targets are untrusted.** Every `?next=` passes through `safeNextPath` (`src/lib/auth/nextPath.ts`) — a single leading slash, no `//` or `/\`, no control characters — at all three consumers (the callback, the signup route's `emailRedirectTo`, and the login page's `router.push`). The callback's host comes from `resolveRedirectOrigin` (`src/lib/auth/redirectOrigin.ts`), which honors `x-forwarded-host` only when it matches the canonical host, its `www.` sibling, or a platform-supplied `VERCEL_*` host; outside production the request origin passes through unchanged.
+
 **Server helpers** (`src/lib/auth/server.ts`) are the gate inside pages and handlers:
 
 - `requirePageUser()` / `requirePageProfile()` / `requirePageStudioUser()` — redirect-based, for server components (the studio variant sends non-studio users to `/portal`).
