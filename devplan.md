@@ -50,8 +50,8 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 |---|---|---|---|
 | #46 Cross-project comment injection | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK` | Migration | ✅ closed 2026-07-30 |
 | #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration | ✅ closed 2026-07-30 |
-| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code | ⏳ |
-| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code | ⏳ |
+| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code + migration | ✅ closed 2026-07-30 |
+| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code | ✅ closed 2026-07-30 |
 
 **Batching:** #46 + #47 join #44 in the coordinated RLS migration PR. #48 + #49 are handler
 edits in a second PR. Regenerate `src/types/portal.ts` if column exposure changes.
@@ -137,5 +137,6 @@ Phase 3 (#59) — after launch
 
 ## Log
 
+- 2026-07-30 — #48/#49 handler unit: paid-row delete gated in the handler **and** at the DB floor (`enforce_unpaid_client_deletes` fence), storage sweep moved after the row delete (paths collected before it, since children cascade); status notifications made best-effort like the receipt sender. Probes: client delete of a paid row denied 42501, unpaid client delete and studio paid delete still work. Suite 874 green.
 - 2026-07-30 — #44/#46/#47 coordinated RLS unit: `is_studio()` helper + privileged-column fence & grant narrowing on `profiles`, membership predicate on the comment INSERT floor, profiles SELECT restricted to self/studio (anon reads 0). Probes: escalation and injection both denied 42501, anon 0 rows, allowed paths (self read/rename, studio-row read, studio sees all) intact; advisors show no new errors. #46/#47 closed; #44 open on ops.
 - 2026-07-30 — #45 tech half: `isPaymentsDevBypassEnabled` seam forces the bypass off in production (Vercel preview stays usable); `.env.example` default commented out; suite 868 green. Open on ops (Vercel prod env check).

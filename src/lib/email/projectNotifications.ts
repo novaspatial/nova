@@ -47,31 +47,52 @@ export async function sendProjectStatusEmail(
     return
   }
 
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select('title, owner:profiles!projects_owner_id_fkey(email, display_name)')
-    .eq('id', projectId)
-    .single<{
-      title: string
-      owner: { email: string | null; display_name: string | null } | null
-    }>()
+  // Best-effort, like every other send in this directory: the caller's
+  // write has already committed by the time we get here, so a throwing
+  // lookup or Resend outage must never turn a successful status change
+  // into a 500 (#49).
+  try {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select(
+        'title, owner:profiles!projects_owner_id_fkey(email, display_name)',
+      )
+      .eq('id', projectId)
+      .single<{
+        title: string
+        owner: { email: string | null; display_name: string | null } | null
+      }>()
 
-  if (error || !project?.owner?.email) {
-    console.error('[email] Failed to load project/owner for notification:', error)
-    return
-  }
+    if (error || !project?.owner?.email) {
+      console.error(
+        '[email] Failed to load project/owner for notification:',
+        error,
+      )
+      return
+    }
 
-  const email = buildEmail(status, project.title, `${origin}/portal/${projectId}`)
-  if (!email) return
+    const email = buildEmail(
+      status,
+      project.title,
+      `${origin}/portal/${projectId}`,
+    )
+    if (!email) return
 
-  const { error: sendError } = await resend.emails.send({
-    from: RESEND_FROM,
-    to: project.owner.email,
-    subject: email.subject,
-    text: email.text,
-  })
+    const { error: sendError } = await resend.emails.send({
+      from: RESEND_FROM,
+      to: project.owner.email,
+      subject: email.subject,
+      text: email.text,
+    })
 
-  if (sendError) {
-    console.error('[email] Resend error:', sendError)
+    if (sendError) {
+      console.error('[email] Resend error:', sendError)
+    }
+  } catch (err) {
+    console.error('[email] Status notification failed:', {
+      projectId,
+      status,
+      error: err,
+    })
   }
 }

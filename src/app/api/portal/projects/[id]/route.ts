@@ -6,7 +6,10 @@ import {
   requireApiStudioUser,
 } from '@/lib/auth/server'
 import { sendProjectStatusEmail } from '@/lib/email/projectNotifications'
-import { cleanupProjectArtifacts } from '@/lib/portal/projectCleanup'
+import {
+  collectProjectStoragePaths,
+  removeProjectStorageObjects,
+} from '@/lib/portal/projectCleanup'
 import { restoreUnpaidOrderDiscount } from '@/lib/portal/orderDiscount'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import {
@@ -145,23 +148,39 @@ export async function DELETE(
   const projectResult = await getProjectOrApiNotFound<{
     id: string
     owner_id: string
-  }>(supabase, id, 'id, owner_id', profile?.role)
+    paid_at: string | null
+  }>(supabase, id, 'id, owner_id, paid_at', profile?.role)
   if ('response' in projectResult) {
     return projectResult.response
   }
   const { project } = projectResult
 
-  const canDelete = profile?.role === 'studio' || project.owner_id === user.id
+  const isStudio = profile?.role === 'studio'
+  const canDelete = isStudio || project.owner_id === user.id
 
   if (!canDelete) {
     return forbiddenResponse()
   }
 
-  // Sweep storage objects (uploads, comment attachments) before the row +
-  // children cascade.
-  const { error: cleanupError } = await cleanupProjectArtifacts(supabase, project)
-  if (cleanupError) {
-    return NextResponse.json({ error: cleanupError }, { status: 500 })
+  // A paid Project is the order/consent/tax record — the row survives even
+  // the 90-day purge (#48). Clients may only delete an unpaid checkout;
+  // Studio keeps the override. The DB fence (20260730) is the floor.
+  if (!isStudio && project.paid_at) {
+    return NextResponse.json(
+      {
+        error:
+          'A paid project cannot be deleted. Contact the studio to cancel or request a refund.',
+      },
+      { status: 403 },
+    )
+  }
+
+  // Read the storage paths while the child rows still exist — they cascade
+  // away with the project row, and the objects they point at do not (#48).
+  const { paths: storagePaths, error: collectError } =
+    await collectProjectStoragePaths(supabase, project)
+  if (collectError) {
+    return NextResponse.json({ error: collectError }, { status: 500 })
   }
 
   const { data: deletedProject, error: deleteError } = await supabase
@@ -196,6 +215,20 @@ export async function DELETE(
   await restoreUnpaidOrderDiscount(supabase, deletedProject, {
     serviceSupabase,
   })
+
+  // Sweep last: the row is already gone, so a storage failure is logged,
+  // never surfaced — a 500 here would invite a retry of a delete that
+  // already committed, and orphaned objects are recoverable.
+  const { error: sweepError } = await removeProjectStorageObjects(
+    supabase,
+    storagePaths,
+  )
+  if (sweepError) {
+    console.error('[portal] Storage sweep failed after project delete:', {
+      projectId: id,
+      error: sweepError,
+    })
+  }
 
   return NextResponse.json({ success: true, hidden: false, deleted: true })
 }

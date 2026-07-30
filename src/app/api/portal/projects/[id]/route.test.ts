@@ -18,6 +18,16 @@ vi.mock('@/lib/supabase/supabaseService', () => ({
   createServiceClient: () => mockCreateServiceClient(),
 }))
 
+// The status notification runs for real in these tests (its best-effort
+// contract is the thing #49 fixed) — only Resend itself is stubbed.
+const mockResendSend = vi
+  .fn()
+  .mockResolvedValue({ data: { id: 'email-1' }, error: null })
+vi.mock('@/lib/resend', () => ({
+  resend: { emails: { send: (...args: unknown[]) => mockResendSend(...args) } },
+  RESEND_FROM: 'Atmos <noreply@example.com>',
+}))
+
 import { DELETE, GET, PATCH } from './route'
 
 function makeParams(id: string) {
@@ -143,6 +153,44 @@ describe('PATCH /api/portal/projects/[id]', () => {
 
     const body = await res.json()
     expect(body.error).toBe('Forbidden')
+  })
+
+  test('a throwing notification does not 500 a committed status change (#49)', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'studio' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: { id: 'proj-1', status: 'approved' },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: { id: 'proj-1', status: 'review' },
+        error: null,
+      })
+      // The notification's own project/owner lookup.
+      .mockResolvedValueOnce({
+        data: { title: 'T', owner: { email: 'client@test.com', display_name: null } },
+        error: null,
+      })
+    projectsChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'proj-1', status: 'approved' },
+      error: null,
+    })
+    mockResendSend.mockRejectedValueOnce(new Error('Resend is down'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const supabase = createSupabaseMock({
+      user: { id: 'studio-1', email: 'studio@test.com' },
+      fromMocks: { profiles: profileChain, projects: projectsChain },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest({ status: 'approved' })
+    const res = await PATCH(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(200)
+    errSpy.mockRestore()
   })
 
   test('returns 400 for invalid status value', async () => {
@@ -423,7 +471,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
     await expect(res.json()).resolves.toEqual({ error: 'Forbidden' })
   })
 
-  test('owner (client role) fully deletes the project', async () => {
+  test('owner (client role) fully deletes an unpaid project', async () => {
     const profileChain = createChainMock({
       data: { role: 'client' },
       error: null,
@@ -435,7 +483,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
         client_deleted_at: null,
         studio_deleted_at: null,
         discount_applied: false,
-        paid_at: '2026-04-01T00:00:00.000Z',
+        paid_at: null,
       },
       error: null,
     })
@@ -447,7 +495,7 @@ describe('DELETE /api/portal/projects/[id]', () => {
           client_deleted_at: null,
           studio_deleted_at: null,
           discount_applied: false,
-          paid_at: '2026-04-01T00:00:00.000Z',
+          paid_at: null,
         },
         error: null,
       })
@@ -482,6 +530,103 @@ describe('DELETE /api/portal/projects/[id]', () => {
       deleted: true,
     })
     expect(projectsChain.delete).toHaveBeenCalledTimes(1)
+  })
+
+  test('refuses a client delete of a paid project (#48)', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        paid_at: '2026-04-01T00:00:00.000Z',
+      },
+      error: null,
+    })
+    const filesChain = createChainMock({ data: [], error: null })
+    const uploadsBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+      },
+      storageMocks: { 'project-uploads': uploadsBucket },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(403)
+    // Nothing destroyed: no row delete, no storage sweep.
+    expect(projectsChain.delete).not.toHaveBeenCalled()
+    expect(uploadsBucket.remove).not.toHaveBeenCalled()
+  })
+
+  test('sweeps storage only after the row delete succeeds (#48)', async () => {
+    const profileChain = createChainMock({
+      data: { role: 'client' },
+      error: null,
+    })
+    const projectsChain = createChainMock({
+      data: {
+        id: 'proj-1',
+        owner_id: 'user-1',
+        client_deleted_at: null,
+        studio_deleted_at: null,
+        discount_applied: false,
+        paid_at: null,
+      },
+      error: null,
+    })
+    projectsChain.single
+      .mockResolvedValueOnce({
+        data: {
+          id: 'proj-1',
+          owner_id: 'user-1',
+          client_deleted_at: null,
+          studio_deleted_at: null,
+          discount_applied: false,
+          paid_at: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'delete refused' },
+      })
+    const filesChain = createChainMock({
+      data: [{ storage_path: 'user-1/proj-1/stem.wav' }],
+      error: null,
+    })
+    const uploadsBucket = {
+      remove: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }
+    const supabase = createSupabaseMock({
+      user: { id: 'user-1', email: 'client@test.com' },
+      fromMocks: {
+        profiles: profileChain,
+        projects: projectsChain,
+        project_files: filesChain,
+      },
+      storageMocks: { 'project-uploads': uploadsBucket },
+    })
+    mockCreateClient.mockResolvedValue(supabase)
+
+    const req = createMockRequest(undefined, { method: 'DELETE' })
+    const res = await DELETE(req as NextRequest, makeParams('proj-1'))
+
+    expect(res.status).toBe(500)
+    // The row survived, so its audio must survive with it.
+    expect(uploadsBucket.remove).not.toHaveBeenCalled()
   })
 
   test('studio role can delete any project', async () => {
@@ -673,14 +818,18 @@ describe('DELETE /api/portal/projects/[id]', () => {
     [
       'a WELCOME row (the delete itself frees the index slot)',
       { applied_coupon_code: 'WELCOME', paid_at: null },
+      'client',
     ],
     [
+      // Since #48 only studio may delete a paid row at all; the point of
+      // the case is that a consumed code is not returned either way.
       'a paid code order (consumed, not restorable)',
       { applied_coupon_code: 'SUMMER10', paid_at: '2026-07-01T00:00:00.000Z' },
+      'studio',
     ],
-  ])('does not restore %s', async (_label, returned) => {
+  ])('does not restore %s', async (_label, returned, role) => {
     const profileChain = createChainMock({
-      data: { role: 'client' },
+      data: { role },
       error: null,
     })
     const projectsChain = createChainMock({

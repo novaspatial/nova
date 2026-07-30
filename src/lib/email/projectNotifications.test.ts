@@ -67,6 +67,41 @@ describe('sendProjectStatusEmail', () => {
     errSpy.mockRestore()
   })
 
+  test('swallows a throwing Resend send — the caller already committed', async () => {
+    const supabase = makeSupabase({
+      data: { title: 'T', owner: { email: 'a@b.co', display_name: null } },
+      error: null,
+    })
+    sendMock.mockRejectedValue(new Error('Resend is down'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(
+      sendProjectStatusEmail(supabase, 'proj-1', 'review', 'https://example.com'),
+    ).resolves.toBeUndefined()
+
+    expect(errSpy).toHaveBeenCalled()
+    errSpy.mockRestore()
+  })
+
+  test('swallows a throwing project lookup', async () => {
+    const chain = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockRejectedValue(new Error('Supabase unreachable')),
+    }
+    const supabase = {
+      from: vi.fn(() => chain),
+    } as unknown as Parameters<typeof sendProjectStatusEmail>[0]
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(
+      sendProjectStatusEmail(supabase, 'proj-1', 'review', 'https://example.com'),
+    ).resolves.toBeUndefined()
+
+    expect(sendMock).not.toHaveBeenCalled()
+    errSpy.mockRestore()
+  })
+
   test('sends the "in_review" email with project title in the subject', async () => {
     const supabase = makeSupabase({
       data: {
