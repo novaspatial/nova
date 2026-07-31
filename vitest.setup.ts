@@ -9,6 +9,18 @@ class ResizeObserverStub {
 }
 vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
+// jsdom has no IntersectionObserver; framer-motion's whileInView (FadeIn)
+// requires one.
+class IntersectionObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return []
+  }
+}
+vi.stubGlobal('IntersectionObserver', IntersectionObserverStub)
+
 // Mock Supabase client
 vi.mock('@/lib/supabase/supabaseClient', () => ({
   createClient: vi.fn(),

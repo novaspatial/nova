@@ -101,6 +101,9 @@ export function createSupabaseMock({
       signUp: vi.fn(),
       signInWithOtp: vi.fn(),
       signOut: vi.fn(),
+      verifyOtp: vi.fn(),
+      resend: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
     },
     rpc,
     from: vi.fn((table: string) => {

@@ -30,7 +30,11 @@ function getAuthErrorMessage(error: unknown) {
 }
 
 async function submitAuthRequest(
-  path: '/api/auth/login' | '/api/auth/signup' | '/api/auth/reset-password',
+  path:
+    | '/api/auth/login'
+    | '/api/auth/signup'
+    | '/api/auth/reset-password'
+    | '/api/auth/resend-confirmation',
   body: Record<string, unknown>,
 ): Promise<{ error: string | null }> {
   const response = await fetch(path, {
@@ -68,6 +72,10 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [signupEmailSent, setSignupEmailSent] = useState(false)
+  const [resendState, setResendState] = useState<
+    'idle' | 'sending' | 'cooldown'
+  >('idle')
 
   const passwordsMatch = password.length > 0 && password === confirmPassword
   const canSubmit =
@@ -78,6 +86,34 @@ function LoginForm() {
     if (searchParams.get('mode') === 'signup') setMode('signup')
     const urlEmail = searchParams.get('email')
     if (urlEmail) setEmail(urlEmail)
+
+    // Errors handed over by /auth/callback and /api/auth/confirm. A used or
+    // expired confirmation link usually means the account IS confirmed (a
+    // mail scanner spent the one-shot token), so that one reads as guidance,
+    // not failure. Unknown codes render nothing.
+    const urlError = searchParams.get('error')
+    if (urlError === 'confirm-link-used') {
+      setMessage(
+        "That confirmation link was already used. If you've confirmed your email, just sign in below.",
+      )
+      // Both messages below promise a way to get a new link — arm the
+      // resend control so that promise is actually reachable, not just
+      // available to someone who happens to still be mid-signup.
+      setSignupEmailSent(true)
+    } else if (urlError === 'auth-code-error') {
+      setError(
+        "That sign-in link didn't work — it may have expired. Sign in below, or request a new link.",
+      )
+      setSignupEmailSent(true)
+    } else if (urlError === 'recovery-link-used') {
+      // Password-reset links fail differently: the account usually isn't
+      // confirmed-and-forgotten, the user still can't sign in without a
+      // password. Send them straight to the form that gets them a new link.
+      setMode('reset')
+      setMessage(
+        "That password reset link was already used or has expired. Enter your email below to get a new one.",
+      )
+    }
   }, [searchParams])
 
 
@@ -110,6 +146,7 @@ function LoginForm() {
           setError(error)
         } else {
           setMessage('Check your email for a confirmation link.')
+          setSignupEmailSent(true)
         }
       } else {
         const { error } = await submitAuthRequest('/api/auth/reset-password', {
@@ -130,6 +167,32 @@ function LoginForm() {
     setLoading(false)
   }
 
+  async function handleResend() {
+    setResendState('sending')
+    setError(null)
+
+    try {
+      const { error } = await submitAuthRequest('/api/auth/resend-confirmation', {
+        email,
+        next: nextPath,
+      })
+      if (error) {
+        // A real failure (network/misconfig) — GoTrue's own cooldown never
+        // reaches here, since the route swallows it for existence obfuscation.
+        setError(error)
+        setResendState('idle')
+      } else {
+        setMessage("We've sent another confirmation email — check your inbox.")
+        // GoTrue's resend window is 60s; a timer firing after a mode switch
+        // only re-enables a button that is no longer rendered.
+        setResendState('cooldown')
+        window.setTimeout(() => setResendState('idle'), 60_000)
+      }
+    } catch (error) {
+      setError(getAuthErrorMessage(error))
+      setResendState('idle')
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950">
@@ -225,6 +288,8 @@ function LoginForm() {
                               setConfirmPassword('')
                               setError(null)
                               setMessage(null)
+                              setSignupEmailSent(false)
+                              setResendState('idle')
                             }}
                             className="text-xs font-medium text-violet-400 transition hover:text-violet-300"
                           >
@@ -297,6 +362,28 @@ function LoginForm() {
                     </div>
                   )}
 
+                  {signupEmailSent && (
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resendState !== 'idle' || !email}
+                        className="mx-auto block text-sm font-medium text-violet-400 transition hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {resendState === 'sending'
+                          ? 'Sending...'
+                          : resendState === 'cooldown'
+                            ? 'Confirmation email sent'
+                            : "Didn't get it? Resend confirmation email"}
+                      </button>
+                      {resendState === 'idle' && !email && (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Enter your email above first.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={!canSubmit}
@@ -323,6 +410,8 @@ function LoginForm() {
                           setConfirmPassword('')
                           setError(null)
                           setMessage(null)
+                          setSignupEmailSent(false)
+                          setResendState('idle')
                         }}
                         className="font-medium text-violet-400 transition hover:text-violet-300"
                       >
@@ -339,6 +428,8 @@ function LoginForm() {
                           setConfirmPassword('')
                           setError(null)
                           setMessage(null)
+                          setSignupEmailSent(false)
+                          setResendState('idle')
                         }}
                         className="font-medium text-violet-400 transition hover:text-violet-300"
                       >
@@ -353,6 +444,8 @@ function LoginForm() {
                         setConfirmPassword('')
                         setError(null)
                         setMessage(null)
+                        setSignupEmailSent(false)
+                        setResendState('idle')
                       }}
                       className="font-medium text-violet-400 transition hover:text-violet-300"
                     >

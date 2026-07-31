@@ -105,6 +105,45 @@ describe('GET /auth/callback', () => {
     expect(res.headers.get('location')).toBe('http://localhost:3000/')
   })
 
+  test('maps a consumed one-shot link to the friendly login message', async () => {
+    const res = await GET(
+      new Request(
+        'http://localhost:3000/auth/callback?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired',
+      ),
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe(
+      'http://localhost:3000/login?error=confirm-link-used',
+    )
+  })
+
+  test('routes a used/expired recovery link to reset guidance, not "just sign in"', async () => {
+    const res = await GET(
+      new Request(
+        'http://localhost:3000/auth/callback?error=access_denied&error_code=otp_expired&next=%2Fauth%2Fupdate-password',
+      ),
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe(
+      'http://localhost:3000/login?error=recovery-link-used',
+    )
+  })
+
+  test('keeps the generic error for other GoTrue error codes', async () => {
+    const res = await GET(
+      new Request(
+        'http://localhost:3000/auth/callback?error=server_error&error_code=unexpected_failure',
+      ),
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe(
+      'http://localhost:3000/login?error=auth-code-error',
+    )
+  })
+
   test('redirects to the origin during development', async () => {
     vi.stubEnv('NODE_ENV', 'development')
     mockCreateClient.mockResolvedValue({
