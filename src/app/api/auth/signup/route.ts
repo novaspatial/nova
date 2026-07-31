@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/supabaseServer'
 import { safeNextPath } from '@/lib/auth/nextPath'
+import { resolveRedirectOrigin } from '@/lib/auth/redirectOrigin'
 
 async function ensureSupabaseHostReachable() {
   try {
@@ -51,7 +52,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const { origin } = new URL(request.url)
+    // The email link must land on a host Supabase's redirect allowlist
+    // knows, so the origin goes through the same validation as the
+    // callback's post-exchange redirect (#56) instead of trusting
+    // whatever host header reached us.
+    const origin = resolveRedirectOrigin(request)
     const redirectTarget = safeNextPath(next, '/portal')
     const { error } = await supabase.auth.signUp({
       email,

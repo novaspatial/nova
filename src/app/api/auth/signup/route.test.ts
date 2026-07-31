@@ -21,6 +21,7 @@ import { POST } from './route'
 describe('POST /api/auth/signup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('NODE_ENV', 'test')
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co'
   })
 
@@ -131,6 +132,35 @@ describe('POST /api/auth/signup', () => {
         options: expect.objectContaining({
           emailRedirectTo:
             'http://localhost:3000/auth/callback?next=%2Fportal',
+        }),
+      }),
+    )
+  })
+
+  test('pins the confirmation link to the canonical origin in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    const supabase = createSupabaseMock()
+    supabase.auth.signUp = vi.fn().mockResolvedValue({ error: null })
+    mockCreateClient.mockResolvedValue(supabase)
+    mockLookup.mockResolvedValue({ address: '127.0.0.1' })
+
+    const req = new Request('http://internal/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-host': 'attacker.example',
+      },
+      body: JSON.stringify({ email: 'user@test.com', password: 'secret123' }),
+    })
+
+    const res = await POST(req)
+
+    expect(res.status).toBe(200)
+    expect(supabase.auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          emailRedirectTo:
+            'https://nova-spatial.com/auth/callback?next=%2Fportal',
         }),
       }),
     )

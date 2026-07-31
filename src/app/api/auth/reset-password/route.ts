@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/supabaseServer'
+import { resolveRedirectOrigin } from '@/lib/auth/redirectOrigin'
 
 async function ensureSupabaseHostReachable() {
   try {
@@ -50,7 +51,9 @@ export async function POST(request: Request) {
       )
     }
 
-    const { origin } = new URL(request.url)
+    // Same origin validation as the signup email link (#56): the reset
+    // link must target a host on Supabase's redirect allowlist.
+    const origin = resolveRedirectOrigin(request)
     const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent('/auth/update-password')}`
 
     // Intentionally ignore the error result to avoid leaking whether an
