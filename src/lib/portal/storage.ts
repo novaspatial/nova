@@ -287,6 +287,10 @@ export async function createUpload(
           file_size: fileSize,
           mime_type: mimeType,
           upload_status: 'pending',
+          // Re-registering restarts the clock the orphan sweep measures:
+          // without this, a re-upload of an old file would look stale the
+          // moment it was registered.
+          upload_registered_at: new Date().toISOString(),
         })
         .eq('id', existing.id)
         .select()

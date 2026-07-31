@@ -116,8 +116,8 @@ exposure changed); it changed later for #58.
   (forwards to signup with the promo token, like the popup), package name/engines, unused
   `STRIPE_RESTRICTED_KEY` dropped, purge backlog warned, archive fence brought into the
   family, blog-assets listing policy dropped *(2026-07-31)*.
-  **Open:** leaked-password protection (dashboard), Sentry DSN provisioning (ops),
-  orphan-row sweeper.
+  Orphan sweeper shipped as a second daily cron *(2026-07-31)*.
+  **Open:** leaked-password protection (dashboard), Sentry DSN provisioning (ops).
 
 Split any item into its own issue if it grows beyond a cleanup.
 
@@ -164,6 +164,8 @@ Everything below needs a human — none of it is visible from or fixable in the 
       service-only writes are sufficient for launch. Reopen trigger: sustained abuse rows in
       `contact_inquiries`.
 - [ ] Supabase Auth: leaked-password protection enabled (#59) — still showing in the advisors.
+- [ ] Sentry: create the project and set `NEXT_PUBLIC_SENTRY_DSN` in Vercel (#59). The code
+      ships inert without it; setting it is the whole activation.
 - [x] All migrations applied to the production DB via MCP, each with a pre-migration positive
       control and a post-migration probe: `20260730_fence_profile_role`,
       `_harden_comment_inserts`, `_restrict_profile_reads`, `_fence_paid_project_delete`,

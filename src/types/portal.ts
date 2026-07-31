@@ -181,6 +181,10 @@ export interface ProjectFile {
   upload_status: UploadStatus
   uploaded_by: string
   created_at: string
+  // Stamped on every registration, including a #57 re-register that
+  // returns an existing row to 'pending' — which is why the orphan sweep
+  // keys its staleness cutoff on this and not on created_at.
+  upload_registered_at: string
 }
 
 export interface ProjectCommentAttachment {

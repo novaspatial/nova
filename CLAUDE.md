@@ -63,7 +63,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 
 ## Deploy / CI
 
-Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build on push/PR to `main`. `next.config.ts` builds its headers from `src/lib/security/csp.ts` (tested): the CSP ships **Report-Only by default**, with `CSP_MODE=enforce` as the flip (compiled at build time, so it needs a redeploy), violations posted to `POST /api/csp-report` and logged; plus enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff) and long-lived immutable caching for `/videos` and `/images`. `vercel.json` defines the one cron: `/api/cron/purge-delivered`, daily 06:00 UTC, gated by `CRON_SECRET`.
+Vercel. `.github/workflows/main.yml` runs install → lint → vitest → build on push/PR to `main`. `next.config.ts` builds its headers from `src/lib/security/csp.ts` (tested): the CSP ships **Report-Only by default**, with `CSP_MODE=enforce` as the flip (compiled at build time, so it needs a redeploy), violations posted to `POST /api/csp-report` and logged; plus enforced security headers (HSTS, `X-Frame-Options: DENY`, nosniff) and long-lived immutable caching for `/videos` and `/images`. `vercel.json` defines two crons, both gated by `CRON_SECRET`: `/api/cron/purge-delivered` (daily 06:00 UTC, D7 retention) and `/api/cron/sweep-orphans` (daily 06:30 UTC, stale pending uploads + row-less comment attachments).
 
 ## Agent skills
 

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/purge-delivered",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-orphans",
+      "schedule": "30 6 * * *"
     }
   ]
 }
