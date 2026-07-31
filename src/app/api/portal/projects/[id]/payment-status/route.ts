@@ -13,6 +13,7 @@ import {
   WELCOME_COUPON_CODE,
 } from '@/lib/portal/orderDiscount'
 import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
+import { alertMoneyPathAnomaly } from '@/lib/observability/report'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 import type { AddOn } from '@/types/portal'
 
@@ -143,9 +144,12 @@ export async function GET(
     Number.isFinite(metaSongCount) &&
     metaSongCount !== project.song_count
   ) {
-    console.error('[payment-status] metadata song_count mismatch', {
-      intent: intent.id,
-      project: project.id,
+    alertMoneyPathAnomaly({
+      kind: 'payment_status_song_count_mismatch',
+      intentId: intent.id,
+      projectId: project.id,
+      expected: metaSongCount,
+      actual: project.song_count,
     })
     return NextResponse.json({ paid: false, status: project.status })
   }
@@ -160,9 +164,12 @@ export async function GET(
       ? intent.metadata.add_ons
       : null
   if (metaAddOns !== null && metaAddOns !== (project.add_ons ?? []).join(',')) {
-    console.error('[payment-status] metadata add_ons mismatch', {
-      intent: intent.id,
-      project: project.id,
+    alertMoneyPathAnomaly({
+      kind: 'payment_status_add_ons_mismatch',
+      intentId: intent.id,
+      projectId: project.id,
+      expected: metaAddOns,
+      actual: (project.add_ons ?? []).join(','),
     })
     return NextResponse.json({ paid: false, status: project.status })
   }

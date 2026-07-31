@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { Container } from '@/components/layout/Container'
 import { Button } from '@/components/ui/Button'
+import { reportError } from '@/lib/observability/report'
 
 export default function Error({
   error,
@@ -12,8 +13,8 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // Optionally log the error to an error reporting service
-    console.error(error)
+    // digest is the only handle on the matching server-side log line.
+    reportError(error, { digest: error.digest ?? null, boundary: 'app' })
   }, [error])
 
   return (

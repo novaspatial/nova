@@ -43,6 +43,17 @@ export async function GET(request: NextRequest) {
     console.error('[purge-delivered] per-project failures', result.failures)
   }
 
+  // A capped run and a completed one are indistinguishable to anyone not
+  // reading this response body, which is nobody — so say it in the log.
+  // Irrelevant at launch volume (the batch is 20/day) and a retention
+  // drift the moment deliveries outpace it.
+  if (result.mayHaveMore) {
+    console.warn(
+      '[purge-delivered] batch filled — more projects await purge',
+      { purged: result.purged.length },
+    )
+  }
+
   return NextResponse.json({
     purged: result.purged.length,
     failed: result.failures.length,

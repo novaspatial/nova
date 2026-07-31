@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { claimProjectPayment } from '@/lib/portal/paymentClaim'
 import { finalizeDiscountConsumption } from '@/lib/portal/orderDiscount'
 import { sendOrderConfirmationEmail } from '@/lib/email/orderConfirmation'
+import { alertMoneyPathAnomaly } from '@/lib/observability/report'
 import type { ProjectStatus } from '@/lib/portal/workflow'
 
 export const runtime = 'nodejs'
@@ -88,18 +89,28 @@ export async function POST(request: NextRequest) {
       ? intent.metadata.project_id
       : null
 
+  // A mismatch here is Stripe's verified metadata disagreeing with the
+  // row we are about to mark paid — a tamper signal, not a transient
+  // fault, so it alerts rather than just logging (#59). The 200 stands:
+  // retrying cannot fix a disagreement.
   if (metaUserId && metaUserId !== project.owner_id) {
-    console.error(
-      '[stripe webhook] metadata user_id mismatch',
-      { intent: intent.id, meta: metaUserId, owner: project.owner_id },
-    )
+    alertMoneyPathAnomaly({
+      kind: 'webhook_user_id_mismatch',
+      intentId: intent.id,
+      projectId: project.id,
+      expected: project.owner_id,
+      actual: metaUserId,
+    })
     return NextResponse.json({ received: true })
   }
   if (metaProjectId && metaProjectId !== project.id) {
-    console.error(
-      '[stripe webhook] metadata project_id mismatch',
-      { intent: intent.id, meta: metaProjectId, project: project.id },
-    )
+    alertMoneyPathAnomaly({
+      kind: 'webhook_project_id_mismatch',
+      intentId: intent.id,
+      projectId: project.id,
+      expected: project.id,
+      actual: metaProjectId,
+    })
     return NextResponse.json({ received: true })
   }
 

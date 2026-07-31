@@ -30,6 +30,23 @@ export function supabaseAssetHost(
   }
 }
 
+/**
+ * The Sentry ingest origin, derived from the DSN so the policy cannot
+ * drift from whichever account is configured (#59). Null when no DSN is
+ * set — the inert, pre-provisioning case — so the token simply doesn't
+ * appear until error reporting is actually wired up.
+ */
+export function sentryIngestOrigin(
+  dsn = process.env.NEXT_PUBLIC_SENTRY_DSN,
+): string | null {
+  if (!dsn) return null
+  try {
+    return new URL(dsn).origin
+  } catch {
+    return null
+  }
+}
+
 export function buildContentSecurityPolicy(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
@@ -37,6 +54,9 @@ export function buildContentSecurityPolicy(
   const supabaseOrigin = host ? `https://${host}` : null
   const supabaseSocket = host ? `wss://${host}` : null
   const isDev = env.NODE_ENV !== 'production'
+  // Present only once a DSN is configured, so the enforcing policy never
+  // carries a host nothing talks to.
+  const sentryOrigin = sentryIngestOrigin(env.NEXT_PUBLIC_SENTRY_DSN)
 
   // Stripe.js needs more hosts than the old policy listed: a fraud-signal
   // iframe on m.stripe.network and telemetry beacons to r./m.stripe.com.
@@ -67,6 +87,7 @@ export function buildContentSecurityPolicy(
         'https://m.stripe.com',
         supabaseOrigin,
         supabaseSocket,
+        sentryOrigin,
         isDev ? 'https://va.vercel-scripts.com' : null,
         isDev ? 'ws://localhost:*' : null,
         isDev ? 'http://localhost:*' : null,

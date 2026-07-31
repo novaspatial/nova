@@ -112,9 +112,12 @@ exposure changed); it changed later for #58.
   discount RPC grants service-only (2026-07-31 — the anon hole on the first-mix pair was a
   live exploit; code deployed first, migration `20260731_service_only_discount_rpcs` after
   the drain, probes on #59).
-  **Open:** leaked-password protection (dashboard), error reporting + mismatch alert
-  (vendor ruled 2026-07-31: **Sentry** — wiring is agent work, DSN provisioning is ops),
-  remaining config cosmetics, orphan-row sweeper.
+  Sentry wired DSN-gated + money-path anomaly alerts, footer newsletter form made real
+  (forwards to signup with the promo token, like the popup), package name/engines, unused
+  `STRIPE_RESTRICTED_KEY` dropped, purge backlog warned, archive fence brought into the
+  family, blog-assets listing policy dropped *(2026-07-31)*.
+  **Open:** leaked-password protection (dashboard), Sentry DSN provisioning (ops),
+  orphan-row sweeper.
 
 Split any item into its own issue if it grows beyond a cleanup.
 

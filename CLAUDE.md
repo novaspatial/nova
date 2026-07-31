@@ -46,9 +46,10 @@ npx vitest run src/lib/portal/workflow.test.ts   # run one test file
 From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 
 - **Supabase:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (client); `SUPABASE_SERVICE_ROLE_KEY` (server, secret).
-- **Stripe:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (client); `STRIPE_SECRET_KEY`, `STRIPE_RESTRICTED_KEY`, `STRIPE_WEBHOOK_SECRET` (server).
+- **Stripe:** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (client); `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (server).
 - **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_INBOX_TO` (optional — unset stores inquiries but skips the notification email).
-- **Site/ops:** `CSP_MODE` (server, optional — `report-only` unless set to `enforce`); `NEXT_PUBLIC_SITE_URL` (client; canonical origin for metadata/sitemap/pings); `INDEXNOW_KEY` (server — echoed at `/indexnow-key.txt` by a route handler, unset disables pings); `CRON_SECRET` (server — bearer auth for `/api/cron/purge-delivered`, which fails closed without it).
+- **Site/ops:** `CSP_MODE` (server, optional — `report-only` unless set to `enforce`); `NEXT_PUBLIC_SITE_URL` (client; canonical origin for metadata/sitemap/pings — the CSP builder falls back to Vercel's build-time system vars when it is unset); `INDEXNOW_KEY` (server — echoed at `/indexnow-key.txt` by a route handler, unset disables pings); `CRON_SECRET` (server — bearer auth for the crons, which fail closed without it).
+- **Observability:** `NEXT_PUBLIC_SENTRY_DSN` (client + server, optional — unset means every Sentry entry point no-ops and errors only reach the console; setting it needs no code change). All reporting goes through `src/lib/observability/report.ts`; money-path metadata mismatches alert through `alertMoneyPathAnomaly`.
 - **Dev only:** `PAYMENTS_DEV_BYPASS=true` skips Stripe and creates paid $0 projects. **Never set in production.**
 
 > Never put a personal email address in code, config, or docs. Use `noreply@nova-spatial.com` / `contact@nova-spatial.com`.
