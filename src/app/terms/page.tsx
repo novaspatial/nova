@@ -8,9 +8,18 @@ import { PageIntro } from '@/components/ui/PageIntro'
 import { TERMS_LAST_UPDATED } from '@/lib/legal/terms'
 
 // First-draft terms — neutral, accurate clauses only. Pending final legal/Jamie
-// review. Do NOT add refund/cancellation policy (D-refund open) or a Stem Prep
-// Guide link (#32 unbuilt) here. Any material change to this copy MUST bump
+// review, which is what #55 tracks. Any material change to this copy MUST bump
 // TERMS_VERSION in src/lib/legal/terms.ts so existing consent is re-collected.
+//
+// Two standing carve-outs, both still current:
+//  - No Stem Prep Guide link. The guide lives in-portal as `UploadPrep` on the
+//    client dashboard; there is no public page to link to.
+//  - Refund copy needs the owner's POLICY, not a mechanism. D-refund (2026-07-14,
+//    see docs/adr/0002) settled how a refund is issued — manually through the
+//    Stripe dashboard — and says nothing about when a client is entitled to one.
+//    That sentence is #55's, not an agent's.
+// (An earlier version of this comment called D-refund "open", which sent readers
+// away from work that was only half-blocked.)
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions',

@@ -2,9 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { removeStorageObjects } from '@/lib/portal/storage'
 
-// 90-day post-delivery retention, then the audio goes (D7; T&C §6). The
-// project row survives as a tombstone stamped `files_purged_at` (D7b) — it is
-// the order/consent/tax record and must outlive the files (D1).
+// 90-day post-delivery retention, then the audio goes (D7 — see
+// docs/adr/0002). The project row survives as a tombstone stamped
+// `files_purged_at` (D7b) — it is the order/consent/tax record and must
+// outlive the files (D1).
+//
+// NOTE: this used to cite "T&C §6" as the client-facing disclosure. There is
+// no such clause — §6 is "Service provided as is", and no version of the Terms
+// has ever mentioned retention. So this purge deletes client audio with no
+// published notice. The clause is drafted and waiting on #55; the citation
+// here stays honest until it lands.
 export const RETENTION_DAYS = 90
 
 // D7 scope: "stems and deliverables both". Since 20260725 removed the
