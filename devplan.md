@@ -81,7 +81,7 @@ exposure changed); it changed later for #58.
 
 **Security (`ready-for-agent`):**
 - 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added *(shipped 2026-07-30; enforce flip is an ops step after a soak)*.
-- 🔒 #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30; captcha deferred — open on an ops decision)*.
+- ✅ #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30)*; limiter filter-injection fixed and **captcha ruled out** as controls-sufficient *(2026-07-31 — closed)*.
 - ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. *(closed 2026-07-30)*
 - ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. *(closed 2026-07-30)*
 
@@ -157,7 +157,9 @@ Everything below needs a human — none of it is visible from or fixable in the 
       studio access gets granted from here (#44).
 - [ ] Soak `/api/csp-report`, then set `CSP_MODE=enforce` and redeploy; smoke-test checkout with
       a 3DS card afterwards (#50).
-- [ ] Decide whether the contact form needs a captcha on top of the shipped rate limit (#51).
+- [x] Captcha decision (#51): **no captcha** — ruled 2026-07-31, the 3-per-10-min limit plus
+      service-only writes are sufficient for launch. Reopen trigger: sustained abuse rows in
+      `contact_inquiries`.
 - [ ] Supabase Auth: leaked-password protection enabled (#59) — still showing in the advisors.
 - [x] All migrations applied to the production DB via MCP, each with a pre-migration positive
       control and a post-migration probe: `20260730_fence_profile_role`,

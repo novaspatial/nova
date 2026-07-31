@@ -28,9 +28,10 @@ function contactRequest(payload: unknown, headers: Record<string, string> = {}) 
   })
 }
 
+// The limiter counts each key with its own `.eq()` query (#51), so the
+// chain's resolved value carries the count every one of them sees.
 function serviceMock({ count = 0 }: { count?: number } = {}) {
-  const inquiries = createChainMock({ data: null, error: null })
-  inquiries.or = vi.fn().mockResolvedValue({ count, error: null })
+  const inquiries = createChainMock({ data: null, error: null, count })
   const supabase = createSupabaseMock({
     fromMocks: { contact_inquiries: inquiries },
   })

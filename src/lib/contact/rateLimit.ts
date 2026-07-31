@@ -23,6 +23,20 @@ export function hashClientIp(request: Request): string | null {
   return createHash('sha256').update(ip).digest('hex')
 }
 
+/**
+ * Two separate counts rather than one `.or()` filter, deliberately: the
+ * `or=` grammar is comma-delimited and takes its values inline, while
+ * `EMAIL_PATTERN` admits commas and parens in the local part — so an
+ * address like `a,ip_hash.eq.0@x.com` used to split the filter and drop
+ * the per-email bound (or malform the query into a 500). `.eq()` carries
+ * the value as one encoded parameter with no composite grammar, so there
+ * is nothing left to escape.
+ *
+ * The thresholds are now per key: three from one address and three from
+ * one IP each trip independently, where the old filter pooled them. That
+ * is the more honest bound — a shared NAT address should not spend a
+ * sender's allowance.
+ */
 export async function isContactRateLimited(
   serviceSupabase: SupabaseClient,
   { email, ipHash }: { email: string; ipHash: string | null },
@@ -31,16 +45,23 @@ export async function isContactRateLimited(
     Date.now() - CONTACT_RATE_WINDOW_SECONDS * 1000,
   ).toISOString()
 
-  const filter = ipHash
-    ? `email.eq.${email},ip_hash.eq.${ipHash}`
-    : `email.eq.${email}`
+  const countRecent = (column: 'email' | 'ip_hash', value: string) =>
+    serviceSupabase
+      .from('contact_inquiries')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', windowStart)
+      .eq(column, value)
 
-  const { count, error } = await serviceSupabase
-    .from('contact_inquiries')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', windowStart)
-    .or(filter)
+  const [byEmail, byIp] = await Promise.all([
+    countRecent('email', email),
+    ipHash ? countRecent('ip_hash', ipHash) : null,
+  ])
 
+  const error = byEmail.error ?? byIp?.error ?? null
   if (error) return { limited: false, error: error.message }
-  return { limited: (count ?? 0) >= CONTACT_RATE_MAX, error: null }
+
+  const limited =
+    (byEmail.count ?? 0) >= CONTACT_RATE_MAX ||
+    (byIp?.count ?? 0) >= CONTACT_RATE_MAX
+  return { limited, error: null }
 }

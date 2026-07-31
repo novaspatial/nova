@@ -6,16 +6,33 @@ import {
 
 type Supabase = Parameters<typeof isContactRateLimited>[0]
 
-function supabaseReturning(result: { count?: number; error?: { message: string } }) {
-  const chain = {
-    select: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    or: vi.fn().mockResolvedValue({ count: result.count ?? 0, error: result.error ?? null }),
-  }
-  return {
-    supabase: { from: vi.fn(() => chain) } as unknown as Supabase,
-    chain,
-  }
+/**
+ * One chain per `from()` call, so the per-key counts can answer
+ * differently. `counts` is keyed by the column the query filters on.
+ */
+function supabaseReturning({
+  counts = {},
+  error,
+}: {
+  counts?: { email?: number; ip_hash?: number }
+  error?: { message: string }
+}) {
+  const calls: Array<{ column: string; value: string }> = []
+  const from = vi.fn(() => {
+    const chain: Record<string, ReturnType<typeof vi.fn>> = {
+      select: vi.fn(() => chain),
+      gte: vi.fn(() => chain),
+      eq: vi.fn((column: string, value: string) => {
+        calls.push({ column, value })
+        return Promise.resolve({
+          count: counts[column as keyof typeof counts] ?? 0,
+          error: error ?? null,
+        })
+      }),
+    }
+    return chain
+  })
+  return { supabase: { from } as unknown as Supabase, calls, from }
 }
 
 describe('hashClientIp', () => {
@@ -36,29 +53,61 @@ describe('hashClientIp', () => {
 
 describe('isContactRateLimited', () => {
   test('allows a sender below the threshold', async () => {
-    const { supabase } = supabaseReturning({ count: CONTACT_RATE_MAX - 1 })
+    const { supabase } = supabaseReturning({
+      counts: { email: CONTACT_RATE_MAX - 1, ip_hash: CONTACT_RATE_MAX - 1 },
+    })
     await expect(
       isContactRateLimited(supabase, { email: 'a@b.co', ipHash: 'abc' }),
     ).resolves.toEqual({ limited: false, error: null })
   })
 
-  test('limits at the threshold', async () => {
-    const { supabase } = supabaseReturning({ count: CONTACT_RATE_MAX })
+  test('limits at the threshold on the email key', async () => {
+    const { supabase } = supabaseReturning({
+      counts: { email: CONTACT_RATE_MAX, ip_hash: 0 },
+    })
     await expect(
       isContactRateLimited(supabase, { email: 'a@b.co', ipHash: 'abc' }),
     ).resolves.toEqual({ limited: true, error: null })
   })
 
-  test('matches on either the email or the IP hash', async () => {
-    const { supabase, chain } = supabaseReturning({ count: 0 })
+  test('limits at the threshold on the IP key alone', async () => {
+    const { supabase } = supabaseReturning({
+      counts: { email: 0, ip_hash: CONTACT_RATE_MAX },
+    })
+    await expect(
+      isContactRateLimited(supabase, { email: 'a@b.co', ipHash: 'abc' }),
+    ).resolves.toEqual({ limited: true, error: null })
+  })
+
+  test('counts each key with its own equality filter', async () => {
+    const { supabase, calls } = supabaseReturning({ counts: {} })
     await isContactRateLimited(supabase, { email: 'a@b.co', ipHash: 'abc' })
-    expect(chain.or).toHaveBeenCalledWith('email.eq.a@b.co,ip_hash.eq.abc')
+    expect(calls).toEqual([
+      { column: 'email', value: 'a@b.co' },
+      { column: 'ip_hash', value: 'abc' },
+    ])
   })
 
   test('falls back to the email alone when the IP is unknown', async () => {
-    const { supabase, chain } = supabaseReturning({ count: 0 })
+    const { supabase, calls, from } = supabaseReturning({ counts: {} })
     await isContactRateLimited(supabase, { email: 'a@b.co', ipHash: null })
-    expect(chain.or).toHaveBeenCalledWith('email.eq.a@b.co')
+    expect(calls).toEqual([{ column: 'email', value: 'a@b.co' }])
+    expect(from).toHaveBeenCalledTimes(1)
+  })
+
+  test('an address containing a comma still counts against its own window', async () => {
+    // The regression: `EMAIL_PATTERN` admits commas, and the old `.or()`
+    // filter took its values inline, so this address split the filter and
+    // the per-email bound stopped binding. As one `.eq()` value it cannot.
+    const evil = 'a,ip_hash.eq.0000@example.com'
+    const { supabase, calls } = supabaseReturning({
+      counts: { email: CONTACT_RATE_MAX },
+    })
+
+    await expect(
+      isContactRateLimited(supabase, { email: evil, ipHash: null }),
+    ).resolves.toEqual({ limited: true, error: null })
+    expect(calls).toEqual([{ column: 'email', value: evil }])
   })
 
   test('surfaces a lookup failure instead of silently allowing', async () => {
