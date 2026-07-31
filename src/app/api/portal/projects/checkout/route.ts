@@ -255,9 +255,8 @@ export async function POST(request: NextRequest) {
   // confirms. A code rejection maps to 400; only infrastructure failures
   // stay 500. Every failure path past this point must end in
   // `reservation.release()`, exactly once.
-  const reserved = await reserveOrderDiscount(supabase, user.id, {
+  const reserved = await reserveOrderDiscount(supabase, serviceSupabase, user.id, {
     submittedCode,
-    serviceSupabase,
   })
   if (!reserved.reservation) {
     return NextResponse.json(

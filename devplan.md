@@ -108,10 +108,13 @@ exposure changed); it changed later for #58.
 ## Phase 3 — Low / fast-follow ⚪
 
 - 🔒 #59 batch (8 items). **Shipped:** Stripe `idempotencyKey`, re-pinned API version, hardened
-  `confirm` route, no more raw error details, contact-address and sender-fallback fixes.
-  **Open:** leaked-password protection (dashboard), error reporting + mismatch alert (needs a
-  vendor decision), discount RPC grants (touches the money path — its own unit), remaining
-  config cosmetics, orphan-row sweeper.
+  `confirm` route, no more raw error details, contact-address and sender-fallback fixes;
+  discount RPC grants service-only (2026-07-31 — the anon hole on the first-mix pair was a
+  live exploit; code deployed first, migration `20260731_service_only_discount_rpcs` after
+  the drain, probes on #59).
+  **Open:** leaked-password protection (dashboard), error reporting + mismatch alert
+  (vendor ruled 2026-07-31: **Sentry** — wiring is agent work, DSN provisioning is ops),
+  remaining config cosmetics, orphan-row sweeper.
 
 Split any item into its own issue if it grows beyond a cleanup.
 
@@ -172,6 +175,13 @@ Everything below needs a human — none of it is visible from or fixable in the 
 
 ## Log
 
+- 2026-07-31 — #59 grants slice: all six discount RPCs now service_role-only. Live probe
+  found the first-mix pair EXECUTE-able by **anon** (default-privilege grants never revoked)
+  with identity guards that pass a null uid — an unauthenticated caller could burn or re-arm
+  any client's welcome flag. Code first (lookup/reserve/restore moved to the service client
+  in `orderDiscount.ts`; checkout/validate/delete call sites threaded; suite 971 green),
+  migration `20260731_service_only_discount_rpcs` applied after the deploy drained — the
+  reverse order would have 500'd every no-code checkout. Pre/post probe evidence on #59.
 - 2026-07-30 — Tracker sync: #50 and #51 relabelled `ready-for-human` (their remaining work is an
   ops flip and a captcha decision, not code); #59 stays `ready-for-agent` for the grants, sweeper
   and cosmetics still in it. Worklog written to `docs/worklogs/2026-07-30-launch-readiness-sweep.md`.

@@ -203,8 +203,8 @@ export async function DELETE(
 
   // Return any unpaid discount hold (first-mix flag or catalog code) off
   // the DELETE-RETURNING row — the delete is the CAS, so a concurrent
-  // duplicate delete can't double-restore (#26). The catalog restore needs
-  // the service client (20260715 grants); when the key is absent the seam
+  // duplicate delete can't double-restore (#26). Both restores need the
+  // service client (20260731 grants); when the key is absent the seam
   // logs and skips — never blocks the completed delete.
   let serviceSupabase = null
   try {
@@ -212,9 +212,7 @@ export async function DELETE(
   } catch {
     serviceSupabase = null
   }
-  await restoreUnpaidOrderDiscount(supabase, deletedProject, {
-    serviceSupabase,
-  })
+  await restoreUnpaidOrderDiscount(serviceSupabase, deletedProject)
 
   // Sweep last: the row is already gone, so a storage failure is logged,
   // never surfaced — a 500 here would invite a retry of a delete that

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { requireApiUser } from '@/lib/auth/server'
 import { resolveSubmittedCode } from '@/lib/portal/orderDiscount'
+import { createServiceClient } from '@/lib/supabase/supabaseService'
 
 /**
  * Preview validation for the order form's discount-code field (#25): resolves
@@ -28,7 +29,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Enter a discount code' }, { status: 400 })
   }
 
-  const resolution = await resolveSubmittedCode(supabase, user.id, code)
+  // The catalog lookup runs on the service client (20260731 grants); a
+  // missing key is the same infrastructure answer as a failed lookup.
+  let serviceSupabase
+  try {
+    serviceSupabase = createServiceClient()
+  } catch {
+    return NextResponse.json(
+      { error: 'Unable to validate the code right now. Please try again.' },
+      { status: 503 },
+    )
+  }
+
+  const resolution = await resolveSubmittedCode(
+    supabase,
+    serviceSupabase,
+    user.id,
+    code,
+  )
   if (!resolution.ok) {
     if (resolution.rejection) {
       return NextResponse.json(

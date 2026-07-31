@@ -137,6 +137,26 @@ describe('POST /api/portal/projects/checkout', () => {
     )
   })
 
+  // Since 20260731 every discount RPC (lookup, first-mix pair, catalog trio)
+  // runs on the service client. Point the shared service rpc at named
+  // handlers; unnamed RPCs keep the beforeEach defaults (a won catalog CAS,
+  // benign nulls elsewhere).
+  function setServiceRpc(
+    handlers: Record<
+      string,
+      { data: unknown; error: { message: string } | null }
+    >,
+  ) {
+    serviceRpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        handlers[fn] ??
+          (fn === 'reserve_discount_code'
+            ? { data: true, error: null }
+            : { data: null, error: null }),
+      ),
+    )
+  }
+
   test('returns 401 when not authenticated', async () => {
     mockCreateClient.mockResolvedValue(createSupabaseMock({ user: null }))
     const req = createMockRequest(orderBody())
@@ -440,12 +460,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('first-mix reservation rides as the private welcome-percent code', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = vi.fn().mockResolvedValueOnce({ data: true, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // 1 song: the 15% welcome code takes 4875 off list 32500 -> 27625. The
@@ -456,7 +475,8 @@ describe('POST /api/portal/projects/checkout', () => {
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
 
-    expect(rpc).toHaveBeenCalledWith('reserve_first_mix_discount', {
+    // The reserve rides the service client (20260731 grants).
+    expect(serviceRpc).toHaveBeenCalledWith('reserve_first_mix_discount', {
       p_user_id: 'user-1',
     })
     expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
@@ -489,12 +509,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('first-mix private code suppresses the bulk tier on multi-song orders', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = vi.fn().mockResolvedValueOnce({ data: true, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // 8 songs: the private code disables the 25% bulk tier; 15% takes 39000
@@ -578,9 +597,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('taxes the discounted subtotal when the welcome code applies', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = vi.fn().mockResolvedValueOnce({ data: true, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // 1 song CA-ON with the 15% welcome code: subtotal 27625, HST 3591
@@ -803,15 +824,11 @@ describe('POST /api/portal/projects/checkout', () => {
     serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'db down' } },
     })
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: null, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody())
@@ -819,7 +836,7 @@ describe('POST /api/portal/projects/checkout', () => {
     expect(res.status).toBe(500)
 
     expect(mockPaymentIntentsCancel).toHaveBeenCalledWith('pi_test_123')
-    expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
+    expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
   })
@@ -1025,15 +1042,11 @@ describe('POST /api/portal/projects/checkout', () => {
     serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'insert failed' } },
     })
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: null, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'
@@ -1042,8 +1055,7 @@ describe('POST /api/portal/projects/checkout', () => {
       const req = createMockRequest(orderBody())
       const res = await POST(req as NextRequest)
       expect(res.status).toBe(500)
-      // The restore rides the user's own session, not the service client.
-      expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
+      expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
         p_user_id: 'user-1',
       })
     } finally {
@@ -1057,35 +1069,30 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('restores the reservation when Stripe intent creation fails', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: null, error: null })
+    setServiceRpc({
+      reserve_first_mix_discount: { data: true, error: null },
+    })
     mockPaymentIntentsCreate.mockRejectedValueOnce(new Error('stripe error'))
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody())
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(502)
     expect(serviceProjectsChain.insert).not.toHaveBeenCalled()
-    expect(rpc).toHaveBeenNthCalledWith(2, 'restore_first_mix_discount', {
+    expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
   })
 
   test('redeems a public catalog code stacked with the bulk tier and persists it', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // Expected total from the same module the route charges with — the
@@ -1101,7 +1108,7 @@ describe('POST /api/portal/projects/checkout', () => {
     const res = await POST(req as NextRequest)
     expect(res.status).toBe(200)
 
-    expect(rpc).toHaveBeenCalledWith('lookup_discount_code', {
+    expect(serviceRpc).toHaveBeenCalledWith('lookup_discount_code', {
       p_code: 'SUMMER10',
     })
     // #26: the redeemed code is held atomically on the service client.
@@ -1141,15 +1148,14 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('a fixed catalog code is floored at $225/song', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({
-      data: [catalogRow({ code: 'INDIE150', kind: 'fixed', value: 15000 })],
-      error: null,
+    setServiceRpc({
+      lookup_discount_code: {
+        data: [catalogRow({ code: 'INDIE150', kind: 'fixed', value: 15000 })],
+        error: null,
+      },
     })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // 1 song: fixed 15000 off list 32500 would land at 17500 — the D4 floor
@@ -1172,20 +1178,22 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('an allow_below_floor code pierces the floor (D-floor-private)', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({
-      data: [
-        catalogRow({
-          code: 'INDIE150',
-          kind: 'fixed',
-          value: 15000,
-          is_public: false,
-          allow_below_floor: true,
-        }),
-      ],
-      error: null,
+    setServiceRpc({
+      lookup_discount_code: {
+        data: [
+          catalogRow({
+            code: 'INDIE150',
+            kind: 'fixed',
+            value: 15000,
+            is_public: false,
+            allow_below_floor: true,
+          }),
+        ],
+        error: null,
+      },
     })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     // The exempt sibling of the floored vector above: 32500 - 15000 charges
@@ -1213,20 +1221,22 @@ describe('POST /api/portal/projects/checkout', () => {
     'rejects a deep below-floor order priced %s with 400 and releases the hold',
     async (_label, value, total) => {
       const projectsChain = makeProjectsChain({})
-      const rpc = lookupRpc({
-        data: [
-          catalogRow({
-            code: 'DEEP',
-            kind: 'fixed',
-            value,
-            is_public: false,
-            allow_below_floor: true,
-          }),
-        ],
-        error: null,
+      setServiceRpc({
+        lookup_discount_code: {
+          data: [
+            catalogRow({
+              code: 'DEEP',
+              kind: 'fixed',
+              value,
+              is_public: false,
+              allow_below_floor: true,
+            }),
+          ],
+          error: null,
+        },
       })
       mockCreateClient.mockResolvedValue(
-        createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+        createSupabaseMock({ fromMocks: { projects: projectsChain } }),
       )
 
       const expected = computeOrderPrice({
@@ -1258,19 +1268,15 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('a lost reserve CAS rejects as exhausted before any side effect', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({
-      data: [catalogRow({ single_use: true })],
-      error: null,
+    setServiceRpc({
+      lookup_discount_code: {
+        data: [catalogRow({ single_use: true })],
+        error: null,
+      },
+      reserve_discount_code: { data: false, error: null },
     })
-    serviceRpc.mockImplementation((fn: string) =>
-      Promise.resolve(
-        fn === 'reserve_discount_code'
-          ? { data: false, error: null }
-          : { data: null, error: null },
-      ),
-    )
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1290,16 +1296,12 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('returns 500 when the reserve RPC itself fails', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
-    serviceRpc.mockImplementation((fn: string) =>
-      Promise.resolve(
-        fn === 'reserve_discount_code'
-          ? { data: null, error: { message: 'rpc down' } }
-          : { data: null, error: null },
-      ),
-    )
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+      reserve_discount_code: { data: null, error: { message: 'rpc down' } },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1350,9 +1352,11 @@ describe('POST /api/portal/projects/checkout', () => {
     serviceProjectsChain = makeProjectsChain({
       insertResult: { data: null, error: { message: 'db down' } },
     })
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1367,10 +1371,12 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('restores the catalog hold when Stripe intent creation fails', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+    })
     mockPaymentIntentsCreate.mockRejectedValueOnce(new Error('stripe error'))
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({ fromMocks: { projects: projectsChain }, rpc }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1384,12 +1390,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('a submitted code skips the first-mix reserve entirely', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1398,7 +1403,7 @@ describe('POST /api/portal/projects/checkout', () => {
 
     // One code per order (D4): the flag is never reserved alongside a code,
     // so there is nothing to restore on failure either.
-    expect(rpc).not.toHaveBeenCalledWith(
+    expect(serviceRpc).not.toHaveBeenCalledWith(
       'reserve_first_mix_discount',
       expect.anything(),
     )
@@ -1426,15 +1431,14 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('rejects an expired code with 400 and its message', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({
-      data: [catalogRow({ expires_at: '2026-01-01T00:00:00.000Z' })],
-      error: null,
+    setServiceRpc({
+      lookup_discount_code: {
+        data: [catalogRow({ expires_at: '2026-01-01T00:00:00.000Z' })],
+        error: null,
+      },
     })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1599,12 +1603,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('returns 500 when the catalog lookup RPC fails', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: null, error: { message: 'rpc down' } })
+    setServiceRpc({
+      lookup_discount_code: { data: null, error: { message: 'rpc down' } },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
 
     const req = createMockRequest(orderBody({ code: 'SUMMER10' }))
@@ -1617,12 +1620,11 @@ describe('POST /api/portal/projects/checkout', () => {
 
   test('dev bypass persists the redeemed code and consumes it inline', async () => {
     const projectsChain = makeProjectsChain({})
-    const rpc = lookupRpc({ data: [catalogRow()], error: null })
+    setServiceRpc({
+      lookup_discount_code: { data: [catalogRow()], error: null },
+    })
     mockCreateClient.mockResolvedValue(
-      createSupabaseMock({
-        fromMocks: { projects: projectsChain },
-        rpc,
-      }),
+      createSupabaseMock({ fromMocks: { projects: projectsChain } }),
     )
     const prev = process.env.PAYMENTS_DEV_BYPASS
     process.env.PAYMENTS_DEV_BYPASS = 'true'

@@ -18,12 +18,8 @@ import {
   type CodeRejectionReason,
 } from './orderDiscount'
 
-function makeSupabase(rpc: ReturnType<typeof vi.fn>) {
-  return createSupabaseMock({ rpc }) as unknown as SupabaseClient
-}
-
-// The service client the catalog hold/consume RPCs run on (their EXECUTE is
-// service_role-only per 20260715).
+// The service client every discount RPC runs on (EXECUTE is
+// service_role-only across all six per 20260715 + 20260731).
 function makeService(
   rpc: ReturnType<typeof vi.fn> = vi
     .fn()
@@ -35,6 +31,17 @@ function makeService(
   }
 }
 
+// One service mock answers several RPCs by name — lookup, the catalog
+// hold CAS, and the first-mix pair all share the client now.
+function dispatchRpc(handlers: Record<string, { data: unknown; error: unknown }>) {
+  return vi
+    .fn()
+    .mockImplementation((fn: string) =>
+      Promise.resolve(handlers[fn] ?? { data: null, error: null }),
+    )
+}
+
+// The session client carries only the D5 eligibility read (RLS-scoped).
 function makeClient({
   rpc = vi.fn().mockResolvedValue({ data: null, error: null }),
   projects,
@@ -136,15 +143,24 @@ describe('hasPriorPaidProject', () => {
 })
 
 describe('resolveSubmittedCode', () => {
-  test("normalizes ' summer10 ' to SUMMER10 before the catalog lookup", async () => {
-    const rpc = lookupRpc(catalogRow())
-    const { supabase } = makeClient({ rpc })
+  test("normalizes ' summer10 ' to SUMMER10 before the catalog lookup — on the service client", async () => {
+    const sessionRpc = vi.fn()
+    const { supabase } = makeClient({ rpc: sessionRpc })
+    const { service, serviceRpc } = makeService(lookupRpc(catalogRow()))
 
-    const result = await resolveSubmittedCode(supabase, 'user-1', ' summer10 ')
+    const result = await resolveSubmittedCode(
+      supabase,
+      service,
+      'user-1',
+      ' summer10 ',
+    )
 
-    expect(rpc).toHaveBeenCalledWith('lookup_discount_code', {
+    expect(serviceRpc).toHaveBeenCalledWith('lookup_discount_code', {
       p_code: 'SUMMER10',
     })
+    // The session client never sees an RPC — lookups are service-only
+    // since 20260731.
+    expect(sessionRpc).not.toHaveBeenCalled()
     expect(result).toEqual({
       ok: true,
       couponCode: 'SUMMER10',
@@ -153,28 +169,36 @@ describe('resolveSubmittedCode', () => {
   })
 
   test('rejects a malformed code as invalid without hitting the catalog', async () => {
-    const rpc = vi.fn()
-    const { supabase } = makeClient({ rpc })
+    const { supabase } = makeClient()
+    const { service, serviceRpc } = makeService(vi.fn())
 
-    const result = await resolveSubmittedCode(supabase, 'user-1', 'no spaces!')
+    const result = await resolveSubmittedCode(
+      supabase,
+      service,
+      'user-1',
+      'no spaces!',
+    )
 
     expect(result).toEqual(rejection('invalid'))
-    expect(rpc).not.toHaveBeenCalled()
+    expect(serviceRpc).not.toHaveBeenCalled()
   })
 
   test('an unknown and an inactive code reject indistinguishably as invalid', async () => {
-    const unknownClient = makeClient({ rpc: lookupRpc(null) })
-    const inactiveClient = makeClient({
-      rpc: lookupRpc(catalogRow({ active: false })),
-    })
+    const { supabase } = makeClient()
+    const unknownService = makeService(lookupRpc(null))
+    const inactiveService = makeService(
+      lookupRpc(catalogRow({ active: false })),
+    )
 
     const unknown = await resolveSubmittedCode(
-      unknownClient.supabase,
+      supabase,
+      unknownService.service,
       'user-1',
       'GHOST10',
     )
     const inactive = await resolveSubmittedCode(
-      inactiveClient.supabase,
+      supabase,
+      inactiveService.service,
       'user-1',
       'SUMMER10',
     )
@@ -185,39 +209,39 @@ describe('resolveSubmittedCode', () => {
   })
 
   test('rejects as expired at the exact expiry boundary', async () => {
-    const { supabase } = makeClient({
-      rpc: lookupRpc(
-        catalogRow({ expires_at: new Date(Date.now()).toISOString() }),
-      ),
-    })
+    const { supabase } = makeClient()
+    const { service } = makeService(
+      lookupRpc(catalogRow({ expires_at: new Date(Date.now()).toISOString() })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual(rejection('expired'))
   })
 
   test('a future expiry still resolves', async () => {
-    const { supabase } = makeClient({
-      rpc: lookupRpc(
+    const { supabase } = makeClient()
+    const { service } = makeService(
+      lookupRpc(
         catalogRow({
           expires_at: new Date(Date.now() + 86_400_000).toISOString(),
         }),
       ),
-    })
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
   })
 
   test('a lookup failure is an infrastructure error, not a rejection', async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValue({ data: null, error: { message: 'db down' } })
-    const { supabase } = makeClient({ rpc })
+    const { supabase } = makeClient()
+    const { service } = makeService(
+      vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } }),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual({ ok: false, rejection: null, error: 'db down' })
   })
 
@@ -225,24 +249,22 @@ describe('resolveSubmittedCode', () => {
     ['public', true],
     ['private', false],
   ])('maps is_public %s onto the %s scope', async (scope, is_public) => {
-    const { supabase } = makeClient({
-      rpc: lookupRpc(catalogRow({ is_public })),
-    })
+    const { supabase } = makeClient()
+    const { service } = makeService(lookupRpc(catalogRow({ is_public })))
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toMatchObject({ ok: true, code: { scope } })
   })
 
   test('a fixed-amount code maps kind and value through', async () => {
-    const { supabase } = makeClient({
-      rpc: lookupRpc(
-        catalogRow({ kind: 'fixed', value: 5000, is_public: false }),
-      ),
-    })
+    const { supabase } = makeClient()
+    const { service } = makeService(
+      lookupRpc(catalogRow({ kind: 'fixed', value: 5000, is_public: false })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual({
       ok: true,
       couponCode: 'SUMMER10',
@@ -252,104 +274,132 @@ describe('resolveSubmittedCode', () => {
 
   test('a new-clients-only code rejects a returning client', async () => {
     const { supabase } = makeClient({
-      rpc: lookupRpc(catalogRow({ new_clients_only: true })),
       projects: createChainMock({ count: 1, error: null }),
     })
+    const { service } = makeService(
+      lookupRpc(catalogRow({ new_clients_only: true })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual(rejection('new_clients_only'))
   })
 
   test('a new-clients-only code passes a first-time buyer', async () => {
     const { supabase } = makeClient({
-      rpc: lookupRpc(catalogRow({ new_clients_only: true })),
       projects: createChainMock({ count: 0, error: null }),
     })
+    const { service } = makeService(
+      lookupRpc(catalogRow({ new_clients_only: true })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
   })
 
   test('a returning-clients-only code rejects a first-time buyer', async () => {
     const { supabase } = makeClient({
-      rpc: lookupRpc(catalogRow({ returning_clients_only: true })),
       projects: createChainMock({ count: 0, error: null }),
     })
+    const { service } = makeService(
+      lookupRpc(catalogRow({ returning_clients_only: true })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual(rejection('returning_clients_only'))
   })
 
   test('a returning-clients-only code passes a returning client', async () => {
     const { supabase } = makeClient({
-      rpc: lookupRpc(catalogRow({ returning_clients_only: true })),
       projects: createChainMock({ count: 3, error: null }),
     })
+    const { service } = makeService(
+      lookupRpc(catalogRow({ returning_clients_only: true })),
+    )
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
     ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
   })
 
-  test('an audience-unrestricted code never runs the eligibility query', async () => {
-    const { client, supabase } = makeClient({ rpc: lookupRpc(catalogRow()) })
+  test('the eligibility read runs on the session client, not the service client', async () => {
+    const projects = createChainMock({ count: 1, error: null })
+    const { supabase } = makeClient({ projects })
+    const serviceRpc = lookupRpc(catalogRow({ new_clients_only: true }))
+    const serviceClient = createSupabaseMock({ rpc: serviceRpc })
 
-    await resolveSubmittedCode(supabase, 'user-1', 'SUMMER10')
+    await resolveSubmittedCode(
+      supabase,
+      serviceClient as unknown as SupabaseClient,
+      'user-1',
+      'SUMMER10',
+    )
+
+    // RLS keeps applying to the user-tied D5 read: the projects query hits
+    // the session client; the service client sees only the lookup RPC.
+    expect(projects.eq).toHaveBeenCalledWith('owner_id', 'user-1')
+    expect(serviceClient.from).not.toHaveBeenCalledWith('projects')
+  })
+
+  test('an audience-unrestricted code never runs the eligibility query', async () => {
+    const { client, supabase } = makeClient()
+    const { service } = makeService(lookupRpc(catalogRow()))
+
+    await resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10')
 
     expect(client.from).not.toHaveBeenCalledWith('projects')
   })
 
   test('WELCOME resolves in code for a first-time buyer — no catalog call', async () => {
-    const rpc = vi.fn()
     const { supabase } = makeClient({
-      rpc,
       projects: createChainMock({ count: 0, error: null }),
     })
+    const { service, serviceRpc } = makeService(vi.fn())
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'WELCOME'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'WELCOME'),
     ).resolves.toEqual({
       ok: true,
       couponCode: WELCOME_COUPON_CODE,
       code: { kind: 'percent', value: WELCOME_DISCOUNT_PCT, scope: 'private' },
     })
-    expect(rpc).not.toHaveBeenCalled()
+    expect(serviceRpc).not.toHaveBeenCalled()
   })
 
   test("' welcome ' resolves case-insensitively to the WELCOME coupon", async () => {
     const { supabase } = makeClient({
       projects: createChainMock({ count: 0, error: null }),
     })
+    const { service } = makeService(vi.fn())
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', ' welcome '),
+      resolveSubmittedCode(supabase, service, 'user-1', ' welcome '),
     ).resolves.toMatchObject({ ok: true, couponCode: 'WELCOME' })
   })
 
   test('WELCOME rejects a returning client as new_clients_only', async () => {
-    const rpc = vi.fn()
     const { supabase } = makeClient({
-      rpc,
       projects: createChainMock({ count: 1, error: null }),
     })
+    const { service, serviceRpc } = makeService(vi.fn())
 
     await expect(
-      resolveSubmittedCode(supabase, 'user-1', 'WELCOME'),
+      resolveSubmittedCode(supabase, service, 'user-1', 'WELCOME'),
     ).resolves.toEqual(rejection('new_clients_only'))
-    expect(rpc).not.toHaveBeenCalled()
+    expect(serviceRpc).not.toHaveBeenCalled()
   })
 
   describe('capacity pre-check (#26)', () => {
     test('a single-use code with headroom still resolves', async () => {
-      const { supabase } = makeClient({
-        rpc: lookupRpc(catalogRow({ single_use: true })),
-      })
+      const { supabase } = makeClient()
+      const { service } = makeService(
+        lookupRpc(catalogRow({ single_use: true })),
+      )
 
       await expect(
-        resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+        resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
       ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
     })
 
@@ -365,48 +415,48 @@ describe('resolveSubmittedCode', () => {
         { single_use: true, usage_limit: 5, redeemed_count: 1 },
       ],
     ])('%s rejects as exhausted', async (_label, overrides) => {
-      const { supabase } = makeClient({
-        rpc: lookupRpc(catalogRow(overrides)),
-      })
+      const { supabase } = makeClient()
+      const { service } = makeService(lookupRpc(catalogRow(overrides)))
 
       await expect(
-        resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+        resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
       ).resolves.toEqual(rejection('exhausted'))
     })
 
     test('a usage-limited code below its limit resolves', async () => {
-      const { supabase } = makeClient({
-        rpc: lookupRpc(
+      const { supabase } = makeClient()
+      const { service } = makeService(
+        lookupRpc(
           catalogRow({ usage_limit: 3, reserved_count: 1, redeemed_count: 1 }),
         ),
-      })
+      )
 
       await expect(
-        resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+        resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
       ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
     })
 
     test('an unlimited code never exhausts, whatever the counters say', async () => {
-      const { supabase } = makeClient({
-        rpc: lookupRpc(catalogRow({ reserved_count: 40, redeemed_count: 60 })),
-      })
+      const { supabase } = makeClient()
+      const { service } = makeService(
+        lookupRpc(catalogRow({ reserved_count: 40, redeemed_count: 60 })),
+      )
 
       await expect(
-        resolveSubmittedCode(supabase, 'user-1', 'SUMMER10'),
+        resolveSubmittedCode(supabase, service, 'user-1', 'SUMMER10'),
       ).resolves.toMatchObject({ ok: true, couponCode: 'SUMMER10' })
     })
   })
 
   test('allow_below_floor rides the OrderCode only when set (D-floor-private)', async () => {
-    const flagged = makeClient({
-      rpc: lookupRpc(
-        catalogRow({ is_public: false, allow_below_floor: true }),
-      ),
-    })
-    const plain = makeClient({ rpc: lookupRpc(catalogRow()) })
+    const { supabase } = makeClient()
+    const flagged = makeService(
+      lookupRpc(catalogRow({ is_public: false, allow_below_floor: true })),
+    )
+    const plain = makeService(lookupRpc(catalogRow()))
 
     await expect(
-      resolveSubmittedCode(flagged.supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, flagged.service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual({
       ok: true,
       couponCode: 'SUMMER10',
@@ -420,7 +470,7 @@ describe('resolveSubmittedCode', () => {
     // Absent (not false) when unset, so existing OrderCode consumers and
     // toEqual assertions keep their exact shape.
     await expect(
-      resolveSubmittedCode(plain.supabase, 'user-1', 'SUMMER10'),
+      resolveSubmittedCode(supabase, plain.service, 'user-1', 'SUMMER10'),
     ).resolves.toEqual({
       ok: true,
       couponCode: 'SUMMER10',
@@ -441,17 +491,24 @@ describe('discountBadgeLabel', () => {
 })
 
 describe('reserveOrderDiscount', () => {
-  test('reserves the first-mix discount and carries its code', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: true, error: null })
+  test('reserves the first-mix discount on the service client and carries its code', async () => {
+    const sessionRpc = vi.fn()
+    const { supabase } = makeClient({ rpc: sessionRpc })
+    const { service, serviceRpc } = makeService(
+      vi.fn().mockResolvedValue({ data: true, error: null }),
+    )
+
     const { reservation, error } = await reserveOrderDiscount(
-      makeSupabase(rpc),
+      supabase,
+      service,
       'user-1',
     )
 
     expect(error).toBeNull()
-    expect(rpc).toHaveBeenCalledWith('reserve_first_mix_discount', {
+    expect(serviceRpc).toHaveBeenCalledWith('reserve_first_mix_discount', {
       p_user_id: 'user-1',
     })
+    expect(sessionRpc).not.toHaveBeenCalled()
     expect(reservation).toMatchObject({
       applied: true,
       code: FIRST_MIX_CODE,
@@ -460,9 +517,14 @@ describe('reserveOrderDiscount', () => {
   })
 
   test('an ineligible user gets an empty reservation with a no-op release', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: false, error: null })
+    const { supabase } = makeClient()
+    const { service, serviceRpc } = makeService(
+      vi.fn().mockResolvedValue({ data: false, error: null }),
+    )
+
     const { reservation } = await reserveOrderDiscount(
-      makeSupabase(rpc),
+      supabase,
+      service,
       'user-1',
     )
 
@@ -473,25 +535,31 @@ describe('reserveOrderDiscount', () => {
     })
     await reservation!.release()
     // Only the reserve call — no restore fires for a hold that never existed.
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(serviceRpc).toHaveBeenCalledTimes(1)
   })
 
   test('surfaces the RPC error message when the reserve call fails', async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValue({ data: null, error: { message: 'db down' } })
-    const result = await reserveOrderDiscount(makeSupabase(rpc), 'user-1')
+    const { supabase } = makeClient()
+    const { service } = makeService(
+      vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } }),
+    )
+
+    const result = await reserveOrderDiscount(supabase, service, 'user-1')
 
     expect(result).toEqual({ reservation: null, error: 'db down' })
   })
 
   test('release returns the reservation via the restore RPC', async () => {
+    const { supabase } = makeClient()
     const rpc = vi
       .fn()
       .mockResolvedValueOnce({ data: true, error: null })
       .mockResolvedValueOnce({ data: null, error: null })
+    const { service } = makeService(rpc)
+
     const { reservation } = await reserveOrderDiscount(
-      makeSupabase(rpc),
+      supabase,
+      service,
       'user-1',
     )
 
@@ -509,6 +577,7 @@ describe('reserveOrderDiscount', () => {
     afterEach(() => consoleError.mockReset())
 
     test('logs instead of throwing, so it cannot mask the original error', async () => {
+      const { supabase } = makeClient()
       const rpc = vi
         .fn()
         .mockResolvedValueOnce({ data: true, error: null })
@@ -516,8 +585,11 @@ describe('reserveOrderDiscount', () => {
           data: null,
           error: { message: 'restore failed' },
         })
+      const { service } = makeService(rpc)
+
       const { reservation } = await reserveOrderDiscount(
-        makeSupabase(rpc),
+        supabase,
+        service,
         'user-1',
       )
 
@@ -528,30 +600,39 @@ describe('reserveOrderDiscount', () => {
 
   describe('with a submitted code', () => {
     test('never calls the first-mix reserve RPC', async () => {
-      const rpc = lookupRpc(catalogRow())
-      const { supabase } = makeClient({ rpc })
-      const { service } = makeService()
+      const { supabase } = makeClient()
+      const { service, serviceRpc } = makeService(
+        dispatchRpc({
+          lookup_discount_code: { data: [catalogRow()], error: null },
+          reserve_discount_code: { data: true, error: null },
+        }),
+      )
 
-      await reserveOrderDiscount(supabase, 'user-1', {
+      await reserveOrderDiscount(supabase, service, 'user-1', {
         submittedCode: 'SUMMER10',
-        serviceSupabase: service,
       })
 
-      expect(rpc).not.toHaveBeenCalledWith(
+      expect(serviceRpc).not.toHaveBeenCalledWith(
         'reserve_first_mix_discount',
         expect.anything(),
       )
     })
 
     test('a resolved catalog code acquires its hold and release returns it (#26)', async () => {
-      const rpc = lookupRpc(catalogRow())
-      const { supabase } = makeClient({ rpc })
-      const { service, serviceRpc } = makeService()
+      const sessionRpc = vi.fn()
+      const { supabase } = makeClient({ rpc: sessionRpc })
+      const { service, serviceRpc } = makeService(
+        dispatchRpc({
+          lookup_discount_code: { data: [catalogRow()], error: null },
+          reserve_discount_code: { data: true, error: null },
+        }),
+      )
 
       const { reservation, error } = await reserveOrderDiscount(
         supabase,
+        service,
         'user-1',
-        { submittedCode: 'SUMMER10', serviceSupabase: service },
+        { submittedCode: 'SUMMER10' },
       )
 
       expect(error).toBeNull()
@@ -568,20 +649,22 @@ describe('reserveOrderDiscount', () => {
       expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
         p_code: 'SUMMER10',
       })
-      // The session client saw only the lookup — hold and restore both ran
-      // on the service client.
-      expect(rpc).toHaveBeenCalledTimes(1)
+      // Lookup, hold and restore all ran on the service client; the session
+      // client never sees an RPC.
+      expect(sessionRpc).not.toHaveBeenCalled()
     })
 
     test('losing the reserve CAS rejects as exhausted for the 400 path', async () => {
-      const { supabase } = makeClient({ rpc: lookupRpc(catalogRow()) })
+      const { supabase } = makeClient()
       const { service, serviceRpc } = makeService(
-        vi.fn().mockResolvedValue({ data: false, error: null }),
+        dispatchRpc({
+          lookup_discount_code: { data: [catalogRow()], error: null },
+          reserve_discount_code: { data: false, error: null },
+        }),
       )
 
-      const result = await reserveOrderDiscount(supabase, 'user-1', {
+      const result = await reserveOrderDiscount(supabase, service, 'user-1', {
         submittedCode: 'SUMMER10',
-        serviceSupabase: service,
       })
 
       expect(serviceRpc).toHaveBeenCalledWith('reserve_discount_code', {
@@ -595,46 +678,36 @@ describe('reserveOrderDiscount', () => {
     })
 
     test('a reserve RPC failure returns the 500 variant', async () => {
-      const { supabase } = makeClient({ rpc: lookupRpc(catalogRow()) })
+      const { supabase } = makeClient()
       const { service } = makeService(
-        vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } }),
+        dispatchRpc({
+          lookup_discount_code: { data: [catalogRow()], error: null },
+          reserve_discount_code: {
+            data: null,
+            error: { message: 'db down' },
+          },
+        }),
       )
 
-      const result = await reserveOrderDiscount(supabase, 'user-1', {
+      const result = await reserveOrderDiscount(supabase, service, 'user-1', {
         submittedCode: 'SUMMER10',
-        serviceSupabase: service,
       })
 
       expect(result).toEqual({ reservation: null, error: 'db down' })
       expect('rejection' in result).toBe(false)
     })
 
-    test('a catalog code without a service client is a 500-variant miswire', async () => {
-      const { supabase } = makeClient({ rpc: lookupRpc(catalogRow()) })
-
-      const result = await reserveOrderDiscount(supabase, 'user-1', {
-        submittedCode: 'SUMMER10',
-      })
-
-      expect(result).toEqual({
-        reservation: null,
-        error: 'service client required for catalog-code holds',
-      })
-      expect('rejection' in result).toBe(false)
-    })
-
     test('WELCOME acquires no hold and releases as a no-op — the index is its hold', async () => {
-      const rpc = vi.fn()
       const { supabase } = makeClient({
-        rpc,
         projects: createChainMock({ count: 0, error: null }),
       })
-      const { service, serviceRpc } = makeService()
+      const { service, serviceRpc } = makeService(vi.fn())
 
       const { reservation, error } = await reserveOrderDiscount(
         supabase,
+        service,
         'user-1',
-        { submittedCode: 'WELCOME', serviceSupabase: service },
+        { submittedCode: 'WELCOME' },
       )
 
       expect(error).toBeNull()
@@ -645,13 +718,13 @@ describe('reserveOrderDiscount', () => {
       })
       await reservation!.release()
       expect(serviceRpc).not.toHaveBeenCalled()
-      expect(rpc).not.toHaveBeenCalled()
     })
 
     test('a rejected code returns the rejection variant for the 400 path', async () => {
-      const { supabase } = makeClient({ rpc: lookupRpc(null) })
+      const { supabase } = makeClient()
+      const { service } = makeService(lookupRpc(null))
 
-      const result = await reserveOrderDiscount(supabase, 'user-1', {
+      const result = await reserveOrderDiscount(supabase, service, 'user-1', {
         submittedCode: 'GHOST10',
       })
 
@@ -663,12 +736,14 @@ describe('reserveOrderDiscount', () => {
     })
 
     test('a resolver infrastructure failure returns the 500 variant without a rejection', async () => {
-      const rpc = vi
-        .fn()
-        .mockResolvedValue({ data: null, error: { message: 'db down' } })
-      const { supabase } = makeClient({ rpc })
+      const { supabase } = makeClient()
+      const { service } = makeService(
+        vi
+          .fn()
+          .mockResolvedValue({ data: null, error: { message: 'db down' } }),
+      )
 
-      const result = await reserveOrderDiscount(supabase, 'user-1', {
+      const result = await reserveOrderDiscount(supabase, service, 'user-1', {
         submittedCode: 'SUMMER10',
       })
 
@@ -680,14 +755,17 @@ describe('reserveOrderDiscount', () => {
 
 describe('restoreUnpaidOrderDiscount', () => {
   test('restores when the row reserved the discount but was never paid', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
-    await restoreUnpaidOrderDiscount(makeSupabase(rpc), {
+    const { service, serviceRpc } = makeService(
+      vi.fn().mockResolvedValue({ data: null, error: null }),
+    )
+
+    await restoreUnpaidOrderDiscount(service, {
       owner_id: 'user-1',
       discount_applied: true,
       paid_at: null,
     })
 
-    expect(rpc).toHaveBeenCalledWith('restore_first_mix_discount', {
+    expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
   })
@@ -697,36 +775,33 @@ describe('restoreUnpaidOrderDiscount', () => {
     ['no discount was reserved', { discount_applied: false, paid_at: null }],
     ['the payment flags are absent', {}],
   ])('does not restore when %s', async (_label, flags) => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
-    await restoreUnpaidOrderDiscount(makeSupabase(rpc), {
-      owner_id: 'user-1',
-      ...flags,
-    })
-
-    expect(rpc).not.toHaveBeenCalled()
-  })
-
-  test('an unpaid catalog-code row restores its hold on the service client (#26)', async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const { service, serviceRpc } = makeService(
       vi.fn().mockResolvedValue({ data: null, error: null }),
     )
 
-    await restoreUnpaidOrderDiscount(
-      makeSupabase(rpc),
-      {
-        owner_id: 'user-1',
-        discount_applied: false,
-        paid_at: null,
-        applied_coupon_code: 'SUMMER10',
-      },
-      { serviceSupabase: service },
+    await restoreUnpaidOrderDiscount(service, {
+      owner_id: 'user-1',
+      ...flags,
+    })
+
+    expect(serviceRpc).not.toHaveBeenCalled()
+  })
+
+  test('an unpaid catalog-code row restores its hold on the service client (#26)', async () => {
+    const { service, serviceRpc } = makeService(
+      vi.fn().mockResolvedValue({ data: null, error: null }),
     )
+
+    await restoreUnpaidOrderDiscount(service, {
+      owner_id: 'user-1',
+      discount_applied: false,
+      paid_at: null,
+      applied_coupon_code: 'SUMMER10',
+    })
 
     expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {
       p_code: 'SUMMER10',
     })
-    expect(rpc).not.toHaveBeenCalled()
   })
 
   test.each([
@@ -739,59 +814,65 @@ describe('restoreUnpaidOrderDiscount', () => {
       { applied_coupon_code: 'SUMMER10', paid_at: '2026-07-01T00:00:00.000Z' },
     ],
   ])('%s', async (_label, flags) => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const { service, serviceRpc } = makeService(
       vi.fn().mockResolvedValue({ data: null, error: null }),
     )
 
-    await restoreUnpaidOrderDiscount(
-      makeSupabase(rpc),
-      { owner_id: 'user-1', discount_applied: false, ...flags },
-      { serviceSupabase: service },
-    )
+    await restoreUnpaidOrderDiscount(service, {
+      owner_id: 'user-1',
+      discount_applied: false,
+      ...flags,
+    })
 
     expect(serviceRpc).not.toHaveBeenCalled()
-    expect(rpc).not.toHaveBeenCalled()
   })
 
-  test('a catalog-code row without a service client logs and skips, never throws', async () => {
+  test('a held row without a service client logs and skips both holds, never throws', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
 
     await expect(
-      restoreUnpaidOrderDiscount(makeSupabase(rpc), {
+      restoreUnpaidOrderDiscount(null, {
         owner_id: 'user-1',
-        discount_applied: false,
+        discount_applied: true,
         paid_at: null,
         applied_coupon_code: 'SUMMER10',
       }),
     ).resolves.toBeUndefined()
 
-    expect(rpc).not.toHaveBeenCalled()
     expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
+  })
+
+  test('a holdless row without a service client stays silent', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(
+      restoreUnpaidOrderDiscount(null, {
+        owner_id: 'user-1',
+        discount_applied: false,
+        paid_at: null,
+      }),
+    ).resolves.toBeUndefined()
+
+    expect(consoleError).not.toHaveBeenCalled()
     consoleError.mockRestore()
   })
 
   test('a row with both the flag and a code returns both holds', async () => {
     // Unreachable through checkout (one code per order suppresses the flag),
     // but the restore must stay total over the row shape.
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const { service, serviceRpc } = makeService(
       vi.fn().mockResolvedValue({ data: null, error: null }),
     )
 
-    await restoreUnpaidOrderDiscount(
-      makeSupabase(rpc),
-      {
-        owner_id: 'user-1',
-        discount_applied: true,
-        paid_at: null,
-        applied_coupon_code: 'SUMMER10',
-      },
-      { serviceSupabase: service },
-    )
+    await restoreUnpaidOrderDiscount(service, {
+      owner_id: 'user-1',
+      discount_applied: true,
+      paid_at: null,
+      applied_coupon_code: 'SUMMER10',
+    })
 
-    expect(rpc).toHaveBeenCalledWith('restore_first_mix_discount', {
+    expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
     expect(serviceRpc).toHaveBeenCalledWith('restore_discount_code', {

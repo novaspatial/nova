@@ -725,9 +725,8 @@ describe('DELETE /api/portal/projects/[id]', () => {
         error: null,
       })
     const filesChain = createChainMock({ data: [], error: null })
-    const rpcMock = vi
-      .fn()
-      .mockResolvedValue({ data: null, error: null })
+    const sessionRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const serviceRpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const supabase = createSupabaseMock({
       user: { id: 'user-1', email: 'client@test.com' },
       fromMocks: {
@@ -735,17 +734,22 @@ describe('DELETE /api/portal/projects/[id]', () => {
         projects: projectsChain,
         project_files: filesChain,
       },
-      rpc: rpcMock,
+      rpc: sessionRpc,
     })
     mockCreateClient.mockResolvedValue(supabase)
+    mockCreateServiceClient.mockReturnValue(
+      createSupabaseMock({ rpc: serviceRpc }),
+    )
 
     const req = createMockRequest(undefined, { method: 'DELETE' })
     const res = await DELETE(req as NextRequest, makeParams('proj-1'))
 
     expect(res.status).toBe(200)
-    expect(rpcMock).toHaveBeenCalledWith('restore_first_mix_discount', {
+    // The first-mix restore rides the service client too (20260731 grants).
+    expect(serviceRpc).toHaveBeenCalledWith('restore_first_mix_discount', {
       p_user_id: 'user-1',
     })
+    expect(sessionRpc).not.toHaveBeenCalled()
   })
 
   test('restores a catalog-code hold on the service client when unpaid (#26)', async () => {

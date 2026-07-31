@@ -16,6 +16,13 @@ import {
  * OrderCode an order rides on, so the server charge and any client-side
  * quote price the same code.
  *
+ * Since 20260731 all six discount RPCs are EXECUTE-granted to service_role
+ * only (the 20260715 catalog posture extended to the first-mix pair and the
+ * lookup — anon could reach the uuid RPCs through the default grants, and
+ * their identity guards pass a null uid). Every RPC in this module therefore
+ * runs on the service client; only `hasPriorPaidProject` stays on the
+ * session client, so RLS keeps applying to the one user-tied read.
+ *
  * S5 (#26) grew into the same seam: `reserveOrderDiscount` acquires the
  * single-use/usage-limit hold (the `reserve_discount_code` CAS, service
  * client — grants are service_role-only per 20260715) where
@@ -78,12 +85,16 @@ export interface DiscountReservation {
   release: () => Promise<void>
 }
 
-/** The one copy of the return-the-first-mix-reservation RPC call. */
+/**
+ * The one copy of the return-the-first-mix-reservation RPC call. Service
+ * client only (20260731 grants) — the identity guard that used to let the
+ * session client call this is gone with the grant.
+ */
 async function restoreFirstMix(
-  supabase: SupabaseClient,
+  serviceSupabase: SupabaseClient,
   userId: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc('restore_first_mix_discount', {
+  const { error } = await serviceSupabase.rpc('restore_first_mix_discount', {
     p_user_id: userId,
   })
   if (error) {
@@ -190,10 +201,13 @@ type CatalogRow = {
  * `reserveOrderDiscount`) and the validate endpoint (preview only, no
  * reservation). Server-side re-validation is total: format, catalog lookup,
  * active, expiry, and D5 audience eligibility all happen here — a client
- * quote is never trusted.
+ * quote is never trusted. The two-client signature is deliberate: the
+ * catalog lookup runs on the service client (20260731 grants), while the
+ * D5 eligibility read stays on the caller's session client under RLS.
  */
 export async function resolveSubmittedCode(
   supabase: SupabaseClient,
+  serviceSupabase: SupabaseClient,
   userId: string,
   submittedCode: string,
 ): Promise<CodeResolution> {
@@ -217,7 +231,7 @@ export async function resolveSubmittedCode(
     return { ok: true, couponCode: WELCOME_COUPON_CODE, code: FIRST_MIX_CODE }
   }
 
-  const { data, error } = await supabase.rpc('lookup_discount_code', {
+  const { data, error } = await serviceSupabase.rpc('lookup_discount_code', {
     p_code: normalized,
   })
   if (error) {
@@ -313,10 +327,11 @@ export function discountBadgeLabel(
  *
  * Contract: resolve every throwing dependency (Stripe client, service
  * client, ...) BEFORE calling this — a throw between reserve and release
- * burns the hold with nothing left to restore it. The service client is
- * REQUIRED for catalog codes (its absence is an infrastructure 500, so
- * resolve it under the same try/catch as Stripe). After this call, every
- * failure path must end in `reservation.release()`, exactly once.
+ * burns the hold with nothing left to restore it. The service client is a
+ * required positional since the 20260731 grants: every path needs it now
+ * (catalog CAS and the first-mix reserve alike), so resolve it under the
+ * same try/catch as Stripe. After this call, every failure path must end
+ * in `reservation.release()`, exactly once.
  *
  * Returns `reservation: null` plus the RPC error message when the reserve
  * call itself fails (the caller answers 500). "Nothing to reserve" is not
@@ -325,10 +340,10 @@ export function discountBadgeLabel(
  */
 export async function reserveOrderDiscount(
   supabase: SupabaseClient,
+  serviceSupabase: SupabaseClient,
   userId: string,
   opts: {
     submittedCode?: string | null
-    serviceSupabase?: SupabaseClient | null
   } = {},
 ): Promise<
   | { reservation: DiscountReservation; error: null }
@@ -338,6 +353,7 @@ export async function reserveOrderDiscount(
   if (opts.submittedCode) {
     const resolution = await resolveSubmittedCode(
       supabase,
+      serviceSupabase,
       userId,
       opts.submittedCode,
     )
@@ -364,15 +380,6 @@ export async function reserveOrderDiscount(
       }
     }
 
-    const serviceSupabase = opts.serviceSupabase ?? null
-    if (!serviceSupabase) {
-      // Miswired caller, not a client mistake: catalog holds run on the
-      // service client only (see 20260715 grants).
-      return {
-        reservation: null,
-        error: 'service client required for catalog-code holds',
-      }
-    }
     const couponCode = resolution.couponCode
     const { data, error } = await serviceSupabase.rpc('reserve_discount_code', {
       p_code: couponCode,
@@ -400,9 +407,10 @@ export async function reserveOrderDiscount(
     }
   }
 
-  const { data, error } = await supabase.rpc('reserve_first_mix_discount', {
-    p_user_id: userId,
-  })
+  const { data, error } = await serviceSupabase.rpc(
+    'reserve_first_mix_discount',
+    { p_user_id: userId },
+  )
   if (error) {
     return { reservation: null, error: error.message }
   }
@@ -413,7 +421,7 @@ export async function reserveOrderDiscount(
       couponCode: null,
       applied,
       release: applied
-        ? () => restoreFirstMix(supabase, userId)
+        ? () => restoreFirstMix(serviceSupabase, userId)
         : async () => {},
     },
     error: null,
@@ -424,44 +432,45 @@ export async function reserveOrderDiscount(
  * Return the discount held by a project row that was never paid — the
  * cross-request counterpart of `release()` for abandon/delete flows, where
  * the in-memory reservation is long gone and the hold is reconstructed
- * from the row: the first-mix flag off `discount_applied` (session client —
- * the RPC is identity-guarded), the catalog hold off `applied_coupon_code`
- * (#26; `opts.serviceSupabase`, required by the 20260715 grants — its
- * absence logs and skips). WELCOME rows hold nothing: deleting the row is
- * itself the release (it frees the one-per-owner index slot). Never
- * throws: a failed restore is logged and must not block the delete that
- * triggered it.
+ * from the row: the first-mix flag off `discount_applied`, the catalog
+ * hold off `applied_coupon_code` (#26). Both restores run on the service
+ * client (20260731 grants) — when it is null (key absent/misconfigured)
+ * the seam logs and skips, never blocking the completed delete. WELCOME
+ * rows hold nothing: deleting the row is itself the release (it frees the
+ * one-per-owner index slot). Never throws: a failed restore is logged and
+ * must not block the delete that triggered it.
  *
  * Exactly-once contract: call this with the DELETE-RETURNING row only (the
  * delete is the CAS), never with a pre-delete read — concurrent deletes
  * would otherwise double-decrement the catalog counter.
  */
 export async function restoreUnpaidOrderDiscount(
-  supabase: SupabaseClient,
+  serviceSupabase: SupabaseClient | null,
   project: {
     owner_id: string
     discount_applied?: boolean | null
     paid_at?: string | null
     applied_coupon_code?: string | null
   },
-  opts: { serviceSupabase?: SupabaseClient | null } = {},
 ): Promise<void> {
   if (project.paid_at) {
     return
   }
+  if (!serviceSupabase) {
+    if (project.discount_applied || project.applied_coupon_code) {
+      console.error(
+        '[orderDiscount] discount restore skipped: no service client',
+        { code: project.applied_coupon_code ?? null },
+      )
+    }
+    return
+  }
   if (project.discount_applied) {
-    await restoreFirstMix(supabase, project.owner_id)
+    await restoreFirstMix(serviceSupabase, project.owner_id)
   }
   const code = project.applied_coupon_code ?? null
   if (code && code !== WELCOME_COUPON_CODE) {
-    if (opts.serviceSupabase) {
-      await restoreDiscountCode(opts.serviceSupabase, code)
-    } else {
-      console.error(
-        '[orderDiscount] catalog-hold restore skipped: no service client',
-        { code },
-      )
-    }
+    await restoreDiscountCode(serviceSupabase, code)
   }
 }
 
