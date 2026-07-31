@@ -58,7 +58,13 @@ describe('buildContentSecurityPolicy', () => {
   })
 
   test('drops report-to (and its header) when no canonical origin is configured', () => {
-    const env = { ...prodEnv, NEXT_PUBLIC_SITE_URL: undefined } as NodeJS.ProcessEnv
+    const env = {
+      ...prodEnv,
+      NEXT_PUBLIC_SITE_URL: undefined,
+      VERCEL_ENV: undefined,
+      VERCEL_PROJECT_PRODUCTION_URL: undefined,
+      VERCEL_URL: undefined,
+    } as NodeJS.ProcessEnv
     const policy = buildContentSecurityPolicy(env)
     // A relative Reporting-Endpoints URL is ignored by browsers, so the
     // pair is omitted rather than emitted broken; report-uri still works.
@@ -67,6 +73,67 @@ describe('buildContentSecurityPolicy', () => {
     expect(buildSecurityHeaders(env).map((h) => h.key)).not.toContain(
       'Reporting-Endpoints',
     )
+  })
+
+  describe('canonical-origin fallback', () => {
+    // Production shipped with no Reporting-Endpoints header because
+    // NEXT_PUBLIC_SITE_URL is unset in the Vercel build env; these cover
+    // the fallback that fixes it without pointing previews at production.
+    const headerFor = (env: Partial<NodeJS.ProcessEnv>) =>
+      Object.fromEntries(
+        buildSecurityHeaders({
+          ...prodEnv,
+          NEXT_PUBLIC_SITE_URL: undefined,
+          ...env,
+        } as NodeJS.ProcessEnv).map((h) => [h.key, h.value]),
+      )
+
+    test('an explicit site URL wins over both Vercel vars', () => {
+      expect(
+        headerFor({
+          NEXT_PUBLIC_SITE_URL: 'https://nova-spatial.com',
+          VERCEL_ENV: 'production',
+          VERCEL_PROJECT_PRODUCTION_URL: 'wrong.vercel.app',
+          VERCEL_URL: 'also-wrong.vercel.app',
+        })['Reporting-Endpoints'],
+      ).toBe('csp-endpoint="https://nova-spatial.com/api/csp-report"')
+    })
+
+    test('a production build falls back to the project production URL', () => {
+      const headers = headerFor({
+        VERCEL_ENV: 'production',
+        VERCEL_PROJECT_PRODUCTION_URL: 'nova-spatial.com',
+        VERCEL_URL: 'nova-abc123.vercel.app',
+      })
+      expect(headers['Reporting-Endpoints']).toBe(
+        'csp-endpoint="https://nova-spatial.com/api/csp-report"',
+      )
+      expect(headers['Content-Security-Policy-Report-Only']).toContain(
+        'report-to csp-endpoint',
+      )
+    })
+
+    test('a preview build reports to its own deployment origin, never production', () => {
+      // VERCEL_PROJECT_PRODUCTION_URL is set on previews too; pointing at
+      // it would post cross-origin to a route that answers no preflight.
+      expect(
+        headerFor({
+          VERCEL_ENV: 'preview',
+          VERCEL_PROJECT_PRODUCTION_URL: 'nova-spatial.com',
+          VERCEL_URL: 'nova-abc123.vercel.app',
+        })['Reporting-Endpoints'],
+      ).toBe('csp-endpoint="https://nova-abc123.vercel.app/api/csp-report"')
+    })
+
+    test('a malformed site URL falls through to the next candidate', () => {
+      expect(
+        headerFor({
+          NEXT_PUBLIC_SITE_URL: 'not-a-url',
+          VERCEL_ENV: 'production',
+          VERCEL_PROJECT_PRODUCTION_URL: 'nova-spatial.com',
+        })['Reporting-Endpoints'],
+      ).toBe('csp-endpoint="https://nova-spatial.com/api/csp-report"')
+    })
   })
 
   test.each([undefined, 'not-a-url'])(

@@ -93,4 +93,35 @@ describe('POST /api/csp-report', () => {
     const res = await POST(reportRequest(violation))
     expect(res.status).toBe(204)
   })
+
+  // The throttle is a module-level singleton shared across this file, so
+  // each case below uses its own blocked-uri.
+  describe('log throttling', () => {
+    function violationFor(blocked: string) {
+      return {
+        'csp-report': {
+          'document-uri': 'https://nova-spatial.com/',
+          'blocked-uri': blocked,
+          'effective-directive': 'script-src-elem',
+        },
+      }
+    }
+
+    test('a repeated violation logs once, and every response stays 204', async () => {
+      const body = violationFor('https://repeat.example/a.js')
+
+      for (let i = 0; i < 4; i++) {
+        const res = await POST(reportRequest(body))
+        expect(res.status).toBe(204)
+      }
+      // Suppression is invisible to the sender — only the log is bounded.
+      expect(warn).toHaveBeenCalledTimes(1)
+    })
+
+    test('distinct violations each get their own line', async () => {
+      await POST(reportRequest(violationFor('https://distinct.example/a.js')))
+      await POST(reportRequest(violationFor('https://distinct.example/b.js')))
+      expect(warn).toHaveBeenCalledTimes(2)
+    })
+  })
 })

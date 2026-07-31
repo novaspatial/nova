@@ -80,7 +80,7 @@ exposure changed); it changed later for #58.
 ## Phase 2 — Medium severity (target pre-launch; legal items human-owned) 🟡
 
 **Security (`ready-for-agent`):**
-- 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added *(shipped 2026-07-30; enforce flip is an ops step after a soak)*.
+- 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added *(shipped 2026-07-30)*; canonical-origin fallback so `Reporting-Endpoints` is actually emitted in production, plus a throttle on the sink so a flood can't bury the soak evidence *(2026-07-31)*. Enforce flip is an ops step after the soak.
 - ✅ #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30)*; limiter filter-injection fixed and **captcha ruled out** as controls-sufficient *(2026-07-31 — closed)*.
 - ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. *(closed 2026-07-30)*
 - ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. *(closed 2026-07-30)*

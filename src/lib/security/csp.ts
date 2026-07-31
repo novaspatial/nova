@@ -105,13 +105,34 @@ export function buildContentSecurityPolicy(
 // which resolves the config's own alias imports but not transitive ones —
 // so the canonical origin is read from the environment here rather than
 // imported from @/lib/site.
+//
+// Vercel's system vars are the fallback because production shipped with no
+// Reporting-Endpoints header at all: NEXT_PUBLIC_SITE_URL is unset in the
+// build env, so half the reporting wiring was dark and violations arrived
+// only through the deprecated report-uri channel. The chain gates the
+// production var on VERCEL_ENV deliberately — VERCEL_PROJECT_PRODUCTION_URL
+// points at production even on preview builds, and a preview emitting the
+// production endpoint would post cross-origin to a route that answers no
+// CORS preflight. A hardcoded prod fallback (as in @/lib/site) would have
+// the same flaw, plus a second copy of the domain to drift.
 function absoluteSiteOrigin(env: NodeJS.ProcessEnv): string | null {
-  if (!env.NEXT_PUBLIC_SITE_URL) return null
-  try {
-    return new URL(env.NEXT_PUBLIC_SITE_URL).origin
-  } catch {
-    return null
+  const candidates = [
+    env.NEXT_PUBLIC_SITE_URL,
+    env.VERCEL_ENV === 'production' && env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : null,
+    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : null,
+  ]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    try {
+      return new URL(candidate).origin
+    } catch {
+      // A malformed value falls through to the next candidate rather than
+      // dropping the header entirely.
+    }
   }
+  return null
 }
 
 export function buildSecurityHeaders(
