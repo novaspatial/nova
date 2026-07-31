@@ -29,7 +29,7 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 
 | Issue | Fix | Type | Status |
 |---|---|---|---|
-| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** `REVOKE UPDATE (role, first_mix_discount) ON public.profiles FROM authenticated, anon` | Migration | 🔒 tech half shipped; open on ops |
+| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** grant narrowing on `public.profiles` (the proposed column `REVOKE` was a no-op) | Migration | ✅ closed 2026-07-31 |
 | #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops | 🔒 tech half shipped; open on ops |
 
 **Shipped (54161d7, 91adecb):**
@@ -46,7 +46,9 @@ CI), and is followed by a fresh `get_advisors(security)` run.
 - [x] Trigger present; `get_advisors(security)` shows no ERROR-level findings.
 - [x] Six unit cases assert `devBypass` is false under production env (Vercel preview still works),
       plus a route-level test that a production env takes the real Stripe path.
-- [ ] **Human/ops:** Vercel production env verified (see the ops checklist).
+- [x] **Human/ops:** the two production `role='studio'` accounts confirmed intended by the
+      owner (2026-07-31); the grant procedure is recorded in `docs/adr/0001-studio-access-is-granted-out-of-band.md`. **#44 closed.**
+- [ ] **Human/ops:** Vercel production env verified (#45 — see the ops checklist).
 
 ---
 
@@ -156,8 +158,9 @@ Everything below needs a human — none of it is visible from or fixable in the 
 
 - [ ] Vercel production env: `PAYMENTS_DEV_BYPASS` unset/false (#45 — the code now forces it
       off in production regardless, but a clean env is still the ask).
-- [ ] Confirm the two existing `role = 'studio'` profiles are intended accounts, and record how
-      studio access gets granted from here (#44).
+- [x] Confirm the two existing `role = 'studio'` profiles are intended accounts, and record how
+      studio access gets granted from here (#44) — both confirmed 2026-07-31; procedure in
+      `docs/adr/0001-studio-access-is-granted-out-of-band.md` (service-role only, no admin UI).
 - [ ] Soak `/api/csp-report`, then set `CSP_MODE=enforce` and redeploy; smoke-test checkout with
       a 3DS card afterwards (#50).
 - [x] Captcha decision (#51): **no captcha** — ruled 2026-07-31, the 3-per-10-min limit plus
