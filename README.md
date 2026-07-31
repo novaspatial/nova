@@ -27,7 +27,7 @@ cp .env.example .env.local   # then fill in the values (see below)
 npm run dev                  # http://localhost:3000
 ```
 
-For local development without live payments, set `PAYMENTS_DEV_BYPASS=true` in `.env.local` — checkout then creates paid $0 projects and skips Stripe. **Never set this in production.**
+For local development without live payments, set `PAYMENTS_DEV_BYPASS=true` in `.env.local` — checkout then creates paid $0 projects and skips Stripe. **Never set this in production.** The code forces it off wherever `VERCEL_ENV` (or, off Vercel, `NODE_ENV`) says production, so a stray value there is inert — but it stays armable on Vercel **preview**, which is what makes preview smoke tests possible and why the preview env deserves the same hygiene.
 
 ### Commands
 

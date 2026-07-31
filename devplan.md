@@ -1,13 +1,25 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** all agent-side work shipped — GO pending human ops (#44/#45 checklists, #55 legal, #50 CSP flip) · **Tracker:** GitHub issues #44–#59 · **Refreshed:** 2026-07-30
+**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (#55 legal, #50 CSP flip, #45 env check, #54 copy rulings, two #59 toggles) · **Tracker:** GitHub issues #44–#60 · **Refreshed:** 2026-07-31
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
-Original verdict: do not launch until the two blockers close. As of 2026-07-30 every technical
-fix is on `main` and applied to production; what remains is human-owned (see the ops checklist). This plan sequences all 16 filed issues
-into gated phases. Migrations follow the repo's fence pattern; each RLS change updates the
-policy, `src/types/portal.ts`, and tests together, is applied via the Supabase CLI/MCP (not
-CI), and is followed by a fresh `get_advisors(security)` run.
+Original verdict: do not launch until the two blockers close. Both blockers (#44, #45) are now
+closed or inert in production; every technical fix is on `main` and applied to the live
+database. What remains is human-owned (see the ops checklist) plus the decision packs posted
+to #54 and #55, which turn each remaining ruling into a one-line answer. Migrations follow
+the repo's fence pattern; each RLS change updates the policy, `src/types/portal.ts`, and tests
+together, is applied via the Supabase CLI/MCP (not CI), and is followed by a fresh
+`get_advisors(security)` run.
+
+**2026-07-31 addendum.** A second pass over the "human-gated" residue found that framing was
+only partly true. #59 still held six shippable code items — one of which, the discount-RPC
+grants, turned out to be a **live unauthenticated hole**: `reserve_/restore_first_mix_discount`
+were EXECUTE-able by `anon` (Supabase default privileges, never revoked) and their identity
+guards pass a null uid, so an anonymous caller could burn or re-arm any client's welcome
+discount. Three more defects surfaced in code already called done: the contact rate limiter
+was defeatable by a comma in a validated email address, production was shipping no
+`Reporting-Endpoints` header at all (so half of #50's evidence channel was dark), and the
+`blog-assets` bucket allowed anonymous enumeration. All fixed and verified against production.
 
 ---
 
@@ -185,6 +197,26 @@ Everything below needs a human — none of it is visible from or fixable in the 
 
 ## Log
 
+- 2026-07-31 — Wrap: #44 and #51 closed; #54/#55 decision packs posted (every remaining ruling
+  reduced to a pick-a-letter answer); #60 filed for the nonce/`unsafe-inline` half of #50 that
+  was deferred and never tracked; dev-bypass regression guards added (one env reader, and
+  `.env.example` can't ship the flag armed). Suite 862 → 1015.
+- 2026-07-31 — #59 sweeper + Sentry + cosmetics: orphan sweep on a second daily cron
+  (`20260731_add_orphan_sweep_support` — `upload_registered_at` because #57's idempotent
+  re-register would otherwise make a live re-upload look stale, plus a service-only anti-join
+  RPC for row-less comment attachments); Sentry wired DSN-gated with `alertMoneyPathAnomaly`
+  on all four metadata-mismatch branches; footer newsletter form made real (forwards to signup
+  with the promo token, matching PromoPopup) instead of a dead control promising a discount;
+  `20260731_archive_fence_service_escape` (the one fence missing its null-uid escape) and
+  `20260731_blog_assets_no_listing` (anon could enumerate the bucket — probed before and after).
+- 2026-07-31 — #50 code half: canonical-origin fallback to Vercel's build-time system vars, so
+  `Reporting-Endpoints` is actually emitted in production (it never was — `NEXT_PUBLIC_SITE_URL`
+  is unset at build); plus a token-bucket + dedupe throttle on the sink so a flood can't bury
+  the soak evidence the flip decision rests on. Soak coverage matrix and flip checklist on #50.
+- 2026-07-31 — #51 closed: the limiter interpolated the submitter's email into PostgREST's
+  comma-delimited `or=` grammar, and `EMAIL_PATTERN` admits commas — so a crafted address
+  split the filter and the per-email bound stopped binding. Two `.eq()` counts instead.
+  Captcha ruled out as controls-sufficient.
 - 2026-07-31 — #59 grants slice: all six discount RPCs now service_role-only. Live probe
   found the first-mix pair EXECUTE-able by **anon** (default-privilege grants never revoked)
   with identity guards that pass a null uid — an unauthenticated caller could burn or re-arm

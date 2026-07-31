@@ -1,4 +1,7 @@
 import { isPaymentsDevBypassEnabled } from './devBypass'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 describe('isPaymentsDevBypassEnabled', () => {
   test('off when the flag is unset', () => {
@@ -54,5 +57,37 @@ describe('isPaymentsDevBypassEnabled', () => {
         NODE_ENV: 'production',
       }),
     ).toBe(true)
+  })
+})
+
+// The guard is only as good as its single reader (#45): a future refactor
+// reading process.env.PAYMENTS_DEV_BYPASS somewhere else would bypass it
+// silently, and a .env.example that ships the flag armed is how a bulk
+// env import arms production in the first place. Neither is expressible
+// as a unit test of the helper, so they are asserted against the tree.
+describe('the dev-bypass env surface', () => {
+  const repoRoot = path.resolve(__dirname, '../../..')
+
+  test('devBypass.ts is the only place in src/ that names the flag', () => {
+    const hits = execSync(
+      `grep -rl "PAYMENTS_DEV_BYPASS" ${repoRoot}/src || true`,
+      { encoding: 'utf8' },
+    )
+      .split('\n')
+      .filter(Boolean)
+      .map((file) => path.relative(repoRoot, file))
+      // Tests set the variable to exercise both branches; that is the point.
+      .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'))
+
+    expect(hits).toEqual(['src/lib/stripe/devBypass.ts'])
+  })
+
+  test('.env.example never ships the flag armed', () => {
+    const example = readFileSync(path.join(repoRoot, '.env.example'), 'utf8')
+    const armed = example
+      .split('\n')
+      .filter((line) => /^\s*PAYMENTS_DEV_BYPASS\s*=/.test(line))
+
+    expect(armed).toEqual([])
   })
 })
