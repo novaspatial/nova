@@ -50,7 +50,7 @@ From `.env.example`. Client-exposed (`NEXT_PUBLIC_`) vs server-only:
 - **Email:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_INBOX_TO` (optional — unset stores inquiries but skips the notification email).
 - **Site/ops:** `CSP_MODE` (server, optional — `report-only` unless set to `enforce`); `NEXT_PUBLIC_SITE_URL` (client; canonical origin for metadata/sitemap/pings — the CSP builder falls back to Vercel's build-time system vars when it is unset); `INDEXNOW_KEY` (server — echoed at `/indexnow-key.txt` by a route handler, unset disables pings); `CRON_SECRET` (server — bearer auth for the crons, which fail closed without it).
 - **Observability:** `NEXT_PUBLIC_SENTRY_DSN` (client + server, optional — unset means every Sentry entry point no-ops and errors only reach the console; setting it needs no code change). All reporting goes through `src/lib/observability/report.ts`; money-path metadata mismatches alert through `alertMoneyPathAnomaly`.
-- **Dev only:** `PAYMENTS_DEV_BYPASS=true` skips Stripe and creates paid $0 projects. **Never set in production** — `isPaymentsDevBypassEnabled` forces it off there regardless (#45), but it stays armable on Vercel preview by design.
+- **Local only:** `PAYMENTS_DEV_BYPASS=true` skips Stripe and creates paid $0 projects. `isPaymentsDevBypassEnabled` refuses it on **any Vercel deploy, preview included**, and under bare `NODE_ENV=production` off Vercel (#45) — preview counts because the single Supabase project means preview writes to the production database. Smoke-test deploys with a Stripe test card instead.
 
 > Never put a personal email address in code, config, or docs. Use `noreply@nova-spatial.com` / `contact@nova-spatial.com`.
 

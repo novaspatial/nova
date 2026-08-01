@@ -49,14 +49,35 @@ describe('isPaymentsDevBypassEnabled', () => {
     ).toBe(false)
   })
 
-  test('stays usable on Vercel preview, where NODE_ENV is also production', () => {
+  // The preview scope is #45's live failure path: one Supabase project, no
+  // branches, so preview writes to the production database.
+  test('forced off on Vercel preview, which talks to the production database', () => {
     expect(
       isPaymentsDevBypassEnabled({
         PAYMENTS_DEV_BYPASS: 'true',
         VERCEL_ENV: 'preview',
         NODE_ENV: 'production',
       }),
-    ).toBe(true)
+    ).toBe(false)
+  })
+
+  test('forced off on Vercel regardless of scope or NODE_ENV', () => {
+    // VERCEL alone, no VERCEL_ENV — a deploy target we do not enumerate.
+    expect(
+      isPaymentsDevBypassEnabled({
+        PAYMENTS_DEV_BYPASS: 'true',
+        VERCEL: '1',
+        NODE_ENV: 'development',
+      }),
+    ).toBe(false)
+    // An unrecognised VERCEL_ENV value must not fall through to "allowed".
+    expect(
+      isPaymentsDevBypassEnabled({
+        PAYMENTS_DEV_BYPASS: 'true',
+        VERCEL_ENV: 'development',
+        NODE_ENV: 'development',
+      }),
+    ).toBe(false)
   })
 })
 

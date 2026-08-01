@@ -27,7 +27,7 @@ cp .env.example .env.local   # then fill in the values (see below)
 npm run dev                  # http://localhost:3000
 ```
 
-For local development without live payments, set `PAYMENTS_DEV_BYPASS=true` in `.env.local` — checkout then creates paid $0 projects and skips Stripe. **Never set this in production.** The code forces it off wherever `VERCEL_ENV` (or, off Vercel, `NODE_ENV`) says production, so a stray value there is inert — but it stays armable on Vercel **preview**, which is what makes preview smoke tests possible and why the preview env deserves the same hygiene.
+For local development without live payments, set `PAYMENTS_DEV_BYPASS=true` in `.env.local` — checkout then creates paid $0 projects and skips Stripe. It works **only off Vercel**: the code refuses the bypass on any Vercel deploy, preview as well as production, so a stray value in either env scope is inert (#45). Preview is included deliberately — there is one Supabase project and no branches, so a preview deploy writes to the production database. To smoke-test checkout on a deploy, use a [Stripe test card](https://docs.stripe.com/testing), which exercises more of the flow than the bypass does.
 
 ### Commands
 
