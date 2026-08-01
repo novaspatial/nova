@@ -150,6 +150,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Update failed' }, { status: 500 })
   }
 
+  // Logged before the consume so a consume-fail 500 still leaves evidence
+  // the claim landed — healthy deliveries are otherwise silent in the logs.
+  console.info('[stripe webhook] payment claimed', {
+    intent: intent.id,
+    project: project.id,
+    claimed: Boolean(claimed),
+  })
+
   // Post-claim finalize order: (1) consumption — MUST 500 on failure so
   // Stripe's retry loop finishes the job (the replay path above re-attempts
   // it); (2) #24 receipt — best-effort, never a 500; (3) ack.

@@ -41,6 +41,20 @@ describe('POST /api/stripe/webhook', () => {
     expect(mockConstructEvent).not.toHaveBeenCalled()
   })
 
+  test('returns 500 when STRIPE_WEBHOOK_SECRET is unset so Stripe retries', async () => {
+    const mockConsoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    delete process.env.STRIPE_WEBHOOK_SECRET
+
+    const res = await POST(buildRequest('{}', 'sig_present'))
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Webhook not configured' })
+    expect(mockConstructEvent).not.toHaveBeenCalled()
+    expect(mockCreateServiceClient).not.toHaveBeenCalled()
+    mockConsoleError.mockRestore()
+  })
+
   test('rejects bad signature with 400 and no DB work', async () => {
     mockConstructEvent.mockImplementation(() => {
       throw new Error('Signature invalid')
@@ -61,6 +75,9 @@ describe('POST /api/stripe/webhook', () => {
   })
 
   test('marks project paid on payment_intent.succeeded', async () => {
+    const mockConsoleInfo = vi
+      .spyOn(console, 'info')
+      .mockImplementation(() => undefined)
     mockConstructEvent.mockReturnValue({
       type: 'payment_intent.succeeded',
       data: {
@@ -99,6 +116,11 @@ describe('POST /api/stripe/webhook', () => {
     )
     expect(projectsChain.eq).toHaveBeenCalledWith('id', 'proj-1')
     expect(projectsChain.is).toHaveBeenCalledWith('paid_at', null)
+    expect(mockConsoleInfo).toHaveBeenCalledWith(
+      '[stripe webhook] payment claimed',
+      { intent: 'pi_1', project: 'proj-1', claimed: true },
+    )
+    mockConsoleInfo.mockRestore()
   })
 
   test('returns 500 when the claim write fails so Stripe retries', async () => {

@@ -61,7 +61,15 @@ supabase/migrations/   # Schema, RLS policies, storage buckets (YYYYMMDD_*.sql)
 
 ## Deploy
 
-Vercel. CI (`.github/workflows/main.yml`) runs lint → tests → build on every push and PR to `main`. `vercel.json` schedules the one cron, `/api/cron/purge-delivered` (daily, 06:00 UTC). Migrations are applied via the Supabase CLI — not in CI.
+Vercel. CI (`.github/workflows/main.yml`) runs lint → tests → build on every push and PR to `main`. `vercel.json` schedules two crons, `/api/cron/purge-delivered` (daily, 06:00 UTC) and `/api/cron/sweep-orphans` (daily, 06:30 UTC). Migrations are applied via the Supabase CLI — not in CI.
+
+### Stripe webhook (one-time registration)
+
+The webhook is the durable finalizer for payments — without it the only claim path is a 30-second in-page poll. Registering it is dashboard work:
+
+1. In the **live** Stripe Dashboard, create a webhook endpoint at `https://nova-spatial.com/api/stripe/webhook` — the apex exactly (`www` 308-redirects, and Stripe does not follow redirects). Subscribe `payment_intent.succeeded`, plus `payment_intent.payment_failed` and `payment_intent.canceled` (log-only liveness signals); nothing broader.
+2. Put the endpoint's signing secret in Vercel as `STRIPE_WEBHOOK_SECRET`, **Production scope only** (a preview-scoped webhook would race production on the same database rows), then redeploy — env changes only reach a new deployment.
+3. Verify the wiring: `curl -X POST` the endpoint with a bogus `stripe-signature` header. `400 Invalid signature` means the secret is live; `500 Webhook not configured` means the redeploy didn't pick it up.
 
 ## Documentation
 
