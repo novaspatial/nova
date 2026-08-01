@@ -1,6 +1,6 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (**#63 Stripe webhook — new hard blocker**, #55 legal + retention disclosure, #50 CSP flip after the five soak flows, #54 copy rulings incl. the live `/blog` template filler, two #59 toggles) · **Tracker:** GitHub issues #44–#63 · **Refreshed:** 2026-08-01
+**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (**#63 Stripe webhook — new hard blocker**, #55 legal + retention disclosure, #50 CSP flip after the five soak flows, #54's three remaining copy rulings — the `/blog` filler and Tone Lock wording shipped 2026-08-01 — two #59 toggles) · **Tracker:** GitHub issues #44–#63 · **Refreshed:** 2026-08-01
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
 Original verdict: do not launch until the two blockers close. Both original blockers (#44, #45)
@@ -117,7 +117,7 @@ exposure changed); it changed later for #58.
 **SEO / content / legal:**
 
 - ✅ #53 Per-page self-referential canonicals (SEO — important for the marketing push). _(closed 2026-07-30)_
-- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned). The decision pack is **five** rulings, not the two the body names: (1) two meta picks, (2) the logo wall, (3) the three `/about` stats — which must move in lockstep with `Testimonials.tsx:12-13` ("20+ Years Experience" / "Award-Winning Quality" chips under "Over 20 Years of Mixing Excellence", on the **homepage**, or the site contradicts itself), (4) whether "proprietary/exclusive" Spatial Tone Lock is a filed mark or just an in-house process (`HeroContent`, `FAQ`, `Services`, `about/page`, `PromoPopup` — a one-word swap either way; worth its own issue), and (5) whether #54 blocks launch at all — the Phase 2 exit gate below still doesn't name it.
+- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned). The decision pack is **five** rulings; **two were taken and shipped 2026-08-01**: (1) meta copy — B2 on `/blog` (meta **and** the visible PageIntro), A2 on `/about` (db2fc36); (4) Spatial Tone Lock ruled an in-house process, not a filed mark — "proprietary"/"exclusive" swapped for "in-house"/"custom"/"specialized" in `HeroContent`, `FAQ`, `Services`, `about/page` (ba512d2; PromoPopup's "exclusive welcome discount" qualifies the offer, not the process, and stays). Still open: (2) the logo wall, (3) the three `/about` stats — which must move in lockstep with `Testimonials.tsx:12-13` ("20+ Years Experience" / "Award-Winning Quality" chips under "Over 20 Years of Mixing Excellence", on the **homepage**, or the site contradicts itself), and (5) whether #54 blocks launch at all — the Phase 2 exit gate below still doesn't name it.
 - 🚫 #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership** — skipped by the loop; still the one hard launch blocker for taking payments). **It also carries the retention disclosure**: `RETENTION_DAYS = 90` has been purging on a daily cron since 2026-07-26, and no client-facing surface — Terms, checkout, or any privacy text — has ever said so (the old `retentionPurge.ts` citation of "T&C §6" was false and is corrected). No ruling is needed for it (D7/D7b are settled) and the copy is drafted in the #55 pack; it just cannot ship separately, because the same deploy bumps `TERMS_VERSION` and forces every returning client to re-tick consent.
 
 **Data integrity:**
@@ -264,10 +264,13 @@ Everything below needs a human — none of it is visible from or fixable in the 
       `mail.app.supabase.io` sender, that is both a deliverability risk and a credibility problem
       on a client-facing product. Also still unrun: the checks needing a second device or a
       corporate inbox (SafeLinks retest, cross-device, stale-link UX, resend end-to-end).
-- [ ] **Decide what happens to the one production project row (#62).** `projects` holds a single row
-      (paid, `delivered_at = 2026-07-31 23:31Z`) from testing, plus the two studio profiles. It
-      makes the purge cron's first eligible run ~2026-10-29; delete it before launch if the
-      intent is a clean production dataset.
+- [x] **The one production project row (#62) — ruled "delete", executed 2026-08-01.** The "Test"
+      project ($1.13, TEST12, delivered 2026-07-31) deleted via service role in the #48 order:
+      row first (9 comments, 6 file rows, 2 attachment rows cascaded), then the 8 storage
+      objects (~468 MB) under its prefix. Verified after: 0 projects, 0 child rows, 0 objects —
+      production is the two studio profiles and nothing else, and the purge cron has no backlog.
+      Sole remaining test artifact: the TEST12 coupon row (single-use, already inactive,
+      `redeemed_count` 1) — harmless, delete only if zero artifacts is the goal.
 
 ---
 
@@ -278,16 +281,11 @@ actually finish it, because "ready-for-human" has twice hidden work an agent cou
 
 **Agent-doable — code, not rulings:**
 
-- [ ] **`/blog` ships Tailwind template filler, and it is on the page, not just in `<head>`.**
-      `src/app/blog/page.tsx:20` (meta description) _and_ `:103-106`, the `PageIntro` paragraph
-      rendered directly under "The latest articles and news": _"…as our marketing teams finds new
-      ways to re-purpose old CSS tricks articles."_ Anyone who opens the blog reads it. It also
-      carries a grammar error ("teams finds"). Belongs to #54 but needs no ruling — the current
-      text cannot be what anyone intends. **Posted to #54 2026-08-01**, waiting on a copy pick.
-- [ ] `src/app/about/page.tsx:105-106` — the same template's "collaborative approach" description.
-      **Meta only**: `/about`'s visible `PageIntro` (`:114-126`) is real NovaSpatial copy, so
-      `/blog` is the only page a visitor can read filler on. Generic enough to pass unread, but it
-      is still filler. Same issue.
+- [x] **`/blog` template filler — resolved 2026-08-01.** B2 picked from the #54 pack and shipped
+      (db2fc36) to both places it lived: the meta description and the `PageIntro` paragraph a
+      visitor actually reads (which also ends the "teams finds" grammar error).
+- [x] `src/app/about/page.tsx` "collaborative approach" meta description — A2 picked and shipped
+      in the same commit (db2fc36). Meta only; `/about`'s visible copy was already real.
 - [x] The studio toasts assert an email that may not have been sent: _"The client has been
       emailed…"_ at `src/components/portal/UploadManager.tsx:373` and `:472`, while status
       notifications are deliberately best-effort (#49, log-and-continue). The portal work
@@ -305,11 +303,12 @@ actually finish it, because "ready-for-human" has twice hidden work an agent cou
 - [ ] Run the five CSP soak flows, then flip `CSP_MODE=enforce` (#50).
 - [ ] Privacy policy + expanded Terms, carrying the 90-day retention disclosure (#55) — still the
       one hard launch blocker for taking payments.
-- [ ] The five #54 copy rulings, including the "Trusted by" logo wall and the `/about` stats that
-      must move in lockstep with `Testimonials.tsx`.
+- [ ] The three remaining #54 copy rulings — the "Trusted by" logo wall, the `/about` stats
+      (which move in lockstep with `Testimonials.tsx`), and whether #54 blocks launch. Rulings
+      (1) meta copy and (4) Tone Lock were taken and shipped 2026-08-01.
 - [ ] Supabase leaked-password protection; Sentry project + DSN (#59).
-- [ ] Decide what happens to the single leftover production project row (**#62**) — it is the
-      purge cron's first customer, ~2026-10-29.
+- [x] The leftover production project row (**#62**) — ruled "delete", executed and verified
+      2026-08-01; details in the ops checklist. Production is a clean dataset.
 - [ ] **Check the restyled emails in a real dark-mode inbox** (**#61**). The rendered HTML was
       verified for explicit backgrounds, canonical hosts and CTA targets, but no client renders it
       like a browser does. #61 also carries the SMTP-vs-Resend sender ruling and the checks needing
@@ -326,6 +325,18 @@ b7c2093 (see above).
 
 ## Log
 
+- 2026-08-01 — Three of the waiting rulings answered and executed in one pass. **#54 (1):** B2 on
+  `/blog` — meta **and** the visible `PageIntro` — and A2 on `/about` (db2fc36). **#54 (4):**
+  Spatial Tone Lock ruled an in-house process, not a filed mark; "proprietary"/"exclusive"
+  swapped for "in-house"/"custom"/"specialized" across `HeroContent`, `FAQ`, `Services` and
+  `/about` (ba512d2) — PromoPopup's "exclusive welcome discount" stays, it qualifies the offer,
+  not the process. **#62:** ruled "delete" — the "Test" project ($1.13, delivered 2026-07-31)
+  removed via service role in the #48 order (row first, 9 comments + 6 file rows + 2 attachment
+  rows cascading; then the 8 storage objects, ~468 MB), verified to zero rows and zero objects.
+  Production now holds only the two studio profiles; the sole test artifact left is the inactive
+  single-use TEST12 coupon row. A pre-existing uncommitted blog style tweak (class order + list
+  bottom margin) was committed separately (393fe1d) to keep the copy commit clean. Suite 1094
+  green, lint clean. Still open on #54: the logo wall, the stats, and the blocks-launch ruling.
 - 2026-08-01 — #63 groundwork shipped and the runbook handed over. 0f16eec pins the
   unset-secret 500 branch (previously zero coverage — the exact state production is in), adds a
   `[stripe webhook] payment claimed` info log before the consume so healthy deliveries stop
