@@ -129,7 +129,7 @@ export async function PATCH(
     )
   }
 
-  await sendProjectStatusEmail(supabase, id, status, new URL(request.url).origin)
+  await sendProjectStatusEmail(supabase, id, status)
 
   return NextResponse.json(project)
 }

@@ -68,6 +68,41 @@ describe('sendOrderConfirmationEmail', () => {
     expect(payload.text).toContain('estimated delivery date')
   })
 
+  test('sends an HTML receipt stating the same frozen figures as the text', async () => {
+    const supabase = makeSupabase({
+      data: receiptRow(),
+      error: null,
+    })
+
+    await sendOrderConfirmationEmail(supabase, 'proj-1')
+
+    const { text, html } = sendMock.mock.calls[0][0]
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).toContain('Order confirmed')
+    // Money is rendered by the same formatCurrency call, so the two parts
+    // cannot disagree about what was charged.
+    for (const figure of ['$1,104', '$143', '$1,247 USD']) {
+      expect(text).toContain(figure)
+      expect(html).toContain(figure)
+    }
+    expect(html).toContain('HST (13%)')
+    expect(html).toContain(`href="${SITE_URL}/portal/proj-1"`)
+    expect(html).toContain(`${SITE_URL}/terms`)
+  })
+
+  test('escapes an order title containing markup', async () => {
+    const supabase = makeSupabase({
+      data: receiptRow({ title: '<script>alert(1)</script>' }),
+      error: null,
+    })
+
+    await sendOrderConfirmationEmail(supabase, 'proj-1')
+
+    const { html } = sendMock.mock.calls[0][0]
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
   test('omits the coupon, tax, and add-on lines when the order has none', async () => {
     const supabase = makeSupabase({
       data: receiptRow({

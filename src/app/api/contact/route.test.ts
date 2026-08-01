@@ -69,6 +69,30 @@ describe('POST /api/contact', () => {
         replyTo: 'ada@example.com',
       }),
     )
+    // Both parts go out; the HTML one must not be forgeable from the fields.
+    const { text, html } = mockSend.mock.calls[0][0]
+    expect(text).toContain('ada@example.com')
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).toContain('New inquiry')
+  })
+
+  test('escapes submitter-controlled fields in the HTML part', async () => {
+    serviceMock()
+
+    const res = await POST(
+      contactRequest({
+        ...body,
+        name: '<b>Ada</b>',
+        message: '<script>alert(1)</script>',
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const { html } = mockSend.mock.calls[0][0]
+    expect(html).not.toContain('<b>Ada</b>')
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain('&lt;b&gt;Ada&lt;/b&gt;')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
   })
 
   test('returns 400 instead of 500 for a malformed body', async () => {

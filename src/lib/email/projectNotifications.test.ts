@@ -7,6 +7,7 @@ vi.mock('@/lib/resend', () => ({
 }))
 
 import { sendProjectStatusEmail } from './projectNotifications'
+import { SITE_URL } from '@/lib/site'
 
 type SingleResult = {
   data: {
@@ -43,7 +44,6 @@ describe('sendProjectStatusEmail', () => {
       supabase,
       'proj-1',
       'pending_payment',
-      'https://example.com',
     )
 
     expect(sendMock).not.toHaveBeenCalled()
@@ -60,7 +60,6 @@ describe('sendProjectStatusEmail', () => {
       supabase,
       'proj-1',
       'in_review',
-      'https://example.com',
     )
 
     expect(sendMock).not.toHaveBeenCalled()
@@ -76,7 +75,7 @@ describe('sendProjectStatusEmail', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     await expect(
-      sendProjectStatusEmail(supabase, 'proj-1', 'review', 'https://example.com'),
+      sendProjectStatusEmail(supabase, 'proj-1', 'review'),
     ).resolves.toBeUndefined()
 
     expect(errSpy).toHaveBeenCalled()
@@ -95,7 +94,7 @@ describe('sendProjectStatusEmail', () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     await expect(
-      sendProjectStatusEmail(supabase, 'proj-1', 'review', 'https://example.com'),
+      sendProjectStatusEmail(supabase, 'proj-1', 'review'),
     ).resolves.toBeUndefined()
 
     expect(sendMock).not.toHaveBeenCalled()
@@ -115,14 +114,13 @@ describe('sendProjectStatusEmail', () => {
       supabase,
       'proj-1',
       'in_review',
-      'https://nova.test',
     )
 
     expect(sendMock).toHaveBeenCalledTimes(1)
     const payload = sendMock.mock.calls[0][0]
     expect(payload.to).toBe('artist@example.com')
     expect(payload.subject).toContain('Night Drive')
-    expect(payload.text).toContain('https://nova.test/portal/proj-1')
+    expect(payload.text).toContain(`${SITE_URL}/portal/proj-1`)
   })
 
   test('"review" email links to the /listen subpage', async () => {
@@ -138,12 +136,52 @@ describe('sendProjectStatusEmail', () => {
       supabase,
       'proj-1',
       'review',
-      'https://nova.test',
     )
 
     const payload = sendMock.mock.calls[0][0]
     expect(payload.subject).toMatch(/ready to listen/i)
-    expect(payload.text).toContain('https://nova.test/portal/proj-1/listen')
+    expect(payload.text).toContain(`${SITE_URL}/portal/proj-1/listen`)
+    // The CTA is the only link that matters here, and it must point at /listen.
+    expect(payload.html).toContain(
+      `href="${SITE_URL}/portal/proj-1/listen"`,
+    )
+    expect(payload.html).toContain('Listen to your mix')
+  })
+
+  test('sends both a text and an HTML part, carrying the same link', async () => {
+    const supabase = makeSupabase({
+      data: {
+        title: 'Night Drive',
+        owner: { email: 'artist@example.com', display_name: 'A' },
+      },
+      error: null,
+    })
+
+    await sendProjectStatusEmail(supabase, 'proj-1', 'mixing')
+
+    const payload = sendMock.mock.calls[0][0]
+    // text/plain stays the multipart alternative — dropping it would hurt
+    // deliverability and strand clients that refuse HTML.
+    expect(payload.text).toContain(`${SITE_URL}/portal/proj-1`)
+    expect(payload.html).toContain(`href="${SITE_URL}/portal/proj-1"`)
+    expect(payload.html).toContain('<!DOCTYPE html>')
+    expect(payload.html).toContain('Mixing has started')
+  })
+
+  test('escapes a project title containing markup', async () => {
+    const supabase = makeSupabase({
+      data: {
+        title: '<img src=x onerror=alert(1)>',
+        owner: { email: 'artist@example.com', display_name: 'A' },
+      },
+      error: null,
+    })
+
+    await sendProjectStatusEmail(supabase, 'proj-1', 'delivered')
+
+    const payload = sendMock.mock.calls[0][0]
+    expect(payload.html).not.toContain('<img src=x')
+    expect(payload.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
   })
 
   test('"delivered" email is sent for the delivered status', async () => {
@@ -159,7 +197,6 @@ describe('sendProjectStatusEmail', () => {
       supabase,
       'proj-1',
       'delivered',
-      'https://nova.test',
     )
 
     const payload = sendMock.mock.calls[0][0]
@@ -186,8 +223,7 @@ describe('sendProjectStatusEmail', () => {
         supabase,
         'proj-1',
         'in_review',
-        'https://nova.test',
-      ),
+        ),
     ).resolves.toBeUndefined()
 
     expect(errSpy).toHaveBeenCalled()

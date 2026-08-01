@@ -65,7 +65,7 @@ export async function POST(
   }
 
   if (updated) {
-    await sendProjectStatusEmail(supabase, projectId, 'in_review', new URL(request.url).origin)
+    await sendProjectStatusEmail(supabase, projectId, 'in_review')
   }
 
   return NextResponse.json({ success: true })

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/supabaseService'
 import { resend, RESEND_FROM } from '@/lib/resend'
+import { renderEmailHtml } from '@/lib/email/layout'
 import { validateContactInput } from '@/lib/contact/validation'
 import { hashClientIp, isContactRateLimited } from '@/lib/contact/rateLimit'
 
@@ -77,6 +78,20 @@ export async function POST(request: Request) {
       subject: `New inquiry from ${input.name}`,
       replyTo: input.email,
       text: `Name: ${input.name}\nEmail: ${input.email}\nSubject: ${input.subject || 'N/A'}\n\n${input.message}`,
+      // Every field below is submitter-controlled; renderEmailHtml escapes
+      // each one, which is what keeps this markup un-forgeable.
+      html: renderEmailHtml({
+        title: `New inquiry from ${input.name}`,
+        preheader: input.subject || `New inquiry from ${input.name}`,
+        heading: 'New inquiry',
+        body: [
+          `Name: ${input.name}`,
+          `Email: ${input.email}`,
+          `Subject: ${input.subject || 'N/A'}`,
+          input.message,
+        ],
+        footnote: 'Reply directly to this email to reach the sender.',
+      }),
     })
 
     if (emailError) {

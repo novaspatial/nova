@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resend, RESEND_FROM } from '@/lib/resend'
+import { renderEmailHtml, type EmailRow } from '@/lib/email/layout'
 import { absoluteUrl } from '@/lib/site'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { ADD_ON_LABELS, CA_TAX_RATES } from '@/lib/stripe/pricing'
@@ -78,6 +79,73 @@ function buildReceiptText(projectId: string, row: ReceiptRow): string {
 }
 
 /**
+ * The same receipt as HTML. Reads the identical frozen columns as
+ * buildReceiptText — the two must always agree, so any change to what a
+ * receipt states belongs in both.
+ */
+function buildReceiptHtml(projectId: string, row: ReceiptRow): string {
+  const currency = row.currency ?? 'usd'
+  const detail: string[] = []
+
+  if (row.song_count) {
+    detail.push(
+      `${row.song_count} ${row.song_count === 1 ? 'song' : 'songs'} — Dolby Atmos mix`,
+    )
+  }
+  if (row.add_ons?.length) {
+    detail.push(
+      `Add-ons: ${row.add_ons.map((addOn) => ADD_ON_LABELS[addOn] ?? addOn).join(', ')}`,
+    )
+  }
+  if (row.applied_coupon_code) {
+    detail.push(`Discount code ${row.applied_coupon_code} applied`)
+  }
+
+  const rows: EmailRow[] = []
+  if (row.subtotal_cents !== null) {
+    rows.push({
+      label: 'Subtotal',
+      value: formatCurrency(row.subtotal_cents, currency),
+    })
+  }
+  if (row.tax_cents) {
+    const rate =
+      row.buyer_country === 'CA'
+        ? (row.buyer_province && CA_TAX_RATES[row.buyer_province]) ||
+          ({ pct: 5, kind: 'gst' } as const)
+        : null
+    const taxLabel = rate ? `${rate.kind.toUpperCase()} (${rate.pct}%)` : 'Tax'
+    rows.push({
+      label: taxLabel,
+      value: formatCurrency(row.tax_cents, currency),
+    })
+  }
+  if (row.amount_cents !== null) {
+    rows.push({
+      label: 'Total',
+      value: `${formatCurrency(row.amount_cents, currency)} ${currency.toUpperCase()}`,
+      strong: true,
+    })
+  }
+
+  return renderEmailHtml({
+    title: `Order confirmed — ${row.title}`,
+    preheader: `Payment received for "${row.title}".`,
+    heading: 'Order confirmed',
+    body: [
+      'Thanks for your order — payment received. Here’s your receipt.',
+      [`Order: "${row.title}"`, ...detail].join(' · '),
+    ],
+    rows,
+    cta: {
+      label: 'Upload your stems',
+      href: absoluteUrl(`/portal/${projectId}`),
+    },
+    footnote: `We'll confirm an estimated delivery date once your files are received. Terms & Conditions: ${absoluteUrl('/terms')}`,
+  })
+}
+
+/**
  * Order-confirmation receipt (#24), sent when a payment writer makes the
  * project paid: the webhook or the poll route after WINNING the
  * claimProjectPayment CAS (the fence makes the winner unique, so the losers
@@ -113,6 +181,7 @@ export async function sendOrderConfirmationEmail(
       to: project.owner.email,
       subject: `Order confirmed — "${project.title}"`,
       text: buildReceiptText(projectId, project),
+      html: buildReceiptHtml(projectId, project),
     })
 
     if (sendError) {
