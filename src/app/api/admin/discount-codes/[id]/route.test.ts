@@ -11,7 +11,7 @@ vi.mock('@/lib/supabase/supabaseServer', () => ({
   createClient: (...args: unknown[]) => mockCreateClient(...args),
 }))
 
-import { PATCH } from './route'
+import { DELETE, PATCH } from './route'
 
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -86,5 +86,84 @@ describe('PATCH /api/admin/discount-codes/[id]', () => {
     const req = createMockRequest({ active: false }, { method: 'PATCH' })
     const res = await PATCH(req as NextRequest, makeParams('missing'))
     expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /api/admin/discount-codes/[id]', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function deleteRequest() {
+    return createMockRequest(undefined, { method: 'DELETE' }) as NextRequest
+  }
+
+  test('returns 403 for non-studio users', async () => {
+    const profileChain = createChainMock({
+      data: { id: 'user-1', role: 'client' },
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(
+      createSupabaseMock({
+        user: { id: 'user-1', email: 'client@test.com' },
+        fromMocks: { profiles: profileChain },
+      }),
+    )
+
+    const res = await DELETE(deleteRequest(), makeParams('code-1'))
+    expect(res.status).toBe(403)
+  })
+
+  test('hard-deletes a disabled code', async () => {
+    const codesChain = createChainMock()
+    codesChain.maybeSingle.mockResolvedValueOnce({
+      data: { id: 'code-1' },
+      error: null,
+    })
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const res = await DELETE(deleteRequest(), makeParams('code-1'))
+    expect(res.status).toBe(200)
+
+    // The delete is conditional on the row already being disabled.
+    expect(codesChain.delete).toHaveBeenCalled()
+    expect(codesChain.eq).toHaveBeenCalledWith('id', 'code-1')
+    expect(codesChain.eq).toHaveBeenCalledWith('active', false)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+  })
+
+  test('returns 400 when the code is still active', async () => {
+    const codesChain = createChainMock()
+    codesChain.maybeSingle
+      .mockResolvedValueOnce({ data: null, error: null }) // conditional delete misses
+      .mockResolvedValueOnce({ data: { id: 'code-1' }, error: null }) // row exists
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const res = await DELETE(deleteRequest(), makeParams('code-1'))
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toMatch(/Deactivate/)
+  })
+
+  test('returns 404 when the code does not exist', async () => {
+    const codesChain = createChainMock()
+    codesChain.maybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const res = await DELETE(deleteRequest(), makeParams('missing'))
+    expect(res.status).toBe(404)
+  })
+
+  test('returns 500 when the delete fails', async () => {
+    const codesChain = createChainMock()
+    codesChain.maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'boom' },
+    })
+    mockCreateClient.mockResolvedValue(studioMock(codesChain))
+
+    const res = await DELETE(deleteRequest(), makeParams('code-1'))
+    expect(res.status).toBe(500)
   })
 })

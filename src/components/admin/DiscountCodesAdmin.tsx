@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DiscountCode, DiscountKind } from '@/types/portal'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { NumberInput } from '@/components/ui/NumberInput'
 import { Pagination } from '@/components/ui/Pagination'
@@ -65,6 +66,11 @@ export function DiscountCodesAdmin({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  // deleteTarget survives the dialog's exit animation; isDeleteOpen drives it.
+  const [deleteTarget, setDeleteTarget] = useState<DiscountCode | null>(null)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const pageCount = Math.max(1, Math.ceil(codes.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
@@ -129,6 +135,32 @@ export function DiscountCodesAdmin({
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/admin/discount-codes/${deleteTarget.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string
+        } | null
+        throw new Error(data?.error || 'Failed to delete code')
+      }
+      setCodes((prev) => prev.filter((c) => c.id !== deleteTarget.id))
+      setIsDeleteOpen(false)
+      router.refresh()
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Something went wrong',
+      )
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -332,13 +364,28 @@ export function DiscountCodesAdmin({
                         ` · expires ${new Date(c.expires_at).toLocaleDateString('en-US')}`}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(c)}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
-                  >
-                    {c.active ? 'Deactivate' : 'Reactivate'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(c)}
+                      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10"
+                    >
+                      {c.active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                    {!c.active && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteTarget(c)
+                          setDeleteError(null)
+                          setIsDeleteOpen(true)
+                        }}
+                        className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </li>
               )
             })}
@@ -353,6 +400,31 @@ export function DiscountCodesAdmin({
           )}
         </div>
       )}
+
+      <PortalConfirmDialog
+        isOpen={isDeleteOpen}
+        tone="danger"
+        title="Delete this code?"
+        description={
+          deleteTarget && (
+            <p>
+              <span className="font-mono font-medium text-zinc-200">
+                {deleteTarget.code}
+              </span>{' '}
+              is removed from the catalog for good. Orders that already
+              redeemed it keep their price and history.
+            </p>
+          )
+        }
+        confirmLabel="Delete code"
+        busyLabel="Deleting…"
+        isBusy={deleting}
+        errorMessage={deleteError}
+        onClose={() => {
+          if (!deleting) setIsDeleteOpen(false)
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

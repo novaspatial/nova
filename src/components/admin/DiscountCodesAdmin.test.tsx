@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { DiscountCode } from '@/types/portal'
 
@@ -229,5 +235,70 @@ describe('DiscountCodesAdmin', () => {
       '/api/admin/discount-codes/code-1',
       expect.objectContaining({ method: 'PATCH' }),
     )
+  })
+
+  test('offers Delete only on disabled codes and deletes after confirm', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+
+    render(
+      <DiscountCodesAdmin
+        initialCodes={[
+          makeCode(),
+          makeCode({ id: 'code-2', code: 'OLD10', active: false }),
+        ]}
+      />,
+    )
+
+    // Only the disabled row gets a Delete action.
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('OLD10')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete code' }))
+    await waitFor(() => {
+      expect(screen.queryByText('OLD10')).not.toBeInTheDocument()
+    })
+    expect(mockFetch).toHaveBeenCalledWith('/api/admin/discount-codes/code-2', {
+      method: 'DELETE',
+    })
+    expect(screen.getByText('WELCOME15')).toBeInTheDocument()
+    expect(mockRefresh).toHaveBeenCalled()
+  })
+
+  test('cancelling the delete dialog keeps the code and calls nothing', () => {
+    render(
+      <DiscountCodesAdmin initialCodes={[makeCode({ active: false })]} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    // Scoped to the list: the dismissed dialog also mentions the code.
+    expect(
+      within(screen.getByRole('list')).getByText('WELCOME15'),
+    ).toBeInTheDocument()
+  })
+
+  test('keeps the code and surfaces the error when deletion fails', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Deactivate a code before deleting it' }),
+    })
+
+    render(
+      <DiscountCodesAdmin initialCodes={[makeCode({ active: false })]} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete code' }))
+
+    expect(
+      await screen.findByText('Deactivate a code before deleting it'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('list')).getByText('WELCOME15'),
+    ).toBeInTheDocument()
   })
 })
