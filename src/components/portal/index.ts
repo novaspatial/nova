@@ -11,6 +11,7 @@ export { QuoteBreakdown } from './QuoteBreakdown'
 export { ProgressTimeline } from './ProgressTimeline'
 export { StatusBadge } from './StatusBadge'
 export { PortalConfirmDialog } from './PortalConfirmDialog'
+export { PortalToastProvider, usePortalToast } from './PortalToast'
 export {
   PortalDashboardLoading,
   ProjectDetailLoading,

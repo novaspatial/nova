@@ -12,8 +12,16 @@ import { FileUploader } from '@/components/portal/FileUploader'
 import { useProject } from '@/components/portal/ProjectContext'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { PortalConfirmDialog } from '@/components/portal/PortalConfirmDialog'
+import {
+  usePortalToast,
+  type PortalToastInput,
+} from '@/components/portal/PortalToast'
 import { formatFileSize } from '@/lib/formatFileSize'
-import { canTransition, canUploadMix } from '@/lib/portal/workflow'
+import {
+  canonicalStatus,
+  canTransition,
+  canUploadMix,
+} from '@/lib/portal/workflow'
 import type { ProjectFile, ProjectStatus } from '@/types/portal'
 import {
   CheckCircleIcon,
@@ -23,6 +31,7 @@ import {
   MusicalNoteIcon,
   ArrowDownTrayIcon,
   TrashIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline'
 
 const statusIcon: Record<string, React.ReactNode> = {
@@ -157,6 +166,7 @@ export function UploadManager({
 }) {
   const { projectId, isStudio, projectStatus, userRole } = useProject()
   const router = useRouter()
+  const showToast = usePortalToast()
   const [files, setFiles] = useState(initialFiles)
   const [currentStatus, setCurrentStatus] = useState(projectStatus)
   const [settingStatus, setSettingStatus] = useState(false)
@@ -173,8 +183,24 @@ export function UploadManager({
     router.refresh()
   }, [router])
 
+  // Finishing a mix upload is not the same event as the client receiving it:
+  // while mixing, files sit on the project unseen; once the project is in
+  // review/revision the client's Listen tab is already open, so a fresh upload
+  // is visible to them the moment it lands. Say which one just happened.
+  const handleMixUploaded = useCallback(() => {
+    showToast({
+      tone: 'violet',
+      title: 'Mix upload complete',
+      body:
+        canonicalStatus(currentStatus) === 'mixing'
+          ? 'Saved to the project. The client cannot hear it until you press Send for Review.'
+          : 'This project is already in review, so the file is on the client’s Listen tab now.',
+    })
+    refreshProject()
+  }, [currentStatus, refreshProject, showToast])
+
   const clientUpload = useFileUpload({ projectId, fileType: 'stem', onComplete: refreshProject })
-  const mixUpload = useFileUpload({ projectId, fileType: 'mix', onComplete: refreshProject })
+  const mixUpload = useFileUpload({ projectId, fileType: 'mix', onComplete: handleMixUploaded })
 
   const stemFiles = files.filter((f) => f.file_type === 'stem' || f.file_type === 'master_ref')
   const mixFiles = files.filter((f) => f.file_type === 'mix')
@@ -182,6 +208,7 @@ export function UploadManager({
   const handleSetStatus = async (
     status: string,
     onError: (message: string | null) => void,
+    notice?: PortalToastInput,
   ) => {
     setSettingStatus(true)
     onError(null)
@@ -198,6 +225,7 @@ export function UploadManager({
 
       setCurrentStatus(status as ProjectStatus)
       setActiveDialog(null)
+      if (notice) showToast(notice)
       router.refresh()
       return true
     } catch (error) {
@@ -328,6 +356,27 @@ export function UploadManager({
             </div>
           )}
 
+          {/* The toast that fires on Send for Review is gone by the next
+              visit; this is the standing answer to "did these go out?" —
+              derived from status, so it stays true after any refresh. */}
+          {mixFiles.length > 0 &&
+            (canonicalStatus(currentStatus) === 'review' ||
+              canonicalStatus(currentStatus) === 'revision') && (
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 backdrop-blur-sm">
+                <PaperAirplaneIcon className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Sent to the client
+                  </p>
+                  <p className="mt-1 text-sm text-emerald-300/60">
+                    {canonicalStatus(currentStatus) === 'review'
+                      ? 'The client has been emailed and can play these mixes on their Listen tab. Anything you upload here now appears for them right away.'
+                      : 'The client has these mixes and asked for revisions. Upload a new mix, then send it for review again to email them.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
           <FileList
             files={mixFiles}
             label="Uploaded Mixes"
@@ -416,7 +465,13 @@ export function UploadManager({
             setActiveDialog(null)
           }
         }}
-        onConfirm={() => void handleSetStatus('mixing', setStudioActionError)}
+        onConfirm={() =>
+          void handleSetStatus('mixing', setStudioActionError, {
+            tone: 'violet',
+            title: 'Project approved',
+            body: 'The client has been emailed that mixing has started.',
+          })
+        }
       />
 
       <PortalConfirmDialog
@@ -437,7 +492,13 @@ export function UploadManager({
             setActiveDialog(null)
           }
         }}
-        onConfirm={() => void handleSetStatus('review', setStudioActionError)}
+        onConfirm={() =>
+          void handleSetStatus('review', setStudioActionError, {
+            tone: 'success',
+            title: 'Mixes sent to the client',
+            body: `${mixFiles.length} mix ${mixFiles.length === 1 ? 'file is' : 'files are'} now on the client’s Listen tab, and we emailed them a link.`,
+          })
+        }
       />
     </div>
   )
