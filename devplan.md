@@ -1,6 +1,6 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (#55 legal, #50 CSP flip, #45 env check, #54 copy rulings, two #59 toggles) · **Tracker:** GitHub issues #44–#60 · **Refreshed:** 2026-07-31
+**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (#55 legal + retention disclosure, #50 CSP flip after the five soak flows, #45 env hygiene, #54 copy rulings incl. the live `/blog` template filler, two #59 toggles) · **Tracker:** GitHub issues #44–#60 · **Refreshed:** 2026-08-01
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
 Original verdict: do not launch until the two blockers close. Both blockers (#44, #45) are now
@@ -39,39 +39,48 @@ was defeatable by a comma in a validated email address, production was shipping 
 
 ## Phase 0 — Launch blockers (MUST close before go) 🔴
 
-| Issue | Fix | Type | Status |
-|---|---|---|---|
-| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** grant narrowing on `public.profiles` (the proposed column `REVOKE` was a no-op) | Migration | ✅ closed 2026-07-31 |
-| #45 `PAYMENTS_DEV_BYPASS` unguarded | Force `devBypass=false` (or hard-fail) when `VERCEL_ENV/NODE_ENV === 'production'`; comment out the `=true` default in `.env.example`; **verify the Vercel production env** | Code + ops | 🔒 tech half shipped; open on ops |
+| Issue                                        | Fix                                                                                                                                                                                                    | Type       | Status                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | --------------------------------- |
+| #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** grant narrowing on `public.profiles` (the proposed column `REVOKE` was a no-op) | Migration  | ✅ closed 2026-07-31              |
+| #45 `PAYMENTS_DEV_BYPASS` unguarded          | Refuse the bypass on **any Vercel deploy** (preview shares the prod DB) and under bare `NODE_ENV=production`; comment out the `=true` default in `.env.example`; **verify the Vercel env**             | Code + ops | 🔒 code closed; ops open           |
 
 **Shipped (54161d7, 91adecb):**
+
 - `20260730_fence_profile_role.sql` — the `is_studio()` helper plus a `BEFORE UPDATE` fence on
   `role` / `first_mix_discount` / `email`. The planned column `REVOKE` turned out to be a no-op
   (column privileges were never granted separately), so the grant itself was narrowed:
   `REVOKE UPDATE ON profiles` then `GRANT UPDATE (display_name, avatar_url, updated_at)`.
 - `isPaymentsDevBypassEnabled` in `src/lib/stripe/devBypass.ts` replaces the raw env read in
-  the checkout route; `.env.example` ships the flag commented out.
+  the checkout route; `.env.example` ships the flag commented out. **Widened 2026-07-31 (not yet
+  committed):** the helper now refuses the bypass on *any* Vercel deploy — gating on
+  `VERCEL`/`VERCEL_ENV` presence, and separately on bare `NODE_ENV=production` for non-Vercel
+  hosting — so preview is covered too. Local dev and vitest (`NODE_ENV=test`) are unaffected.
 
 **Exit gate:**
+
 - [x] Non-studio `PATCH {"role":"studio"}` → denied. Verified twice: the grant layer refuses it
       (`permission denied for table profiles`) and, tested in isolation, the trigger raises `42501`.
 - [x] Trigger present; `get_advisors(security)` shows no ERROR-level findings.
-- [x] Six unit cases assert `devBypass` is false under production env (Vercel preview still works),
-      plus a route-level test that a production env takes the real Stripe path.
+- [x] Unit cases assert `devBypass` is false on every Vercel deploy (preview included) and under
+      bare `NODE_ENV=production`, plus a route-level test that a production env takes the real
+      Stripe path, and two tree assertions (single reader; `.env.example` never ships it armed).
 - [x] **Human/ops:** the two production `role='studio'` accounts confirmed intended by the
       owner (2026-07-31); the grant procedure is recorded in `docs/adr/0001-studio-access-is-granted-out-of-band.md`. **#44 closed.**
-- [ ] **Human/ops:** Vercel production env verified (#45 — see the ops checklist).
+- [x] The preview scope is closed in code too: with one Supabase project and no branches, a
+      preview deploy writes to the production database, so the bypass is refused on Vercel
+      outright. Deploy smoke tests use a Stripe test card.
+- [ ] **Human/ops:** Vercel env verified, Production *and* Preview (#45 — see the ops checklist).
 
 ---
 
 ## Phase 1 — High severity (before launch) 🟠
 
-| Issue | Fix | Type | Status |
-|---|---|---|---|
-| #46 Cross-project comment injection | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK` | Migration | ✅ closed 2026-07-30 |
-| #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration | ✅ closed 2026-07-30 |
-| #48 Delete of paid/delivered projects | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete | Code + migration | ✅ closed 2026-07-30 |
-| #49 Status-notification 500s after commit | Wrap `projectNotifications` send in try/catch (log-and-continue) | Code | ✅ closed 2026-07-30 |
+| Issue                                             | Fix                                                                                                                          | Type             | Status               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------- | -------------------- |
+| #46 Cross-project comment injection               | Add owner-or-studio project-membership predicate to `project_comments` INSERT `WITH CHECK`                                   | Migration        | ✅ closed 2026-07-30 |
+| #47 `profiles` read policy exposes contact fields | Restrict SELECT to self-or-studio for `email`/`role`/`first_mix_discount`; keep `display_name`/`avatar_url` public if needed | Migration        | ✅ closed 2026-07-30 |
+| #48 Delete of paid/delivered projects             | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete           | Code + migration | ✅ closed 2026-07-30 |
+| #49 Status-notification 500s after commit         | Wrap `projectNotifications` send in try/catch (log-and-continue)                                                             | Code             | ✅ closed 2026-07-30 |
 
 **Batching (as shipped):** #46 + #47 rode with #44 in 54161d7 (`20260730_harden_comment_inserts`,
 `20260730_restrict_profile_reads`). #48 + #49 rode in 64194e9, plus one migration the plan didn't
@@ -80,6 +89,7 @@ DB floor, not only in the handler. `src/types/portal.ts` needed no change here (
 exposure changed); it changed later for #58.
 
 **Exit gate:**
+
 - [x] Foreign-project comment insert from a simulated client session → `42501`. Positive control
       first: the same insert succeeded before the migration.
 - [x] Anon reads 0 profile rows; a client reads 0 foreign client rows, still sees its own row and
@@ -94,28 +104,37 @@ exposure changed); it changed later for #58.
 ## Phase 2 — Medium severity (target pre-launch; legal items human-owned) 🟡
 
 **Security (`ready-for-agent`):**
-- 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added *(shipped 2026-07-30)*; canonical-origin fallback so `Reporting-Endpoints` is actually emitted in production, plus a throttle on the sink so a flood can't bury the soak evidence *(2026-07-31)*. Enforce flip is an ops step after the soak.
-- ✅ #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped *(shipped 2026-07-30)*; limiter filter-injection fixed and **captcha ruled out** as controls-sufficient *(2026-07-31 — closed)*.
-- ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. *(closed 2026-07-30)*
-- ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. *(closed 2026-07-30)*
+
+- 🔒 #50 CSP → report endpoint live, directive list corrected (Stripe frame/telemetry hosts, no `unsafe-eval` in prod), `CSP_MODE` lever added _(shipped 2026-07-30)_; canonical-origin fallback so `Reporting-Endpoints` is actually emitted in production, plus a throttle on the sink so a flood can't bury the soak evidence _(2026-07-31)_. Enforce flip is an ops step after the soak.
+- ✅ #51 Contact form → rate limit, length caps, email validation, sanitized subject/replyTo, guarded `request.json()`, anon INSERT policy dropped _(shipped 2026-07-30)_; limiter filter-injection fixed and **captcha ruled out** as controls-sufficient _(2026-07-31 — closed)_.
+- ✅ #52 Promo email check → the probe was deleted outright (any boolean is an oracle); the popup forwards straight to signup. _(closed 2026-07-30)_
+- ✅ #56 `/auth/callback` open redirect → validate `next` starts with a single `/`; stop trusting `x-forwarded-host` unvalidated. _(closed 2026-07-30)_
 
 **SEO / content / legal:**
-- ✅ #53 Per-page self-referential canonicals (SEO — important for the marketing push). *(closed 2026-07-30)*
-- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned).
-- 🚫 #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership** — skipped by the loop; still the one hard launch blocker for taking payments).
+
+- ✅ #53 Per-page self-referential canonicals (SEO — important for the marketing push). _(closed 2026-07-30)_
+- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned). The decision pack is **five** rulings, not the two the body names: (1) two meta picks, (2) the logo wall, (3) the three `/about` stats — which must move in lockstep with `Testimonials.tsx:12-13` ("20+ Years Experience" / "Award-Winning Quality" chips under "Over 20 Years of Mixing Excellence", on the **homepage**, or the site contradicts itself), (4) whether "proprietary/exclusive" Spatial Tone Lock is a filed mark or just an in-house process (`HeroContent`, `FAQ`, `Services`, `about/page`, `PromoPopup` — a one-word swap either way; worth its own issue), and (5) whether #54 blocks launch at all — the Phase 2 exit gate below still doesn't name it.
+- 🚫 #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership** — skipped by the loop; still the one hard launch blocker for taking payments). **It also carries the retention disclosure**: `RETENTION_DAYS = 90` has been purging on a daily cron since 2026-07-26, and no client-facing surface — Terms, checkout, or any privacy text — has ever said so (the old `retentionPurge.ts` citation of "T&C §6" was false and is corrected). No ruling is needed for it (D7/D7b are settled) and the copy is drafted in the #55 pack; it just cannot ship separately, because the same deploy bumps `TERMS_VERSION` and forces every returning client to re-tick consent.
 
 **Data integrity:**
-- ✅ #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` + row reuse), stem re-upload path, MIME allowlist + filename length cap. *(closed 2026-07-30)*
-- ✅ #58 Ruled in favor of the documented behavior: comments detach from a purged Mix instead of cascading; code + docs agree. *(closed 2026-07-30)*
+
+- ✅ #57 Mix re-upload dedupe (unique on `(project_id, storage_path)` + row reuse), stem re-upload path, MIME allowlist + filename length cap. _(closed 2026-07-30)_
+- ✅ #58 Ruled in favor of the documented behavior: comments detach from a purged Mix instead of cascading; code + docs agree. _(closed 2026-07-30)_
 
 **Exit gate:**
+
 - [x] Contact-form abuse controls in place (rate limit, caps, validation, header-safety,
       service-only writes).
 - [x] Canonicals correct per page, with a metadata test guarding the regression.
 - [x] #57 / #58 resolved with tests and adversarial DB checks.
 - [ ] Enforcing CSP live — the endpoint and the corrected policy shipped; the flip is an ops
       step (#50).
-- [ ] Privacy policy published and Terms expanded, with legal sign-off (#55).
+- [ ] Privacy policy published and Terms expanded, with legal sign-off (#55) — including the
+      90-day audio-retention disclosure, which has no client-facing statement today.
+- [ ] **Ruling recorded on whether #54 blocks launch.** Neither answer is written down anywhere,
+      so as it stands launch can be declared GO while `/blog`'s meta description tells search
+      engines the site re-purposes CSS-tricks articles and the homepage shows Netflix and
+      Universal under "Trusted by". Either ruling is fine; the gap is that it is unrecorded.
 
 ---
 
@@ -129,8 +148,8 @@ exposure changed); it changed later for #58.
   Sentry wired DSN-gated + money-path anomaly alerts, footer newsletter form made real
   (forwards to signup with the promo token, like the popup), package name/engines, unused
   `STRIPE_RESTRICTED_KEY` dropped, purge backlog warned, archive fence brought into the
-  family, blog-assets listing policy dropped *(2026-07-31)*.
-  Orphan sweeper shipped as a second daily cron *(2026-07-31)*.
+  family, blog-assets listing policy dropped _(2026-07-31)_.
+  Orphan sweeper shipped as a second daily cron _(2026-07-31)_.
   **Open:** leaked-password protection (dashboard), Sentry DSN provisioning (ops).
 
 Split any item into its own issue if it grows beyond a cleanup.
@@ -163,18 +182,32 @@ would mean a redeploy to recover, and the report data it adds is what makes the 
 2. `npx vitest run` (add co-located tests per fix) and `npm run build` (the only type-check in CI).
 3. `get_advisors(security)` after every DDL change; keep it clean.
 4. Manual smoke of the affected flow (checkout, upload, listen, delete) on a preview deploy.
+   **Checkout smokes with a Stripe test card, not the dev bypass** — the bypass is refused on
+   every Vercel deploy since #45's preview fix, and it never exercised Stripe anyway. Note that
+   a preview deploy writes to the production database (one Supabase project, no branches), so
+   smoke-test rows are real rows: clean them up.
 
 ## Ops checklist (launch day)
 
 Everything below needs a human — none of it is visible from or fixable in the repo.
 
-- [ ] Vercel production env: `PAYMENTS_DEV_BYPASS` unset/false (#45 — the code now forces it
-      off in production regardless, but a clean env is still the ask).
+- [ ] Vercel env: `PAYMENTS_DEV_BYPASS` unset/false in **both** the Production and Preview
+      scopes, and in any shared env group they inherit (#45). Now hygiene only — the code
+      refuses the bypass on every Vercel deploy, so a stray value in either scope is inert.
+      `vercel env ls` (unfiltered, to catch All-Environments vars) is the one-command check.
 - [x] Confirm the two existing `role = 'studio'` profiles are intended accounts, and record how
       studio access gets granted from here (#44) — both confirmed 2026-07-31; procedure in
       `docs/adr/0001-studio-access-is-granted-out-of-band.md` (service-role only, no admin UI).
-- [ ] Soak `/api/csp-report`, then set `CSP_MODE=enforce` and redeploy; smoke-test checkout with
-      a 3DS card afterwards (#50).
+- [ ] **Run the five soak flows**, then set `CSP_MODE=enforce`, redeploy, and smoke-test checkout
+      with a 3DS card (#50). Elapsed days are *not* the gate: Report-Only fires only on real page
+      loads, so a quiet log proves nothing unless each directive family was actually exercised —
+      checkout to the Payment Element, portal playback with the comment thread open, one stem
+      upload, a blog post with images, and the marketing pages + login. Then `[csp-report]` in the
+      Vercel logs must be empty (extension noise is already filtered server-side, so any surviving
+      line is real). After the flip, verify with
+      `curl -sSI https://nova-spatial.com | grep -i content-security-policy` — expect no
+      `-report-only` and the three Stripe hosts still present. Rollback = clear `CSP_MODE` and
+      redeploy. Full matrix and checklist on #50.
 - [x] Captcha decision (#51): **no captcha** — ruled 2026-07-31, the 3-per-10-min limit plus
       service-only writes are sufficient for launch. Reopen trigger: sustained abuse rows in
       `contact_inquiries`.
@@ -189,14 +222,146 @@ Everything below needs a human — none of it is visible from or fixable in the 
       `rls_policy_always_true` warning on `contact_inquiries` is gone; what remains are the
       pre-existing SECURITY DEFINER-callable warnings (the whole `enforce_*` fence family shares
       them) and the leaked-password item above.
-- [ ] Privacy policy + refund terms live (#55).
-- [ ] Error reporting receiving events (#59) before opening the funnel — needs a vendor choice
-      before any code is worth writing.
+- [ ] Privacy policy + refund terms live (#55) — with the 90-day retention disclosure in the
+      same deploy.
+- [ ] Error reporting receiving events (#59) before opening the funnel. The vendor question is
+      settled (Sentry, ruled 2026-07-31) and the code shipped inert; this is the DSN item above
+      plus one triggered error confirming events arrive.
+- [x] **Auth email templates — recovery verified end-to-end on production 2026-08-01.** The
+      earlier worry (a legacy `{{ .ConfirmationURL }}` template landing on
+      `…/auth/callback#access_token=…`, an implicit-flow fragment no server route can read, and
+      falling through to `/login?error=auth-code-error`) did **not** materialise: both dashboard
+      templates already link straight to `/auth/confirm?token_hash={{ .TokenHash }}&type=…`, which
+      is what `confirm/page.tsx` expects. Nobody had ever exercised it — `recovery_sent_at` was
+      null on all three accounts, which is why it read as unverified rather than broken.
+      Live proof: a real reset through `POST /api/auth/reset-password` stamped `recovery_sent_at`
+      at 15:22:49Z; after the click-through, `recovery_sent_at` returned to **null** (GoTrue clears
+      it when the token is consumed) with `updated_at`/`last_sign_in_at` at 15:26:32Z. Signup was
+      already confirmed on the same code path (`POST /api/auth/confirm` → `verifyOtp`).
+- [ ] **Auth email cosmetics + sender.** Both templates shipped light-theme text colours
+      (`#18181b` headline) with **no** `background-color` while declaring
+      `color-scheme: light dark` — so dark-mode clients, which then skip auto-inversion, rendered
+      a near-black headline on a dark background. They also used an inline `<svg>` logo (stripped
+      by Gmail, unsupported by Outlook) and raw `&` in the href. Corrected copy was handed over
+      2026-08-01 and applied to both templates; **re-check how they render in a dark-mode inbox.**
+      Still open: **decide built-in SMTP vs Resend** — if the recovery mail arrives from a
+      `mail.app.supabase.io` sender, that is both a deliverability risk and a credibility problem
+      on a client-facing product. Also still unrun: the checks needing a second device or a
+      corporate inbox (SafeLinks retest, cross-device, stale-link UX, resend end-to-end).
+- [ ] **Decide what happens to the one production project row.** `projects` holds a single row
+      (paid, `delivered_at = 2026-07-31 23:31Z`) from testing, plus the two studio profiles. It
+      makes the purge cron's first eligible run ~2026-10-29; delete it before launch if the
+      intent is a clean production dataset.
+
+---
+
+## Remaining work (audited 2026-08-01)
+
+A full pass over everything opened, promised or half-done in this plan. Split by who can
+actually finish it, because "ready-for-human" has twice hidden work an agent could have taken.
+
+**Agent-doable — code, not rulings:**
+
+- [ ] **`/blog` ships Tailwind template filler, and it is on the page, not just in `<head>`.**
+      `src/app/blog/page.tsx:20` (meta description) *and* `:103-106`, the `PageIntro` paragraph
+      rendered directly under "The latest articles and news": *"…as our marketing teams finds new
+      ways to re-purpose old CSS tricks articles."* Anyone who opens the blog reads it. It also
+      carries a grammar error ("teams finds"). Belongs to #54 but needs no ruling — the current
+      text cannot be what anyone intends.
+- [ ] `src/app/about/page.tsx:106` — the same template's "collaborative approach" description.
+      Generic enough to pass unread, but it is still filler. Same issue.
+- [ ] The studio toasts assert an email that may not have been sent: *"The client has been
+      emailed…"* at `src/components/portal/UploadManager.tsx:373` and `:472`, while status
+      notifications are deliberately best-effort (#49, log-and-continue). Say "we've emailed
+      them" only where the send is guaranteed, or soften the claim. **Lives in the uncommitted
+      portal toast/upload work — fix it there, not as a separate change.**
+- [ ] #45 — post the resolution and rationale to the issue, then close once the ops box below is
+      ticked. The tracker still shows only the 07-31 comments and knows nothing about the
+      preview-scope finding or the ruling taken.
+
+**Human-owned — genuinely cannot be done from the repo:**
+
+- [ ] Vercel env hygiene for `PAYMENTS_DEV_BYPASS`, **Production and Preview** (#45 — see the ops
+      checklist). Now hygiene, not exposure: the deployed guard refuses the bypass on every
+      Vercel deploy.
+- [ ] Run the five CSP soak flows, then flip `CSP_MODE=enforce` (#50).
+- [ ] Privacy policy + expanded Terms, carrying the 90-day retention disclosure (#55) — still the
+      one hard launch blocker for taking payments.
+- [ ] The five #54 copy rulings, including the "Trusted by" logo wall and the `/about` stats that
+      must move in lockstep with `Testimonials.tsx`.
+- [ ] Supabase leaked-password protection; Sentry project + DSN (#59).
+- [ ] Decide what happens to the single leftover production project row.
+- [ ] **Check the restyled emails in a real dark-mode inbox.** The rendered HTML was verified for
+      explicit backgrounds, canonical hosts and CTA targets, but no client renders it like a
+      browser does.
+- [ ] After this deploy, trigger one real status change and confirm the HTML email arrives and
+      looks right — local sends are impossible while the `.env.local` demo kill switches are on.
+
+**In flight, deliberately not committed:** the portal toast / upload-manager work
+(`PortalToast`, `portalTones`, `UploadManager`, `PortalConfirmDialog`, `app/portal/layout.tsx`).
+It is a closed set — nothing shipped depends on it — and it carries the toast-wording item above.
 
 ---
 
 ## Log
 
+- 2026-08-01 — App-sent emails brought onto the auth templates' visual language. Every
+  `resend.emails.send()` call was **text-only**, so a client got a designed "Confirm your email"
+  and then a plain-text receipt and plain-text status notifications. New shared shell
+  `src/lib/email/layout.ts` (`renderEmailHtml`) carries the tokens transcribed from the dashboard
+  templates; the receipt, the four status notifications and the contact-form notice all render
+  through it. `text` is kept on every send as the multipart alternative and as the fallback if
+  anything about the markup goes wrong — the money-path receipt's text builder was deliberately
+  left untouched. **The load-bearing part is `escapeHtml`:** project titles, contact-form fields
+  and discount codes are user input that was harmless in text/plain and becomes HTML injection
+  the moment it lands in markup; every interpolation goes through it, asserted per sender.
+  Also fixed a latent bug found while wiring it — `sendProjectStatusEmail` took an `origin`
+  argument built from `new URL(request.url).origin`, so a transition driven from a preview deploy
+  would mail the client a preview link; it now resolves through `absoluteUrl`, making `SITE_URL`
+  the only host source. Suite 1076 → 1093, lint and build green; all six emails rendered and
+  checked for explicit backgrounds, canonical hosts and correct CTA targets.
+- 2026-08-01 — Recovery (password-reset) flow verified end-to-end on production, closing the
+  longest-standing "not provable from the repo" item. It was never broken: both dashboard
+  templates already used the token-hash form the app expects, and the reason it read as
+  unverified is that **nobody had ever run it** — `recovery_sent_at` was null on all three
+  accounts. Evidence: `POST /api/auth/reset-password` against production stamped
+  `recovery_sent_at` 15:22:49Z; after click-through it returned to null (GoTrue clears it on
+  consumption) with `updated_at`/`last_sign_in_at` 15:26:32Z. Checked first that
+  `/auth/confirm?token_hash=…&type=recovery&next=/auth/update-password` renders the right copy
+  live and carries all three values into the form's hidden fields, that `/auth/update-password`
+  is up, and that the `www` footer host 308s to the apex. Separately, both templates had a real
+  rendering defect — light-theme text (`#18181b`) with no `background-color` under a declared
+  `color-scheme: light dark`, which suppresses client auto-inversion and hides the headline in a
+  dark-mode inbox — plus an inline `<svg>` logo Gmail strips and raw `&` in the href. Corrected
+  copy handed over and applied. Remaining: confirm the dark-mode render in a real inbox, and rule
+  on built-in SMTP vs Resend for the sender address.
+- 2026-07-31 — Audit of the remaining-work list against the tracker, the tree, and production.
+  Six issues open (#45, #50, #54, #55, #59, #60) and the human/agent split holds, but four claims
+  were more optimistic than the evidence supports; all four are corrected above. The #50 "soak" is
+  five flows to run, not days to wait — Report-Only fires only on real page loads. #54 is five
+  rulings, not two, and the stat ruling has to move `Testimonials.tsx` in lockstep with `/about`
+  or the homepage contradicts the fix. The 90-day retention purge has run daily since 2026-07-26
+  with **no client-facing disclosure anywhere**, and it rides with #55 because the `TERMS_VERSION`
+  bump can't be split off. And two human items had no home at all: the recovery email template
+  (unverifiable from the repo — the GREEN redirect script proves the allowlist, not the template)
+  and the leftover production project row. Verified live while checking: `get_advisors(security)`
+  still reports `auth_leaked_password_protection`, so #59's toggle is genuinely unflipped, and no
+  ERROR-level findings; `projects` = 1 row, paid, delivered today. Deliberately not recorded above
+  because it is still in flight: the uncommitted portal toast/upload work.
+- 2026-07-31 — #45 preview scope closed in code. `list_branches` on the Supabase project returns
+  empty and there is only the one project, so a preview deploy provably writes to the production
+  database — the last open path to this issue's failure scenario (born-paid $0 rows, burned
+  discount reservations, real "Total: $0.00" receipts, reachable by anyone on an unprotected
+  preview URL). Ruling taken: refuse the bypass on **any** Vercel deploy rather than leave it
+  contingent on three dashboard settings. `isPaymentsDevBypassEnabled` now gates on
+  presence-on-Vercel (`VERCEL`/`VERCEL_ENV`) and, separately, bare `NODE_ENV=production` for
+  non-Vercel hosting; local dev and vitest (`NODE_ENV=test`) are unaffected. Deploy smoke tests
+  use a Stripe test card, which covers more than the bypass did — it skips Stripe entirely.
+  Docs synced (README, CLAUDE.md, `.env.example`, ARCHITECTURE). The remaining ops box is
+  hygiene, not exposure, and now covers the Preview scope as well as Production. Verified by
+  simulating each env: local/vitest armed; preview, production, bare-prod, and a bare `VERCEL=1`
+  (the All-Environments bulk import that opened this issue) all refused. Suite 1067 green
+  excluding the in-flight portal tests, 1076 with them; lint and build green. Uncommitted.
 - 2026-07-31 — Wrap: #44 and #51 closed; #54/#55 decision packs posted (every remaining ruling
   reduced to a pick-a-letter answer); #60 filed for the nonce/`unsafe-inline` half of #50 that
   was deferred and never tracked; dev-bypass regression guards added (one env reader, and
@@ -236,4 +401,4 @@ Everything below needs a human — none of it is visible from or fixable in the 
 - 2026-07-30 — #56: `safeNextPath` sanitizer wired into the callback, the signup email link, and the login page's `router.push` (the actually-exploitable consumer); callback host now comes from an allowlist (`resolveRedirectOrigin`) instead of a raw `x-forwarded-host`. Suite 887 green.
 - 2026-07-30 — #48/#49 handler unit: paid-row delete gated in the handler **and** at the DB floor (`enforce_unpaid_client_deletes` fence), storage sweep moved after the row delete (paths collected before it, since children cascade); status notifications made best-effort like the receipt sender. Probes: client delete of a paid row denied 42501, unpaid client delete and studio paid delete still work. Suite 874 green.
 - 2026-07-30 — #44/#46/#47 coordinated RLS unit: `is_studio()` helper + privileged-column fence & grant narrowing on `profiles`, membership predicate on the comment INSERT floor, profiles SELECT restricted to self/studio (anon reads 0). Probes: escalation and injection both denied 42501, anon 0 rows, allowed paths (self read/rename, studio-row read, studio sees all) intact; advisors show no new errors. #46/#47 closed; #44 open on ops.
-- 2026-07-30 — #45 tech half: `isPaymentsDevBypassEnabled` seam forces the bypass off in production (Vercel preview stays usable); `.env.example` default commented out; suite 868 green. Open on ops (Vercel prod env check).
+- 2026-07-30 — #45 tech half: `isPaymentsDevBypassEnabled` seam forces the bypass off in production (Vercel preview left usable — revisited and closed 2026-07-31, see above); `.env.example` default commented out; suite 868 green. Open on ops (Vercel prod env check).
