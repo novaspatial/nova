@@ -17,7 +17,7 @@ import { getAuthProfile } from '@/lib/auth/server'
 export const metadata: Metadata = {
   title: 'Blog',
   description:
-    'Stay up-to-date with the latest industry news as our marketing teams finds new ways to re-purpose old CSS tricks articles.',
+    'Notes on Dolby Atmos and spatial audio from working mix engineers — technique, loudness, stem prep, and delivery for streaming platforms.',
   alternates: { canonical: '/blog' },
 }
 
@@ -101,8 +101,9 @@ export default async function Blog() {
       <div className="relative">
         <PageIntro eyebrow="Blog" title="The latest articles and news">
           <p>
-            Stay up-to-date with the latest industry news as our marketing teams
-            finds new ways to re-purpose old CSS tricks articles.
+            Notes on Dolby Atmos and spatial audio from working mix engineers —
+            technique, loudness, stem prep, and delivery for streaming
+            platforms.
           </p>
         </PageIntro>
 
