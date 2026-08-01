@@ -72,7 +72,7 @@ describe('UploadManager — studio handoff feedback', () => {
     const toast = await screen.findByRole('status')
     expect(toast).toHaveTextContent('Mixes sent to the client')
     expect(toast).toHaveTextContent('2 mix files are now on the client')
-    expect(toast).toHaveTextContent('we emailed them a link')
+    expect(toast).toHaveTextContent('a notification email should be on its way')
   })
 
   test('a failed send surfaces the error and toasts nothing', async () => {
@@ -98,7 +98,7 @@ describe('UploadManager — studio handoff feedback', () => {
 
     expect(screen.getByText('Sent to the client')).toBeInTheDocument()
     expect(
-      screen.getByText(/emailed and can play these mixes/),
+      screen.getByText(/can play these mixes on their Listen tab/),
     ).toBeInTheDocument()
   })
 

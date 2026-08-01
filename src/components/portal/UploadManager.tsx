@@ -370,8 +370,8 @@ export function UploadManager({
                   </p>
                   <p className="mt-1 text-sm text-emerald-300/60">
                     {canonicalStatus(currentStatus) === 'review'
-                      ? 'The client has been emailed and can play these mixes on their Listen tab. Anything you upload here now appears for them right away.'
-                      : 'The client has these mixes and asked for revisions. Upload a new mix, then send it for review again to email them.'}
+                      ? 'The client can play these mixes on their Listen tab. Anything you upload here now appears for them right away.'
+                      : 'The client has these mixes and asked for revisions. Upload a new mix, then send it for review again so they can take a listen.'}
                   </p>
                 </div>
               </div>
@@ -469,7 +469,7 @@ export function UploadManager({
           void handleSetStatus('mixing', setStudioActionError, {
             tone: 'violet',
             title: 'Project approved',
-            body: 'The client has been emailed that mixing has started.',
+            body: 'Mixing has started — the client can see the new status, and a notification email should be on its way.',
           })
         }
       />
@@ -496,7 +496,7 @@ export function UploadManager({
           void handleSetStatus('review', setStudioActionError, {
             tone: 'success',
             title: 'Mixes sent to the client',
-            body: `${mixFiles.length} mix ${mixFiles.length === 1 ? 'file is' : 'files are'} now on the client’s Listen tab, and we emailed them a link.`,
+            body: `${mixFiles.length} mix ${mixFiles.length === 1 ? 'file is' : 'files are'} now on the client’s Listen tab, and a notification email should be on its way.`,
           })
         }
       />
