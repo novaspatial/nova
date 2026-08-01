@@ -120,7 +120,7 @@ export default function About() {
           With decades of industry experience, our engineers have been at the helm of records that have amassed billions of streams globally. We have spent our careers perfecting the art of sonic translation, ensuring that the raw energy and emotional impact of a record is never lost—whether it is a pristine stereo master or a fully immersive Dolby Atmos experience.
           </p>
           <p>
-          Beyond the technical precision of our proprietary Spatial Tone Lock process, our true strength lies in our relentless dedication to client satisfaction. We treat every single project with the utmost care, prioritizing seamless communication, remote accessibility, and meticulous attention to detail to ensure your sonic vision is perfectly realized.
+          Beyond the technical precision of our in-house Spatial Tone Lock process, our true strength lies in our relentless dedication to client satisfaction. We treat every single project with the utmost care, prioritizing seamless communication, remote accessibility, and meticulous attention to detail to ensure your sonic vision is perfectly realized.
           </p>
         </div>
       </PageIntro>

@@ -285,8 +285,8 @@ function SpatialToneLockBlock() {
           <strong className="font-semibold text-white">
             Our solution: Spatial Tone Lock.
           </strong>{' '}
-          NOVA&apos;s proprietary workflow combines highly trained engineers
-          with exclusive plugins and reference tools, engineered to guarantee
+          NOVA&apos;s in-house workflow combines highly trained engineers
+          with specialized plugins and reference tools, engineered to guarantee
           your spatial mix hits just as hard as the original.
         </p>
       </div>

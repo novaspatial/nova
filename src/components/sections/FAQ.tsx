@@ -47,17 +47,17 @@ const faqs = [
     question:
       'Will my Atmos mix sound quieter or weaker than my stereo master?',
     answer:
-      'This is the most common issue with amateur Atmos mixing, but not with NovaSpatial. Dolby Atmos has strict loudness limits (-18 LUFS), which is quieter on paper than modern stereo masters. However, our proprietary Spatial Tone Lock workflow utilizes advanced spatial limiting and dynamic matching to ensure your mix retains its perceived impact, weight, and aggressive energy when users toggle between stereo and spatial on their devices.',
+      'This is the most common issue with amateur Atmos mixing, but not with NovaSpatial. Dolby Atmos has strict loudness limits (-18 LUFS), which is quieter on paper than modern stereo masters. However, our in-house Spatial Tone Lock workflow utilizes advanced spatial limiting and dynamic matching to ensure your mix retains its perceived impact, weight, and aggressive energy when users toggle between stereo and spatial on their devices.',
   },
   {
     question: 'What exactly is Spatial Tone Lock?',
     answer:
-      'Spatial Tone Lock is our proprietary immersive mixing workflow. We use a combination of exclusive custom techniques for multi-channel clipping, musical compression, and spatial limiting, advanced audio reference tools, and expert engineering to ensure your Atmos mix retains the exact punch, glue, clipping, and emotional impact of your original stereo master.',
+      'Spatial Tone Lock is our in-house immersive mixing workflow. We use a combination of custom techniques for multi-channel clipping, musical compression, and spatial limiting, advanced audio reference tools, and expert engineering to ensure your Atmos mix retains the exact punch, glue, clipping, and emotional impact of your original stereo master.',
   },
   {
     question: 'Why do I need Spatial Tone Lock for my Atmos mix?',
     answer:
-      "Because of the expanded dynamic range and strict loudness standards of Dolby Atmos, many standard immersive mixes end up sounding flat or lacking energy compared to the original stereo version. Spatial Tone Lock solves this by utilizing exclusive multi-channel compression and spatial limiting techniques to preserve your track's driving power and headroom.",
+      "Because of the expanded dynamic range and strict loudness standards of Dolby Atmos, many standard immersive mixes end up sounding flat or lacking energy compared to the original stereo version. Spatial Tone Lock solves this by utilizing custom multi-channel compression and spatial limiting techniques to preserve your track's driving power and headroom.",
   },
   {
     question: 'Will my song sound different in spatial audio? ',
