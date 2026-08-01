@@ -67,7 +67,7 @@ async function ArticlesList() {
                     <Button
                       href={href}
                       aria-label={`Read more: ${post.title}`}
-                      className="mt-8 bg-none! bg-zinc-800/90! text-zinc-200! shadow-none! ring-1 ring-white/10 hover:bg-zinc-700/90! hover:text-white! hover:shadow-none! hover:scale-100! hover:ring-white/25"
+                      className="mt-8 bg-zinc-800/90! bg-none! text-zinc-200! shadow-none! ring-1 ring-white/10 hover:scale-100! hover:bg-zinc-700/90! hover:text-white! hover:shadow-none! hover:ring-white/25"
                     >
                       Read more
                     </Button>
@@ -126,8 +126,12 @@ export default async function Blog() {
         )}
       </div>
 
-      <Container className="mt-24 sm:mt-32 lg:mt-40">
-        <Suspense fallback={<div className="text-white text-center">Loading articles...</div>}>
+      <Container className="mt-24 mb-24 sm:mt-32 sm:mb-32 lg:mt-40 lg:mb-40">
+        <Suspense
+          fallback={
+            <div className="text-center text-white">Loading articles...</div>
+          }
+        >
           <ArticlesList />
         </Suspense>
       </Container>
