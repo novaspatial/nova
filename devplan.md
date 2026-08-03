@@ -1,12 +1,13 @@
 # NovaSpatial — Launch-Readiness Remediation Plan
 
-**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (**#63 Stripe webhook — new hard blocker**, #55 legal + retention disclosure, #50 CSP flip after the five soak flows, #54's three remaining copy rulings — the `/blog` filler and Tone Lock wording shipped 2026-08-01 — two #59 toggles) · **Tracker:** GitHub issues #44–#63 · **Refreshed:** 2026-08-01
+**Created:** 2026-07-30 · **Status:** all agent-side code shipped — GO pending human ops (#55 legal + retention disclosure — **again the one hard blocker**, #50 CSP flip after the five soak flows, #54's three remaining copy rulings — the `/blog` filler and Tone Lock wording shipped 2026-08-01 — two #59 toggles; **#63 Stripe webhook closed 2026-08-03**) · **Tracker:** GitHub issues #44–#64 · **Refreshed:** 2026-08-03
 
 Derived from the launch-readiness audit (portal + marketing site, first real paying clients).
 Original verdict: do not launch until the two blockers close. Both original blockers (#44, #45)
 are now closed; every technical fix is on `main` and applied to the live database. A third
-blocker has since replaced them — **#63, the Stripe webhook that was never registered** — and it
-is ops-only, with no code to write. What remains beyond it is human-owned (see the ops checklist)
+blocker briefly replaced them — **#63, the Stripe webhook that was never registered** — and
+closed 2026-08-03: endpoint registered, secret deployed, and the match proven with a zero-money
+signed delivery. What remains is human-owned (see the ops checklist)
 plus the decision packs posted to #54 and #55, which turn each remaining ruling into a one-line
 answer. Migrations follow the repo's fence pattern; each RLS change updates the policy,
 `src/types/portal.ts`, and tests together, is applied via the Supabase CLI/MCP (not CI), and is
@@ -44,7 +45,7 @@ was defeatable by a comma in a validated email address, production was shipping 
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------- |
 | #44 Privilege escalation via `profiles.role` | `BEFORE UPDATE` trigger fence on `profiles` (role + `first_mix_discount` immutable for non-studio/non-service) **and** grant narrowing on `public.profiles` (the proposed column `REVOKE` was a no-op)        | Migration  | ✅ closed 2026-07-31   |
 | #45 `PAYMENTS_DEV_BYPASS` unguarded          | Refuse the bypass on **any Vercel deploy** (preview shares the prod DB) and under bare `NODE_ENV=production`; comment out the `=true` default in `.env.example`; **verify the Vercel env**                    | Code + ops | ✅ closed 2026-08-01   |
-| #63 Stripe webhook never deployed            | Register the live endpoint at `/api/stripe/webhook` (`payment_intent.succeeded`) and set `STRIPE_WEBHOOK_SECRET` in the Production scope, then redeploy. Until then the only claim path is a 30s in-page poll | Ops        | 🔴 open — hard blocker |
+| #63 Stripe webhook never deployed            | Register the live endpoint at `/api/stripe/webhook` (`payment_intent.succeeded`) and set `STRIPE_WEBHOOK_SECRET` in the Production scope, then redeploy. Until then the only claim path is a 30s in-page poll | Ops        | ✅ closed 2026-08-03   |
 
 **Shipped (54161d7, 91adecb):**
 
@@ -195,7 +196,7 @@ would mean a redeploy to recover, and the report data it adds is what makes the 
 
 Everything below needs a human — none of it is visible from or fixable in the repo.
 
-- [ ] **Register the Stripe webhook (#63) — hard blocker for taking payments.** In the live
+- [x] **Register the Stripe webhook (#63) — done, closed 2026-08-03.** In the live
       Stripe Dashboard create an endpoint at `https://nova-spatial.com/api/stripe/webhook`
       subscribed to `payment_intent.succeeded`, then set its `whsec_…` signing secret as
       `STRIPE_WEBHOOK_SECRET` in the **Production** scope only (one Stripe account and one
@@ -205,6 +206,15 @@ Everything below needs a human — none of it is visible from or fixable in the 
       Until this lands, the only path that claims a payment is a 30s in-page poll
       (`NewProjectForm.tsx:112`), so a client who closes the tab — or a 3DS intent that settles
       past 30s — is charged with no project, no receipt and a coupon reservation left held.
+      **Executed 2026-08-03:** endpoint `we_1U0ENlEHmSecVNzjBbEBAtKu` enabled with the three
+      intent events; curl probe flipped 500 → 400 after the env + redeploy; secret match proven
+      without money — a cardless $1 PI was created and canceled to make Stripe send a genuinely
+      signed `payment_intent.canceled`, and the event read back `pending_webhooks: 0` (2xx ack,
+      which the handler only gives after `constructEvent` verifies against the deployed secret).
+      Real-money E2E + dashboard resend waived by owner ruling; the first organic payment is the
+      final confirm (`[stripe webhook] payment claimed` must appear in the Vercel logs — a real
+      payment without that line reopens #63). Endpoint api_version `2026-03-25.dahlia` vs SDK pin
+      `2026-05-27.dahlia` is harmless (handler reads only `intent.id`/`intent.metadata`).
 - [x] Vercel env: `PAYMENTS_DEV_BYPASS` unset/false in **both** the Production and Preview
       scopes, and in any shared env group they inherit (#45) — verified 2026-08-01: the flag is
       absent from all 10 variables and from the `Shared` tab, so there was nothing to unset. The
@@ -298,8 +308,9 @@ actually finish it, because "ready-for-human" has twice hidden work an agent cou
 
 **Human-owned — genuinely cannot be done from the repo:**
 
-- [ ] **Register the Stripe webhook and set `STRIPE_WEBHOOK_SECRET` (#63)** — the second hard
-      blocker for taking payments, alongside #55. See the ops checklist for the exact steps.
+- [x] **Register the Stripe webhook and set `STRIPE_WEBHOOK_SECRET` (#63)** — done and verified
+      2026-08-03 (zero-money signed-delivery proof; see the ops checklist). #55 is again the
+      sole hard blocker for taking payments.
 - [ ] Run the five CSP soak flows, then flip `CSP_MODE=enforce` (#50).
 - [ ] Privacy policy + expanded Terms, carrying the 90-day retention disclosure (#55) — still the
       one hard launch blocker for taking payments.
@@ -325,6 +336,23 @@ b7c2093 (see above).
 
 ## Log
 
+- 2026-08-03 — **#63 closed: the webhook is live and the secret proven matching.** The endpoint
+  (`we_1U0ENlEHmSecVNzjBbEBAtKu`, apex URL, the three intent events) was created per the runbook,
+  the owner set `STRIPE_WEBHOOK_SECRET` (Production) and redeployed. Verified from the repo side
+  without money or dashboard access: the bogus-signature probe flipped 500 "Webhook not
+  configured" → 400 "Invalid signature"; live `/blog` carries post-0f16eec copy, so the
+  groundwork build is what runs; and a cardless $1 PaymentIntent (`pi_3U0NfbEHmSecVNzj16OpfbY1`,
+  never confirmed, `amount_received: 0`) was canceled to make Stripe deliver a genuinely signed
+  `payment_intent.canceled` — `evt_3U0NfbEHmSecVNzj1LPYUPMx` read back **`pending_webhooks: 0`**,
+  which with a single subscribed endpoint means a 2xx ack, which the handler only returns after
+  `constructEvent` verifies against the deployed secret. Real-money E2E and dashboard resend
+  waived by owner ruling (no dashboard access, no real-money test); the DB claim path is
+  suite-covered; reopen trigger = a real payment with no `[stripe webhook] payment claimed` log
+  line. Residuals: endpoint api_version `2026-03-25.dahlia` vs SDK pin `2026-05-27.dahlia` —
+  harmless, handler reads only `intent.id`/`intent.metadata`, immutable post-creation;
+  reconciliation stays #64. Probe left nothing behind: 0 projects / 0 file rows after, the
+  canceled PI is the sole Stripe artifact. Evidence pack drafted for #63 (posting hit a local
+  permission block; command handed to the owner).
 - 2026-08-01 — Three of the waiting rulings answered and executed in one pass. **#54 (1):** B2 on
   `/blog` — meta **and** the visible `PageIntro` — and A2 on `/about` (db2fc36). **#54 (4):**
   Spatial Tone Lock ruled an in-house process, not a filed mark; "proprietary"/"exclusive"
