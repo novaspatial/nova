@@ -47,7 +47,7 @@ was defeatable by a comma in a validated email address, production was shipping 
 | #45 `PAYMENTS_DEV_BYPASS` unguarded          | Refuse the bypass on **any Vercel deploy** (preview shares the prod DB) and under bare `NODE_ENV=production`; comment out the `=true` default in `.env.example`; **verify the Vercel env**                    | Code + ops | ✅ closed 2026-08-01   |
 | #63 Stripe webhook never deployed            | Register the live endpoint at `/api/stripe/webhook` (`payment_intent.succeeded`) and set `STRIPE_WEBHOOK_SECRET` in the Production scope, then redeploy. Until then the only claim path is a 30s in-page poll | Ops        | ✅ closed 2026-08-03   |
 
-**Shipped (54161d7, 91adecb):**
+**Shipped (f6e8d00, 94ff8dc):**
 
 - `20260730_fence_profile_role.sql` — the `is_studio()` helper plus a `BEFORE UPDATE` fence on
   `role` / `first_mix_discount` / `email`. The planned column `REVOKE` turned out to be a no-op
@@ -87,8 +87,8 @@ was defeatable by a comma in a validated email address, production was shipping 
 | #48 Delete of paid/delivered projects             | Gate client DELETE to `pending_payment` (studio override); move storage sweep to **after** a successful row delete           | Code + migration | ✅ closed 2026-07-30 |
 | #49 Status-notification 500s after commit         | Wrap `projectNotifications` send in try/catch (log-and-continue)                                                             | Code             | ✅ closed 2026-07-30 |
 
-**Batching (as shipped):** #46 + #47 rode with #44 in 54161d7 (`20260730_harden_comment_inserts`,
-`20260730_restrict_profile_reads`). #48 + #49 rode in 64194e9, plus one migration the plan didn't
+**Batching (as shipped):** #46 + #47 rode with #44 in f6e8d00 (`20260730_harden_comment_inserts`,
+`20260730_restrict_profile_reads`). #48 + #49 rode in 6ce1173, plus one migration the plan didn't
 anticipate — `20260730_fence_paid_project_delete` — because the paid-delete rule belongs at the
 DB floor, not only in the handler. `src/types/portal.ts` needed no change here (no column
 exposure changed); it changed later for #58.
@@ -118,7 +118,7 @@ exposure changed); it changed later for #58.
 **SEO / content / legal:**
 
 - ✅ #53 Per-page self-referential canonicals (SEO — important for the marketing push). _(closed 2026-07-30)_
-- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned). The decision pack is **five** rulings; **two were taken and shipped 2026-08-01**: (1) meta copy — B2 on `/blog` (meta **and** the visible PageIntro), A2 on `/about` (db2fc36); (4) Spatial Tone Lock ruled an in-house process, not a filed mark — "proprietary"/"exclusive" swapped for "in-house"/"custom"/"specialized" in `HeroContent`, `FAQ`, `Services`, `about/page` (ba512d2; PromoPopup's "exclusive welcome discount" qualifies the offer, not the process, and stays). Still open: (2) the logo wall, (3) the three `/about` stats — which must move in lockstep with `Testimonials.tsx:12-13` ("20+ Years Experience" / "Award-Winning Quality" chips under "Over 20 Years of Mixing Excellence", on the **homepage**, or the site contradicts itself), and (5) whether #54 blocks launch at all — the Phase 2 exit gate below still doesn't name it.
+- 🚫 #54 Rewrite `/blog` + `/about` meta copy; legal/marketing review of the "Trusted by" logos and volume stats (**`ready-for-human`** — skipped by the loop, human-owned). The decision pack is **five** rulings; **two were taken and shipped 2026-08-01**: (1) meta copy — B2 on `/blog` (meta **and** the visible PageIntro), A2 on `/about` (87e1dc0); (4) Spatial Tone Lock ruled an in-house process, not a filed mark — "proprietary"/"exclusive" swapped for "in-house"/"custom"/"specialized" in `HeroContent`, `FAQ`, `Services`, `about/page` (fb0db90; PromoPopup's "exclusive welcome discount" qualifies the offer, not the process, and stays). Still open: (2) the logo wall, (3) the three `/about` stats — which must move in lockstep with `Testimonials.tsx:12-13` ("20+ Years Experience" / "Award-Winning Quality" chips under "Over 20 Years of Mixing Excellence", on the **homepage**, or the site contradicts itself), and (5) whether #54 blocks launch at all — the Phase 2 exit gate below still doesn't name it.
 - 🚫 #55 Add a privacy policy; expand Terms (refund/cancellation, revisions, delivery, governing law, legal entity) (**`ready-for-human`, legal ownership** — skipped by the loop; still the one hard launch blocker for taking payments). **It also carries the retention disclosure**: `RETENTION_DAYS = 90` has been purging on a daily cron since 2026-07-26, and no client-facing surface — Terms, checkout, or any privacy text — has ever said so (the old `retentionPurge.ts` citation of "T&C §6" was false and is corrected). No ruling is needed for it (D7/D7b are settled) and the copy is drafted in the #55 pack; it just cannot ship separately, because the same deploy bumps `TERMS_VERSION` and forces every returning client to re-tick consent.
 
 **Data integrity:**
@@ -292,14 +292,14 @@ actually finish it, because "ready-for-human" has twice hidden work an agent cou
 **Agent-doable — code, not rulings:**
 
 - [x] **`/blog` template filler — resolved 2026-08-01.** B2 picked from the #54 pack and shipped
-      (db2fc36) to both places it lived: the meta description and the `PageIntro` paragraph a
+      (87e1dc0) to both places it lived: the meta description and the `PageIntro` paragraph a
       visitor actually reads (which also ends the "teams finds" grammar error).
 - [x] `src/app/about/page.tsx` "collaborative approach" meta description — A2 picked and shipped
-      in the same commit (db2fc36). Meta only; `/about`'s visible copy was already real.
+      in the same commit (87e1dc0). Meta only; `/about`'s visible copy was already real.
 - [x] The studio toasts assert an email that may not have been sent: _"The client has been
       emailed…"_ at `src/components/portal/UploadManager.tsx:373` and `:472`, while status
       notifications are deliberately best-effort (#49, log-and-continue). The portal work
-      shipped as 8db57ee **without** this fix, so it landed separately (b7c2093): the standing
+      shipped as ee32db9 **without** this fix, so it landed separately (3e899dc): the standing
       review banner now states only what status derives, and the two transition toasts hedge
       with "a notification email should be on its way".
 - [x] #45 — resolution and rationale posted 2026-08-01, ops box verified the same day, issue
@@ -328,9 +328,9 @@ actually finish it, because "ready-for-human" has twice hidden work an agent cou
       looks right — local sends are impossible while the `.env.local` demo kill switches are on
       (#61).
 
-**Formerly in flight, now shipped:** the portal toast / upload-manager work landed as 8db57ee —
+**Formerly in flight, now shipped:** the portal toast / upload-manager work landed as ee32db9 —
 but without the toast-wording item it was supposed to carry, which followed separately as
-b7c2093 (see above).
+3e899dc (see above).
 
 ---
 
@@ -340,7 +340,7 @@ b7c2093 (see above).
   (`we_1U0ENlEHmSecVNzjBbEBAtKu`, apex URL, the three intent events) was created per the runbook,
   the owner set `STRIPE_WEBHOOK_SECRET` (Production) and redeployed. Verified from the repo side
   without money or dashboard access: the bogus-signature probe flipped 500 "Webhook not
-  configured" → 400 "Invalid signature"; live `/blog` carries post-0f16eec copy, so the
+  configured" → 400 "Invalid signature"; live `/blog` carries post-085473c copy, so the
   groundwork build is what runs; and a cardless $1 PaymentIntent (`pi_3U0NfbEHmSecVNzj16OpfbY1`,
   never confirmed, `amount_received: 0`) was canceled to make Stripe deliver a genuinely signed
   `payment_intent.canceled` — `evt_3U0NfbEHmSecVNzj1LPYUPMx` read back **`pending_webhooks: 0`**,
@@ -354,18 +354,18 @@ b7c2093 (see above).
   canceled PI is the sole Stripe artifact. Evidence pack drafted for #63 (posting hit a local
   permission block; command handed to the owner).
 - 2026-08-01 — Three of the waiting rulings answered and executed in one pass. **#54 (1):** B2 on
-  `/blog` — meta **and** the visible `PageIntro` — and A2 on `/about` (db2fc36). **#54 (4):**
+  `/blog` — meta **and** the visible `PageIntro` — and A2 on `/about` (87e1dc0). **#54 (4):**
   Spatial Tone Lock ruled an in-house process, not a filed mark; "proprietary"/"exclusive"
   swapped for "in-house"/"custom"/"specialized" across `HeroContent`, `FAQ`, `Services` and
-  `/about` (ba512d2) — PromoPopup's "exclusive welcome discount" stays, it qualifies the offer,
+  `/about` (fb0db90) — PromoPopup's "exclusive welcome discount" stays, it qualifies the offer,
   not the process. **#62:** ruled "delete" — the "Test" project ($1.13, delivered 2026-07-31)
   removed via service role in the #48 order (row first, 9 comments + 6 file rows + 2 attachment
   rows cascading; then the 8 storage objects, ~468 MB), verified to zero rows and zero objects.
   Production now holds only the two studio profiles; the sole test artifact left is the inactive
   single-use TEST12 coupon row. A pre-existing uncommitted blog style tweak (class order + list
-  bottom margin) was committed separately (393fe1d) to keep the copy commit clean. Suite 1094
+  bottom margin) was committed separately (bd4a451) to keep the copy commit clean. Suite 1094
   green, lint clean. Still open on #54: the logo wall, the stats, and the blocks-launch ruling.
-- 2026-08-01 — #63 groundwork shipped and the runbook handed over. 0f16eec pins the
+- 2026-08-01 — #63 groundwork shipped and the runbook handed over. 085473c pins the
   unset-secret 500 branch (previously zero coverage — the exact state production is in), adds a
   `[stripe webhook] payment claimed` info log before the consume so healthy deliveries stop
   being invisible, and documents registration end-to-end (`.env.example` rationale block,
@@ -374,7 +374,7 @@ b7c2093 (see above).
   "Webhook not configured" — after the redeploy the same probe must flip to 400 "Invalid
   signature". Full runbook + verification ladder posted to #63; endpoint creation is delegated
   (Jamie creates it and hands over the `whsec_…`), then the secret goes in Production-only and
-  the latest deployment is redeployed. Riding along: the toast-wording fix (b7c2093, above) and
+  the latest deployment is redeployed. Riding along: the toast-wording fix (3e899dc, above) and
   **#64 filed** — the reconciliation-cron open question moved out of #63's tail (Low,
   needs-triage; the sweep would claim paid rows only, leaving the unpaid-holds residual alone).
 - 2026-08-01 — #45 closed, and the audit that closed it found a worse one. The last ops box came
@@ -382,7 +382,7 @@ b7c2093 (see above).
   nothing in the `Shared` tab, so there was never anything to unset. The scopes are worth keeping
   — `SUPABASE_SERVICE_ROLE_KEY` covers Production **and Preview**, `STRIPE_SECRET_KEY` and
   `RESEND_API_KEY` cover All Environments — which turns "preview carries live credentials" from
-  an inference into a recorded fact and retroactively justifies `51a44f2`.
+  an inference into a recorded fact and retroactively justifies `cbdea22`.
 - 2026-08-01 — **#63 filed: the Stripe webhook has never existed.** `STRIPE_WEBHOOK_SECRET` is
   absent from every Vercel scope, and the live Stripe account returns 0 from both
   `/v1/webhook_endpoints` and `/v2/core/event_destinations` (checked separately — a Workbench
@@ -400,7 +400,7 @@ b7c2093 (see above).
   in `src/` and absent from `.env.example`.
 - 2026-08-01 — Tracker synced to this plan. Four of the six open issues needed nothing (#50, #55,
   #59, #60 already carry their 07-31 state verbatim). #45 got the resolution it was owed: its last
-  comment still asked for a three-part Preview ruling that `51a44f2` had already taken in code, so
+  comment still asked for a three-part Preview ruling that `cbdea22` had already taken in code, so
   the checklist now collapses to one hygiene command and the issue is explicitly no longer a live
   hole. #54 got the correction that its filler is **rendered on `/blog`**, not just in `<head>` —
   which moves the meta-copy item from a search-snippet nicety to the one part of #54 with a
