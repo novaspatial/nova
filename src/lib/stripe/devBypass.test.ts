@@ -83,7 +83,7 @@ describe('isPaymentsDevBypassEnabled', () => {
 
 // The guard is only as good as its single reader (#45): a future refactor
 // reading process.env.PAYMENTS_DEV_BYPASS somewhere else would bypass it
-// silently, and a .env.example that ships the flag armed is how a bulk
+// silently, and an env template that ships the flag armed is how a bulk
 // env import arms production in the first place. Neither is expressible
 // as a unit test of the helper, so they are asserted against the tree.
 describe('the dev-bypass env surface', () => {
@@ -103,11 +103,26 @@ describe('the dev-bypass env surface', () => {
     expect(hits).toEqual(['src/lib/stripe/devBypass.ts'])
   })
 
-  test('.env.example never ships the flag armed', () => {
-    const example = readFileSync(path.join(repoRoot, '.env.example'), 'utf8')
-    const armed = example
+  // .env.example was deleted deliberately — CLAUDE.md §Environment is the
+  // canonical list now — so this asserts the shape rather than that one file:
+  // no *committed* env file may carry the flag, whatever it is named. Only
+  // tracked files count, since a bulk import ships what is in the repo, and
+  // reading an untracked .env.local would mean reading real credentials.
+  // Vacuous while nothing matches; that is the guard, not a gap.
+  test('no committed env file ships the flag armed', () => {
+    const envFiles = execSync('git ls-files', {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    })
       .split('\n')
-      .filter((line) => /^\s*PAYMENTS_DEV_BYPASS\s*=/.test(line))
+      .filter((file) => /(^|\/)\.env(\.|$)/.test(file))
+
+    const armed = envFiles.flatMap((file) =>
+      readFileSync(path.join(repoRoot, file), 'utf8')
+        .split('\n')
+        .filter((line) => /^\s*PAYMENTS_DEV_BYPASS\s*=/.test(line))
+        .map((line) => `${file}: ${line.trim()}`),
+    )
 
     expect(armed).toEqual([])
   })
